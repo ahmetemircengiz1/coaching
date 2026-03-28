@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(npx turbo run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(cmd /c \"taskkill /f /im node.exe 2>nul & rmdir /s /q \"\"C:\\\\Users\\\\Ahmet Emir Cengiz\\\\Desktop\\\\COACHİNG\\\\apps\\\\web\\\\.next\"\" 2>nul & echo Cache temizlendi\")",
+      "Bash(npx prisma db push:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma db seed:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npx next build:*)",
+      "Bash(tail:*)",
+      "Bash(head:*)",
+      "Bash(cd \"/c/Users/Ahmet Emir Cengiz/Desktop/COACHİNG/apps/web\" && npx next dev -p 3002 2>&1)",
+      "Bash(npm install:*)",
+      "Bash(npx kill-port:*)",
+      "WebSearch",
+      "Bash(npx tsc:*)",
+      "Bash(find 'C:\\\\Users\\\\Ahmet Emir Cengiz\\\\Desktop\\\\COACHİNG\\\\apps\\\\web\\\\app\\\\site' -path *settings* -name *.tsx)"
+    ]
+  }
+}

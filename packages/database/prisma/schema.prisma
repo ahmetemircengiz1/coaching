@@ -1,0 +1,481 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================
+// SaaS PLATFORM - Paketler
+// ============================================
+
+model SaasPackage {
+  id          String   @id @default(cuid())
+  name        String   // "Başlangıç", "Profesyonel", "Premium"
+  tier        Int      @unique // 1, 2, 3
+  price       Decimal  @db.Decimal(10, 2)
+  currency    String   @default("TRY")
+  maxStudents Int      // 5, 10, 999
+  features    Json     // Paket özellikleri listesi
+  templates   Json     // Kullanılabilir template ID'leri
+  isActive    Boolean  @default(true)
+
+  coaches     Coach[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// TENANT (COACH) - Ana tenant entity
+// ============================================
+
+model Coach {
+  id              String   @id @default(cuid())
+  userId          String   @unique // Supabase Auth user ID
+  email           String   @unique
+  name            String
+  brandName       String
+  bio             String?
+  logo            String?  // Supabase Storage URL
+  heroImageOriginalUrl String? @map("hero_image_original_url")
+  heroImageDesktopUrl String?  @map("hero_image_desktop_url")
+  heroImageMobileUrl  String?  @map("hero_image_mobile_url")
+  heroImageBlurDataUrl String? @db.Text @map("hero_image_blur_data_url")
+  heroImageCutoutUrl  String?  @map("hero_image_cutout_url")
+  heroFocalY      Int      @default(35) @map("hero_focal_y")
+  heroFocalX      Int      @default(50) @map("hero_focal_x")
+  heroMode        String   @default("photo") @map("hero_mode")
+  subdomain       String   @unique
+  customDomain    String?  @unique
+
+  // Branding
+  primaryColor    String   @default("#000000")
+  secondaryColor  String   @default("#ccff00")
+  landingThemeId  Int      @default(1)
+  dashboardThemeId Int     @default(1)
+  plan            String   @default("starter")
+  templateId      String   @default("classic-dark")
+  dashboardTemplateId String @default("dark-teal")
+  sidebarPosition String   @default("left")
+
+  // Kademe 2: Gelişmiş Kişiselleştirme
+  landingConfig   Json?    // Bölüm sırası, görünürlük, varyantlar
+  socialLinks     Json?    // { instagram, youtube, tiktok, twitter, facebook, linkedin }
+  headingFont     String?  // Google Font ID
+  bodyFont        String?  // Google Font ID
+
+  // Abonelik
+  packageId       String
+  package         SaasPackage @relation(fields: [packageId], references: [id])
+  subscriptionStatus String @default("active")
+  subscriptionId  String?  // iyzico/stripe subscription ID
+
+  // Coach'un kendi ödeme entegrasyonu
+  iyzicoApiKey    String?
+  iyzicoSecretKey String?
+  stripeAccountId String?
+
+  // İlişkiler
+  students        Student[]
+  coachPackages   CoachPackage[]
+  programs        Program[]
+  exercises       Exercise[]
+  transformations Transformation[]
+  nutritionPlans  NutritionPlan[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([subdomain])
+  @@index([customDomain])
+}
+
+// ============================================
+// COACH'UN KENDİ PAKETLERİ
+// ============================================
+
+model CoachPackage {
+  id          String   @id @default(cuid())
+  coachId     String
+  coach       Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  name        String
+  description String   @db.Text
+  duration    Int      // Hafta sayısı
+  price       Decimal  @db.Decimal(10, 2)
+  currency    String   @default("TRY")
+  features    Json     // Paket içerikleri
+  isActive    Boolean  @default(true)
+  orderIndex  Int      @default(0)
+
+  students    Student[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([coachId])
+}
+
+// ============================================
+// ÖĞRENCİ
+// ============================================
+
+model Student {
+  id              String   @id @default(cuid())
+  userId          String   @unique // Supabase Auth user ID
+  email           String
+  name            String
+  phone           String?
+  avatar          String?
+
+  coachId         String
+  coach           Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  coachPackageId  String?
+  coachPackage    CoachPackage? @relation(fields: [coachPackageId], references: [id])
+
+  status          String   @default("active")
+  startDate       DateTime @default(now())
+  endDate         DateTime?
+
+  // Dashboard ayarları
+  dashboardThemeId Int     @default(1)
+  sidebarPosition  String  @default("bottom")
+  coachNotes       String? @db.Text
+  notificationPrefs Json?  // { programAssigned: bool, feedbackReceived: bool, messageReceived: bool }
+
+  // İlişkiler
+  trainingPlans   TrainingPlan[]
+  nutritionPlans  NutritionPlan[]
+  checkIns        WeeklyCheckIn[]
+  metrics         Metric[]
+  messages        Message[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([coachId])
+}
+
+// ============================================
+// EGZERSİZ KÜTÜPHANESİ
+// ============================================
+
+model Exercise {
+  id          String   @id @default(cuid())
+  coachId     String?
+  coach       Coach?   @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  name        String
+  category    String
+  videoUrl    String?
+  imageUrl    String?
+  description String?  @db.Text
+  isSystem    Boolean  @default(false) // true = hazır egzersiz, false = koç ekledi
+
+  workoutExercises WorkoutExercise[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([coachId])
+  @@index([category])
+  @@index([isSystem])
+}
+
+// ============================================
+// PROGRAM ŞABLONLARI
+// ============================================
+
+model Program {
+  id          String   @id @default(cuid())
+  coachId     String
+  coach       Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  name        String
+  description String?  @db.Text
+  weeks       Int
+  isTemplate  Boolean  @default(true)
+
+  workouts    ProgramWorkout[]
+  trainingPlans TrainingPlan[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([coachId])
+}
+
+model ProgramWorkout {
+  id          String   @id @default(cuid())
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  dayOfWeek   Int      // 1-7
+  weekNumber  Int
+  name        String
+
+  exercises   WorkoutExercise[]
+
+  @@index([programId])
+}
+
+model WorkoutExercise {
+  id              String         @id @default(cuid())
+  workoutId       String
+  workout         ProgramWorkout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exerciseId      String
+  exercise        Exercise       @relation(fields: [exerciseId], references: [id])
+  sets            Int
+  reps            String         // "8-12" veya "AMRAP"
+  restSeconds     Int?
+  notes           String?
+  orderIndex      Int
+
+  @@index([workoutId])
+}
+
+// ============================================
+// ANTRENMAN PLANI VE LOG
+// ============================================
+
+model TrainingPlan {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  programId   String?
+  program     Program? @relation(fields: [programId], references: [id])
+  name        String
+  startDate   DateTime
+  endDate     DateTime?
+  status      String   @default("active")
+
+  dailyLogs   TrainingLog[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([studentId])
+}
+
+model TrainingLog {
+  id              String       @id @default(cuid())
+  trainingPlanId  String
+  trainingPlan    TrainingPlan @relation(fields: [trainingPlanId], references: [id], onDelete: Cascade)
+  date            DateTime
+  completed       Boolean      @default(false)
+  exercises       Json         // [{exerciseId, sets: [{reps, weight, completed}]}]
+  notes           String?      @db.Text
+  coachFeedback   String?      @db.Text
+
+  createdAt       DateTime     @default(now())
+
+  @@index([trainingPlanId])
+  @@index([date])
+}
+
+// ============================================
+// BESLENME PLANI
+// ============================================
+
+model NutritionPlan {
+  id              String   @id @default(cuid())
+  coachId         String?
+  coach           Coach?   @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sourceNutritionPlanId String?
+  sourceNutritionPlan   NutritionPlan?  @relation("NutritionPlanClones", fields: [sourceNutritionPlanId], references: [id], onDelete: SetNull)
+  assignedPlans         NutritionPlan[] @relation("NutritionPlanClones")
+  name            String
+  startDate       DateTime?
+  status          String   @default("active")
+  targetCalories  Int?
+  targetProtein   Int?
+  targetCarbs     Int?
+  targetFat       Int?
+  coachNotes      String?  @db.Text
+  supplements     Json?
+
+  meals           Meal[]
+  dailyLogs       NutritionLog[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([coachId])
+}
+
+model Meal {
+  id              String        @id @default(cuid())
+  nutritionPlanId String
+  nutritionPlan   NutritionPlan @relation(fields: [nutritionPlanId], references: [id], onDelete: Cascade)
+  name            String
+  time            String?
+  foods           Json          // [{name, portion, calories, protein, carbs, fat}]
+  orderIndex      Int
+
+  @@index([nutritionPlanId])
+}
+
+model NutritionLog {
+  id              String        @id @default(cuid())
+  nutritionPlanId String
+  nutritionPlan   NutritionPlan @relation(fields: [nutritionPlanId], references: [id], onDelete: Cascade)
+  date            DateTime
+  meals           Json
+  totalCalories   Int?
+  totalProtein    Int?
+  totalCarbs      Int?
+  totalFat        Int?
+  mealPhotos      String[]
+  notes           String?       @db.Text
+
+  createdAt       DateTime      @default(now())
+
+  @@index([nutritionPlanId])
+  @@index([date])
+}
+
+// ============================================
+// HAFTALIK KONTROL
+// ============================================
+
+model WeeklyCheckIn {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  weekNumber  Int
+  date        DateTime @default(now())
+
+  // Ölçümler
+  weight      Decimal? @db.Decimal(5, 2)
+  bodyFat     Decimal? @db.Decimal(4, 1)
+  chest       Decimal? @db.Decimal(5, 1)
+  waist       Decimal? @db.Decimal(5, 1)
+  hips        Decimal? @db.Decimal(5, 1)
+  arms        Decimal? @db.Decimal(5, 1)
+  thighs      Decimal? @db.Decimal(5, 1)
+
+  // Fotoğraflar
+  frontPhoto  String?
+  sidePhoto   String?
+  backPhoto   String?
+  photos      String[]
+
+  // Genel durum
+  energyLevel     Int?
+  sleepQuality    Int?
+  stressLevel     Int?
+  compliance      Int?
+  notes           String?  @db.Text
+  coachFeedback   String?  @db.Text
+
+  createdAt   DateTime @default(now())
+
+  @@index([studentId])
+  @@index([date])
+}
+
+// ============================================
+// METRİKLER
+// ============================================
+
+model Metric {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type        String   // weight, bodyFat, benchPress1RM, squat1RM, custom
+  name        String
+  value       Decimal  @db.Decimal(10, 2)
+  unit        String   // kg, %, cm
+  date        DateTime @default(now())
+
+  createdAt   DateTime @default(now())
+
+  @@index([studentId])
+  @@index([type])
+  @@index([date])
+}
+
+// ============================================
+// MESAJLAŞMA
+// ============================================
+
+model Message {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  senderId    String   // Coach veya Student userId
+  senderRole  String   // "coach" | "student"
+  content     String   @db.Text
+  attachments String[]
+  isRead      Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+
+  @@index([studentId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// ============================================
+// DÖNÜŞÜM HİKAYELERİ
+// ============================================
+
+model Transformation {
+  id          String   @id @default(cuid())
+  coachId     String
+  coach       Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  clientName  String
+  description String?  @db.Text
+  beforePhoto String
+  afterPhoto  String
+  duration    String?  // "12 hafta", "6 ay"
+  isPublished Boolean  @default(true)
+  orderIndex  Int      @default(0)
+
+  createdAt   DateTime @default(now())
+
+  @@index([coachId])
+}
+
+// ============================================
+// BİLDİRİMLER
+// ============================================
+
+model Notification {
+  id          String   @id @default(cuid())
+  recipientId String
+  type        String   // "check_in" | "program_assigned" | "nutrition_assigned" | "feedback"
+  title       String
+  message     String
+  link        String?
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([recipientId, isRead])
+}
+
+// ============================================
+// ÖDEMELER
+// ============================================
+
+model Payment {
+  id                String   @id @default(cuid())
+  type              String   // "saas_subscription" | "coach_payment"
+  payerId           String
+  receiverId        String
+  amount            Decimal  @db.Decimal(10, 2)
+  currency          String
+  status            String   @default("pending")
+  provider          String   // "iyzico" | "stripe"
+  providerPaymentId String?
+  metadata          Json?
+
+  createdAt         DateTime @default(now())
+
+  @@index([payerId])
+  @@index([receiverId])
+  @@index([status])
+}
