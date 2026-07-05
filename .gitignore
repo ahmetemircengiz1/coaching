@@ -23,6 +23,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# FUSE/overlay orphan files (bazı senkron/mount sistemleri üretir)
+.fuse_hidden*
+
 # Local env files
 .env
 .env.local

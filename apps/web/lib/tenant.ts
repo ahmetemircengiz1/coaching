@@ -33,7 +33,7 @@ export async function getTenantByHostname(
     return null; // Ana platform, tenant değil
   }
 
-  // Subdomain kontrolü (ör: coach.coachsite.com)
+  // Subdomain kontrolü (ör: coach.shred.com.tr)
   let coach = null;
 
   if (cleanHostname.endsWith(`.${appDomain}`)) {

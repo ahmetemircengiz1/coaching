@@ -972,7 +972,7 @@ export default function SettingsPage() {
               <div className="flex justify-between">
                 <span style={{ color: "var(--dashboard-main-text-muted)" }}>Alt alan adi</span>
                 <span className="font-mono text-sm">
-                  {packageInfo.subdomain}.coachsite.com
+                  {packageInfo.subdomain}.{process.env.NEXT_PUBLIC_APP_DOMAIN || "shred.com.tr"}
                 </span>
               </div>
               <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: "1px solid var(--dashboard-card-border)" }}>
