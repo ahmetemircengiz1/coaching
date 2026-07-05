@@ -1,5 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getStudentTraining } from "../actions";
+import { TrainingProgramView, type ViewWeek } from "@/components/student/training-program-view";
 
 export default async function StudentTrainingPage({
   params,
@@ -35,61 +36,57 @@ export default async function StudentTrainingPage({
   }
 
   const program = trainingPlan.program;
-  const workoutsByWeek: Record<number, typeof program.workouts> = {};
-  program.workouts.forEach((w) => {
-    if (!workoutsByWeek[w.weekNumber]) workoutsByWeek[w.weekNumber] = [];
-    workoutsByWeek[w.weekNumber].push(w);
-  });
 
-  const dayNames = ["", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+  // Haftalara göre grupla → { week, workouts[] } (hafta ve gün sıralı)
+  const weekMap = new Map<number, ViewWeek>();
+  for (const w of program.workouts) {
+    let entry = weekMap.get(w.weekNumber);
+    if (!entry) {
+      entry = { week: w.weekNumber, workouts: [] };
+      weekMap.set(w.weekNumber, entry);
+    }
+    entry.workouts.push({
+      id: w.id,
+      name: w.name,
+      dayOfWeek: w.dayOfWeek,
+      exercises: w.exercises.map((we) => ({
+        id: we.id,
+        name: we.exercise.name,
+        sets: we.sets,
+        reps: we.reps,
+        restSeconds: we.restSeconds,
+        alternatives: we.alternatives.map((a) => a.alternativeExercise.name),
+      })),
+    });
+  }
+  const weeks: ViewWeek[] = [...weekMap.values()].sort((a, b) => a.week - b.week);
+  weeks.forEach((wk) => wk.workouts.sort((a, b) => a.dayOfWeek - b.dayOfWeek));
+
+  // Öğrenciye hafta seçtirmiyoruz: koç programı atarken süreyi zaten belirledi ve program
+  // tek haftalık şablonun tekrarıdır. İlk (temsili) haftayı gösteriyoruz — tüm günleri içerir —
+  // ve öğrenci sadece gün seçer. (Bileşen tek hafta olunca hafta seçicisini hiç göstermez.)
+  const displayWeeks: ViewWeek[] = weeks.length > 0 ? [weeks[0]] : [];
 
   return (
-    <div className="space-y-6 py-6">
+    <div className="space-y-5 py-6">
       <div>
         <h1 className="font-heading text-xl font-bold" style={{ color: "var(--dashboard-main-text)" }}>Antrenman Programı</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>{program.name}</p>
+        <p className="text-sm mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>
+          {program.name}
+        </p>
       </div>
 
-      {Object.entries(workoutsByWeek).map(([week, workouts]) => (
-        <div key={week}>
-          <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--dashboard-main-text-muted)" }}>
-            Hafta {week}
-          </h2>
-          <div className="space-y-3">
-            {workouts.map((workout) => (
-              <Card key={workout.id} style={cardStyle}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center justify-between">
-                    <span>{workout.name}</span>
-                    <span className="text-xs font-normal" style={{ color: "var(--dashboard-main-text-muted)" }}>
-                      {dayNames[workout.dayOfWeek]}
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {workout.exercises.map((we) => (
-                      <div
-                        key={we.id}
-                        className="flex items-center justify-between py-1 last:border-0"
-                        style={{ borderBottom: "1px solid var(--dashboard-card-border)" }}
-                      >
-                        <span className="text-sm">{we.exercise.name}</span>
-                        <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>
-                          {we.sets} x {we.reps}
-                          {we.restSeconds
-                            ? ` (${we.restSeconds}s dinlenme)`
-                            : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      ))}
+      {displayWeeks.length === 0 ? (
+        <Card style={cardStyle}>
+          <CardContent className="py-12 text-center">
+            <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>
+              Bu programda henüz antrenman günü tanımlanmamış.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <TrainingProgramView weeks={displayWeeks} />
+      )}
     </div>
   );
 }

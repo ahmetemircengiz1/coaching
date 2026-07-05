@@ -9,7 +9,7 @@ export default async function CoachDashboardPage({
   params: Promise<{ domain: string }>;
 }) {
   const { domain } = await params;
-  const { coach, stats, latestCheckIns, attentionStudents } =
+  const { coach, stats, newCheckIns, dashboardNote } =
     await getDashboardStats(domain);
 
   const selectedThemeId = coach.dashboardThemeId
@@ -20,8 +20,8 @@ export default async function CoachDashboardPage({
     domain,
     coachName: coach.name,
     stats,
-    latestCheckIns,
-    attentionStudents,
+    newCheckIns,
+    dashboardNote,
   };
 
   return <DashboardThemeRenderer themeId={selectedThemeId} content={content} />;

@@ -24,7 +24,7 @@ export default function AdminLayout({
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-gray-900 border-b border-white/10 px-4 py-3 flex items-center justify-between">
         <Link href="/platform/admin/dashboard" className="font-heading text-lg font-bold tracking-wider">
-          COACH<span className="text-[#ccff00]">OS</span>
+          SHRED<span className="text-[#ccff00]">.</span>
           <span className="text-[10px] text-white/40 ml-2">Admin</span>
         </Link>
         <button
@@ -52,7 +52,7 @@ export default function AdminLayout({
       )}>
         <div className="p-6 border-b border-white/10 hidden lg:block">
           <Link href="/platform/admin/dashboard" className="font-heading text-xl font-bold tracking-wider">
-            COACH<span className="text-[#ccff00]">OS</span>
+            SHRED<span className="text-[#ccff00]">.</span>
             <span className="text-xs text-white/40 block mt-1">Admin Panel</span>
           </Link>
         </div>

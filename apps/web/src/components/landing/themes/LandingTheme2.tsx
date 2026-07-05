@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, MessageCircle, X, ArrowRight, Activity, Users, Star, Waves, ChevronRight, CheckCircle2 } from "lucide-react";
-import { useMemo, useState, useEffect, useRef } from "react";
-import { formatCount, formatPackagePrice, withFallbackFeatures } from "../helpers";
+import { MessageCircle, ArrowRight, Activity, Users, Star, Waves, ChevronRight, CheckCircle2 } from "lucide-react";
+import { useMemo, useEffect, useRef, useId } from "react";
+import { formatCount, formatPackagePrice, withFallbackFeatures, buildPackageInquiryUrl } from "../helpers";
 import { TransformationCarousel } from "../TransformationCarousel";
 import type { LandingThemeComponentProps, LandingPackage, LandingThemeContent } from "../types";
+import { getTextEffectStyle } from "../types";
 import type { SectionRendererProps, ThemeLayout } from "../section-types";
 import { FadeInScroll } from "../FadeInScroll";
 import { FAQAccordion } from "../FAQSection";
 import { SocialIcons } from "../SocialIcons";
-import { HeroDesktopImage, HeroMobileImage, hasHeroImage } from "../HeroBackground";
+import { HeroFullscreenImage, hasHeroImage } from "../HeroBackground";
+import { UnifiedNavbar } from "../shared/UnifiedNavbar";
+import { SystemHowSection } from "../shared/SystemHowSection";
+import { resolveNavbarVariant } from "../config";
 
 /* ─── Theme 2 – "Ocean Breeze" V2 (Webflow-Style) ─── */
 
@@ -36,104 +40,104 @@ function Theme2Background() {
 
 /* ─── Navbar ─── */
 export function Theme2Navbar({ content }: { content: LandingThemeContent }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  return (
-    <>
-      {/* Desktop header */}
-      <header className="fixed top-0 w-full z-50 bg-[#03060C]/20 backdrop-blur-2xl border-b border-[#00E5FF]/5 transition-all duration-300 hidden md:block">
-        <div className="mx-auto flex h-20 max-w-[1400px] items-center justify-between px-6 lg:px-12">
-          <span className="text-xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-[#00E5FF] uppercase">
-            {content.brandName}
-          </span>
-
-          <nav className="flex items-center gap-10">
-            <a href="#felsefe" className="text-[11px] font-bold text-[#64748B] hover:text-[#00E5FF] transition-all uppercase tracking-[0.2em]">Felsefe</a>
-            <a href="#platform" className="text-[11px] font-bold text-[#64748B] hover:text-[#00E5FF] transition-all uppercase tracking-[0.2em]">Platform</a>
-            {content.transformations.length > 0 && <a href="#donusumler" className="text-[11px] font-bold text-[#64748B] hover:text-[#00E5FF] transition-all uppercase tracking-[0.2em]">Dönüşüm</a>}
-            <a href="#paketler" className="text-[11px] font-bold text-[#64748B] hover:text-[#00E5FF] transition-all uppercase tracking-[0.2em]">Paketler</a>
-          </nav>
-
-          <div className="flex items-center gap-6">
-            <Link href={content.authUrl} className="text-[11px] font-bold text-[#64748B] hover:text-white transition-colors uppercase tracking-widest">
-              Giriş Yap
-            </Link>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-none border border-[#00E5FF]/20 bg-[#00E5FF]/5 px-8 text-[11px] font-black text-[#00E5FF] transition-all hover:bg-[#00E5FF] hover:text-[#03060C] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(0,229,255,0.05)]">
-              Başla
-            </a>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile floating hamburger */}
-      <button type="button" onClick={() => setMenuOpen(true)} className="fixed top-4 right-4 z-50 inline-flex h-11 w-11 items-center justify-center border border-[#00E5FF]/20 text-[#00E5FF] bg-black/40 backdrop-blur-md md:hidden shadow-lg rounded-lg" aria-label="Menu">
-        <Menu size={20} />
-      </button>
-
-      {/* Mobile fullscreen menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 bg-[#03060C]/95 backdrop-blur-3xl flex flex-col items-center justify-center md:hidden">
-          <button type="button" onClick={() => setMenuOpen(false)} className="absolute top-4 right-4 h-11 w-11 inline-flex items-center justify-center border border-[#00E5FF]/20 text-[#00E5FF] bg-[#00E5FF]/5 rounded-lg" aria-label="Kapat">
-            <X size={20} />
-          </button>
-          <span className="text-xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-[#00E5FF] uppercase mb-10">{content.brandName}</span>
-          <div className="flex flex-col gap-6 text-sm font-black text-[#64748B] uppercase tracking-[0.2em] text-center">
-            <a href="#felsefe" onClick={() => setMenuOpen(false)}>Felsefe</a>
-            <a href="#platform" onClick={() => setMenuOpen(false)}>Platform</a>
-            {content.transformations.length > 0 && <a href="#donusumler" onClick={() => setMenuOpen(false)}>Dönüşüm</a>}
-            <a href="#paketler" onClick={() => setMenuOpen(false)}>Paketler</a>
-            <Link href={content.authUrl} onClick={() => setMenuOpen(false)}>Giriş Yap</Link>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="text-[#00E5FF]">Başla</a>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  const variant = resolveNavbarVariant(content.landingConfig?.navbarVariant, "theme-2");
+  return <UnifiedNavbar content={content} variant={variant} />;
 }
 
 /* ─── Hero Section ─── */
 export function Theme2Hero({ content, variant }: SectionRendererProps) {
+  const texts = content.landingTexts;
+  const headlineColor = texts?.heroTextColor || undefined;
+  const subtitleColor = texts?.heroSubtitleColor || undefined;
+  const effectStyle = getTextEffectStyle(texts?.heroTextEffect, headlineColor);
+  const textAlign = texts?.heroTextAlign || "center";
   const withImage = hasHeroImage(content);
 
-  return (
-    <section className="relative min-h-[100svh] w-full bg-[#03060C] overflow-hidden">
-      {/* Mobile background */}
-      <HeroMobileImage content={content} />
+  const posMode = texts?.heroTextPositionMode || "flex";
+  const posX = texts?.heroTextPosX ?? 50;
+  const posY = texts?.heroTextPosY ?? 50;
+  const scale = texts?.heroTextScale ?? 1;
+  const subtitleScale = Number(texts?.heroSubtitleScale ?? 1);
+  const headlineBg = texts?.heroHeadlineBgColor || "";
+  const subtitleBg = texts?.heroSubtitleBgColor || "";
+  const weight = texts?.heroTextWeight || undefined;
+  const containerId = useId().replace(/:/g, "");
+  const containerClass = `hero-text-${containerId}`;
 
-      <div className={`relative z-10 mx-auto max-w-7xl px-6 lg:px-8 pt-32 pb-20 md:pt-40 md:pb-24 min-h-[100svh] flex items-center ${withImage ? "md:grid md:grid-cols-2 md:gap-12" : "justify-center"}`}>
-        {/* Left: Text */}
-        <div className={`${withImage ? "" : "flex flex-col items-center text-center"}`}>
+  return (
+    <section data-landing-section="hero" className="relative min-h-[100svh] w-full bg-[#03060C] overflow-hidden">
+      <style>{`
+        .${containerClass} {
+          transform: scale(${scale});
+          transform-origin: ${textAlign === "left" ? "left center" : textAlign === "right" ? "right center" : "center center"};
+        }
+        @media (min-width: 768px) {
+          .${containerClass} {
+            ${posMode === "absolute" ? `
+              position: absolute !important;
+              left: ${posX}% !important;
+              top: ${posY}% !important;
+              transform: translate(-50%, -50%) scale(${scale}) !important;
+              margin: 0 !important;
+            ` : ""}
+          }
+        }
+      `}</style>
+      {/* Fullscreen background */}
+      <HeroFullscreenImage content={content} themeBg="#03060C" />
+
+      <div className={`relative z-10 mx-auto max-w-7xl px-6 lg:px-8 pt-32 pb-20 md:pt-40 md:pb-24 min-h-[100svh] flex items-center justify-center`}>
+        {/* Text */}
+        <div className={`max-w-3xl w-full flex flex-col ${textAlign === "left" ? "items-start text-left" : textAlign === "right" ? "items-end text-right" : "items-center text-center"} ${containerClass}`}>
           <FadeInScroll delay={100} duration={1200} direction="up">
             <div className="inline-flex shadow-[0_0_30px_rgba(0,229,255,0.1)] items-center gap-3 px-6 py-2 rounded-full border border-[#00E5FF]/20 bg-[#00E5FF]/5 backdrop-blur-xl mb-12 uppercase tracking-[0.3em] text-[10px] font-black text-[#00E5FF]">
               <Waves className="h-3 w-3" /> Yeni Nesil Antrenman
             </div>
           </FadeInScroll>
 
-          <h1 className="text-[14vw] md:text-[6vw] lg:text-[5vw] font-black leading-[0.85] tracking-tighter uppercase">
-            <span className="block text-transparent bg-clip-text bg-gradient-to-b from-white to-[#0A1220]">Derin</span>
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-[#0284C7] drop-shadow-[0_0_40px_rgba(0,229,255,0.3)]">Gelişim</span>
-          </h1>
+          {texts?.heroHeadline ? (
+            <h1 className={`text-[14vw] md:text-[6vw] lg:text-[5vw] ${weight ? '' : 'font-black'} leading-[0.85] tracking-tighter uppercase ${headlineColor || headlineBg ? '' : 'text-white'}`} style={{ color: headlineColor || undefined, fontWeight: weight, ...effectStyle }}>
+              {headlineBg ? (
+                <span style={{ backgroundColor: headlineBg, padding: "0.05em 0.25em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{texts.heroHeadline}</span>
+              ) : headlineColor ? (
+                <span>{texts.heroHeadline}</span>
+              ) : (
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-[#0284C7] drop-shadow-[0_0_40px_rgba(0,229,255,0.3)]">{texts.heroHeadline}</span>
+              )}
+            </h1>
+          ) : (
+            <h1 className={`text-[14vw] md:text-[6vw] lg:text-[5vw] ${weight ? '' : 'font-black'} leading-[0.85] tracking-tighter uppercase ${headlineColor || headlineBg ? '' : 'text-white'}`} style={{ color: headlineColor || undefined, fontWeight: weight, ...effectStyle }}>
+              {headlineBg ? (
+                <span style={{ backgroundColor: headlineBg, padding: "0.05em 0.25em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>Derin Gelişim</span>
+              ) : (
+                <>
+                  <span className="block text-transparent bg-clip-text bg-gradient-to-b from-white to-[#0A1220]">Derin</span>
+                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-[#0284C7] drop-shadow-[0_0_40px_rgba(0,229,255,0.3)]">Gelişim</span>
+                </>
+              )}
+            </h1>
+          )}
 
           <FadeInScroll delay={500} duration={1000} direction="up" distance={40}>
-            <p className="mt-12 max-w-xl text-base md:text-xl leading-relaxed text-white/60 md:text-[#64748B] font-medium">
-              {content.bio || "Sıradan programları unutun. Milimetrik analiz ve sıvı adaptasyon ile vücudunuzun potansiyelini serbest bırakın."}
+            <p className={`mt-12 max-w-xl leading-relaxed font-medium ${subtitleColor ? '' : 'text-white/60 md:text-[#64748B]'} ${subtitleScale === 1 ? 'text-base md:text-xl' : ''}`} style={{ color: subtitleColor || undefined, textShadow: subtitleBg ? undefined : "0 1px 10px rgba(0,0,0,0.5)", fontSize: subtitleScale !== 1 ? `${subtitleScale * 1.25}rem` : undefined }}>
+              {subtitleBg ? (
+                <span style={{ backgroundColor: subtitleBg, padding: "0.15em 0.4em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
+                  {texts?.heroSubtitle || content.bio || "Sıradan programları unutun. Milimetrik analiz ve sıvı adaptasyon ile vücudunuzun potansiyelini serbest bırakın."}
+                </span>
+              ) : (
+                texts?.heroSubtitle || content.bio || "Sıradan programları unutun. Milimetrik analiz ve sıvı adaptasyon ile vücudunuzun potansiyelini serbest bırakın."
+              )}
             </p>
           </FadeInScroll>
 
           <FadeInScroll delay={700} duration={1000} direction="up" distance={20}>
             <div className="mt-12 flex flex-col sm:flex-row gap-5">
               <a href="#felsefe" className="inline-flex h-14 items-center justify-center rounded-full bg-[#00E5FF] px-10 text-sm font-black text-[#03060C] shadow-[0_0_30px_rgba(0,229,255,0.3)] transition-all hover:scale-105 uppercase tracking-widest w-full sm:w-auto">
-                Keşfet
+                {texts?.ctaPrimaryText || "Keşfet"}
               </a>
             </div>
           </FadeInScroll>
         </div>
-
-        {/* Right: Hero image (desktop) */}
-        {withImage && (
-          <div className="hidden md:block relative h-[600px] lg:h-[700px]">
-            <HeroDesktopImage content={content} themeBg="#03060C" accentColor="#00E5FF" />
-          </div>
-        )}
       </div>
     </section>
   );
@@ -142,7 +146,7 @@ export function Theme2Hero({ content, variant }: SectionRendererProps) {
 /* ─── Stats Section ─── */
 export function Theme2Stats({ content, variant }: SectionRendererProps) {
   return (
-    <section id="felsefe" className="relative bg-[#03060C] z-20 py-32 md:py-48 px-6 border-t border-[#00E5FF]/5">
+    <section data-landing-section="stats" id="felsefe" className="relative bg-[#03060C] z-20 py-32 md:py-48 px-6 border-t border-[#00E5FF]/5">
       <div className="max-w-[1400px] mx-auto">
         <FadeInScroll delay={100} duration={1000} direction="up">
           <h2 className="text-[8vw] md:text-[5vw] font-black leading-none tracking-tighter text-white uppercase mb-24 opacity-20">
@@ -152,9 +156,9 @@ export function Theme2Stats({ content, variant }: SectionRendererProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
-            { label: "Aktif Öğrenci", value: `${formatCount(content.studentCount || 1000)}+`, icon: Users },
-            { label: "Başarılı Dönüşüm", value: `${content.transformationCount || 10}+`, icon: Activity },
-            { label: "Yıl Deneyim", value: "5+", icon: Star }
+            { label: content.landingTexts?.stat1Label || "Aktif Öğrenci", value: content.landingTexts?.stat1Value || `${formatCount(content.studentCount || 1000)}+`, icon: Users },
+            { label: content.landingTexts?.stat2Label || "Başarılı Dönüşüm", value: content.landingTexts?.stat2Value || `${content.transformationCount || 10}+`, icon: Activity },
+            { label: content.landingTexts?.stat3Label || "Yıl Deneyim", value: content.landingTexts?.stat3Value || "5+", icon: Star }
           ].map((stat, i) => (
             <FadeInScroll key={i} delay={i * 200} duration={1000} direction="up" distance={50}>
               <div className="group border-t border-[#00E5FF]/10 pt-8 relative overflow-hidden">
@@ -174,7 +178,7 @@ export function Theme2Stats({ content, variant }: SectionRendererProps) {
 /* ─── Platform Tour (Theme-specific, shown in monolithic mode) ─── */
 function Theme2PlatformTour({ content }: { content: LandingThemeContent }) {
   return (
-    <section id="platform" className="relative bg-[#0A1220] z-20 border-t border-[#00E5FF]/10">
+    <section data-landing-section="stats" id="platform" className="relative bg-[#0A1220] z-20 border-t border-[#00E5FF]/10">
       <div className="flex flex-col md:flex-row items-start justify-between px-6 lg:px-12 max-w-[1400px] mx-auto relative">
         <div className="w-full md:w-1/2 md:sticky top-0 h-[60vh] md:h-screen flex items-center justify-center pt-20 pb-10 z-0">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,229,255,0.05)_0%,transparent_60%)]" />
@@ -267,13 +271,12 @@ function Theme2PlatformTour({ content }: { content: LandingThemeContent }) {
 export function Theme2Transformations({ content, variant }: SectionRendererProps) {
   if (content.transformations.length === 0) return null;
   return (
-    <section id="donusumler" className="py-32 px-6 relative bg-[#03060C] z-30">
+    <section data-landing-section="transformations" id="donusumler" className="py-32 px-6 relative bg-[#03060C] z-30">
       <div className="mx-auto max-w-[1400px]">
         <FadeInScroll delay={100} duration={1200} direction="up" distance={40}>
-          <div className="mb-24 flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-[#00E5FF]/10 pb-12">
+          <div data-section-heading className="mb-24 flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-[#00E5FF]/10 pb-12">
             <h2 className="text-5xl md:text-[6vw] font-black leading-[0.9] tracking-tighter text-white uppercase">
-              Ham <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-[#0284C7]">Kanıt.</span>
+              {content.landingTexts?.transformationsTitle ? <>{content.landingTexts.transformationsTitle}</> : <>Ham <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-[#0284C7]">Kanıt.</span></>}
             </h2>
             <p className="max-w-sm text-[#64748B] font-medium leading-relaxed">
               Sistemimizin ürettiği mutlak gerçekler. İstikrarın fiziksel manifestosu.
@@ -295,14 +298,14 @@ export function Theme2Transformations({ content, variant }: SectionRendererProps
 export function Theme2Packages({ content, variant }: SectionRendererProps) {
   const packages = useMemo(() => normalizePackages(content.packages), [content.packages]);
   return (
-    <section id="paketler" className="py-32 px-6 relative bg-[#03060C] z-30">
+    <section data-landing-section="packages" id="paketler" className="py-32 px-6 relative bg-[#03060C] z-30">
       <div className="absolute inset-0 bg-[#00E5FF]/5 mix-blend-screen pointer-events-none" />
       <div className="mx-auto max-w-[1400px] relative z-10">
         <FadeInScroll delay={100} duration={1000} direction="up">
-          <div className="text-center mb-24">
+          <div data-section-heading className="text-center mb-24">
             <span className="text-[#00E5FF] text-[10px] font-black uppercase tracking-[0.3em] mb-4 block">Erişim Ağı</span>
             <h2 className="text-5xl md:text-[5vw] font-black leading-none tracking-tighter text-white uppercase">
-              Sisteme <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-[#0284C7]">Katıl.</span>
+              {content.landingTexts?.packagesTitle ? <>{content.landingTexts.packagesTitle}</> : <>Sisteme <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-[#0284C7]">Katıl.</span></>}
             </h2>
           </div>
         </FadeInScroll>
@@ -337,12 +340,21 @@ export function Theme2Packages({ content, variant }: SectionRendererProps) {
                     ))}
                   </ul>
 
-                  <Link href={`${content.authUrl}?package=${pkg.id}`} className={`group relative inline-flex h-16 w-full items-center justify-center bg-transparent border ${isPro ? "border-[#00E5FF] text-[#00E5FF]" : "border-[#00E5FF]/20 text-white"} text-[11px] font-black uppercase tracking-[0.2em] overflow-hidden transition-all duration-500 hover:border-[#00E5FF]`}>
-                    <div className={`absolute inset-0 bg-[#00E5FF] -translate-x-full transition-transform duration-500 ease-out group-hover:translate-x-0 ${isPro ? "opacity-20" : "opacity-10"}`} />
-                    <span className="relative z-10 flex items-center gap-2">
-                      Protokolü Başlat <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-2" />
-                    </span>
-                  </Link>
+                  {(() => {
+                    const cta = buildPackageInquiryUrl(content.brandName, pkg.name, content.whatsappNumber, content.email, content.authUrl);
+                    const cls = `group relative inline-flex h-16 w-full items-center justify-center bg-transparent border ${isPro ? "border-[#00E5FF] text-[#00E5FF]" : "border-[#00E5FF]/20 text-white"} text-[11px] font-black uppercase tracking-[0.2em] overflow-hidden transition-all duration-500 hover:border-[#00E5FF]`;
+                    const inner = (
+                      <>
+                        <div className={`absolute inset-0 bg-[#00E5FF] -translate-x-full transition-transform duration-500 ease-out group-hover:translate-x-0 ${isPro ? "opacity-20" : "opacity-10"}`} />
+                        <span className="relative z-10 flex items-center gap-2">
+                          Koça Yaz <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-2" />
+                        </span>
+                      </>
+                    );
+                    return cta.external
+                      ? <a href={cta.href} target="_blank" rel="noreferrer" className={cls}>{inner}</a>
+                      : <Link href={cta.href} className={cls}>{inner}</Link>;
+                  })()}
                 </article>
               </FadeInScroll>
             );
@@ -354,13 +366,13 @@ export function Theme2Packages({ content, variant }: SectionRendererProps) {
 }
 
 /* ─── FAQ Section ─── */
-export function Theme2FAQ({ variant }: SectionRendererProps) {
+export function Theme2FAQ({ content, variant }: SectionRendererProps) {
   return (
-    <section className="py-32 px-6 relative bg-[#03060C] z-30 border-t border-[#00E5FF]/5">
+    <section data-landing-section="faq" className="py-32 px-6 relative bg-[#03060C] z-30 border-t border-[#00E5FF]/5">
       <div className="mx-auto max-w-[1400px]">
-        <div className="mb-20">
+        <div data-section-heading className="mb-20">
           <FadeInScroll delay={100} duration={1000} direction="up">
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase mb-4">Sık Sorulan<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-[#0284C7]">Sorular.</span></h2>
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase mb-4">{content.landingTexts?.faqTitle ? <>{content.landingTexts.faqTitle}</> : <>Sık Sorulan<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-[#0284C7]">Sorular.</span></>}</h2>
           </FadeInScroll>
         </div>
         <FAQAccordion
@@ -379,18 +391,18 @@ export function Theme2FAQ({ variant }: SectionRendererProps) {
 /* ─── Contact / Footer Section ─── */
 export function Theme2Contact({ content, variant }: SectionRendererProps) {
   return (
-    <footer id="iletisim" className="mt-auto bg-[#03060C] border-t border-[#00E5FF]/10 py-20 px-6 relative z-30">
+    <footer data-landing-section="contact" id="iletisim" className="mt-auto bg-[#03060C] border-t border-[#00E5FF]/10 py-20 px-6 relative z-30">
       <div className="mx-auto max-w-[1400px] flex flex-col md:flex-row justify-between items-end gap-12">
         <div>
           <div className="text-3xl font-black tracking-tighter text-white mb-6 uppercase">{content.brandName}</div>
           <p className="text-[#64748B] text-xs font-bold uppercase tracking-[0.2em] max-w-xs leading-relaxed">
-            Modern biyokimya ve disiplinli mühendisliğin kesişim noktası.
+            {content.landingTexts?.footerTagline || "Modern biyokimya ve disiplinli mühendisliğin kesişim noktası."}
           </p>
         </div>
 
         <div className="flex flex-col md:items-end gap-6 text-[10px] font-black text-[#64748B] tracking-[0.3em] uppercase">
           <a href={`mailto:${content.email}`} className="hover:text-[#00E5FF] transition-colors">E-Posta: {content.email || "hello@brand.com"}</a>
-          <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-[#00E5FF] transition-colors">WhatsApp Destek</a>
+          {content.whatsappNumber && <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-[#00E5FF] transition-colors">WhatsApp Destek</a>}
           <Link href={content.authUrl} className="hover:text-[#00E5FF] transition-colors text-white">Sisteme Giriş Yap</Link>
         </div>
       </div>
@@ -420,6 +432,7 @@ export function LandingTheme2({ content }: LandingThemeComponentProps) {
         <Theme2Stats content={content} variant={1} />
         <Theme2PlatformTour content={content} />
         <Theme2Transformations content={content} variant={1} />
+        <SystemHowSection content={content} variant={1} />
         <Theme2Packages content={content} variant={1} />
         <Theme2Contact content={content} variant={1} />
       </div>
@@ -442,6 +455,7 @@ export const theme2Layout: ThemeLayout = {
     hero: Theme2Hero,
     stats: Theme2Stats,
     transformations: Theme2Transformations,
+    system: SystemHowSection,
     packages: Theme2Packages,
     faq: Theme2FAQ,
     contact: Theme2Contact,

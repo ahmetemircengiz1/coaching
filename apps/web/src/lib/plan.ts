@@ -24,7 +24,7 @@ export type PlanLike =
 const THEME_ACCESS: Record<PlanId, number[]> = {
   STARTER: [1, 6],
   PRO: [1, 2, 3, 6],
-  ELITE: [1, 2, 3, 4, 5, 6],
+  ELITE: [1, 2, 3, 4, 5, 6, 7],
 };
 
 function normalizePlanName(value: string): string {
@@ -110,6 +110,7 @@ export function validateThemeSelection(plan: PlanLike, themeId: number): boolean
 }
 
 function toLandingThemeId(themeId: number): LandingThemeId {
+  if (themeId === 7) return "theme-elite";
   const safeThemeId = Math.max(1, Math.min(6, themeId));
   return `theme-${safeThemeId}` as LandingThemeId;
 }
@@ -121,9 +122,13 @@ export function toLandingThemeNumber(
     return 1;
   }
 
+  if (themeId === "theme-elite" || themeId === "elite-builder") {
+    return 7;
+  }
+
   if (themeId.startsWith("theme-")) {
     const parsed = Number(themeId.replace("theme-", ""));
-    return Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(6, parsed));
+    return Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(7, parsed));
   }
 
   switch (themeId) {
@@ -137,6 +142,8 @@ export function toLandingThemeNumber(
       return 5;
     case "dynamic-scroll":
       return 6;
+    case "elite-builder":
+      return 7;
     case "classic-dark":
     default:
       return 1;
@@ -209,4 +216,63 @@ const LANDING_FEATURES: Record<PlanId, LandingFeatures> = {
 
 export function getLandingFeatures(plan: PlanLike): LandingFeatures {
   return LANDING_FEATURES[resolvePlanId(plan)];
+}
+
+// ─── Section Builder (theme-elite) plan limits ───
+
+const BUILDER_MAX_SECTIONS: Record<PlanId, number> = {
+  STARTER: 0, // Starter Section Builder kullanamaz (tema kilitli)
+  PRO: 0,     // PRO da kullanamaz
+  ELITE: 24,  // Elite plan: 24 bölüme kadar
+};
+
+export function getMaxBuilderSections(plan: PlanLike): number {
+  return BUILDER_MAX_SECTIONS[resolvePlanId(plan)] ?? 0;
+}
+
+import type { PlanTier } from "@/src/components/landing/blocks/manifest-meta";
+
+const PLAN_TIER_RANK: Record<PlanTier, number> = {
+  starter: 1,
+  pro: 2,
+  elite: 3,
+};
+
+export function isBlockTierAllowed(plan: PlanLike, blockTier: PlanTier): boolean {
+  const planRank = PLAN_TIER_RANK[toPlanSlug(plan) as PlanTier] ?? 1;
+  const required = PLAN_TIER_RANK[blockTier] ?? 1;
+  return planRank >= required;
+}
+
+// ─── Öğrenci Aktivite Takibi (spor takvimi + yemek log) plan limits ───
+
+export interface ActivityFeatures {
+  /** Günlük max meal entry sayısı (öğrenci başına). 0 → kapalı. */
+  maxMealEntriesPerDay: number;
+  /** Geçmişe doğru attendance görünümü kaç hafta. */
+  attendanceHistoryWeeks: number;
+  /** Yemek log'u geriye dönük kaç gün görünür. */
+  mealLogHistoryDays: number;
+}
+
+const ACTIVITY_FEATURES: Record<PlanId, ActivityFeatures> = {
+  STARTER: {
+    maxMealEntriesPerDay: 6,    // 4 öğün + 2 ara öğün için yeterli
+    attendanceHistoryWeeks: 12,
+    mealLogHistoryDays: 30,
+  },
+  PRO: {
+    maxMealEntriesPerDay: 10,
+    attendanceHistoryWeeks: 26,
+    mealLogHistoryDays: 60,
+  },
+  ELITE: {
+    maxMealEntriesPerDay: 20,
+    attendanceHistoryWeeks: 52,
+    mealLogHistoryDays: 90,
+  },
+};
+
+export function getActivityFeatures(plan: PlanLike): ActivityFeatures {
+  return ACTIVITY_FEATURES[resolvePlanId(plan)];
 }

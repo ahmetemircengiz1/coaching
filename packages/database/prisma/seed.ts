@@ -69,7 +69,7 @@ async function main() {
         "Özel domain desteği",
         "Layout özelleştirme",
         "Gelişmiş analitik",
-        "Beyaz etiket (Coach OS markası yok)",
+        "Beyaz etiket (Shred markası yok)",
         "7/24 öncelikli destek",
       ],
       templates: ["classic-dark", "modern-teal", "fresh-light", "clean-red", "sport-dark"],

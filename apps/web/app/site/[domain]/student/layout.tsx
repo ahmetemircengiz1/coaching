@@ -4,6 +4,7 @@ import prisma from "@coach-os/database";
 import { BottomNav } from "@/components/student/bottom-nav";
 import { StudentSidebarLayoutWrapper } from "@/components/student/student-sidebar-layout-wrapper";
 import { LogoutButton } from "@/components/student/logout-button";
+import { WhatsAppFab } from "@/components/student/whatsapp-fab";
 import { DashboardThemeProvider } from "@/src/components/DashboardThemeProvider";
 import { getDashboardTheme } from "@/src/theme/dashboardThemes";
 
@@ -56,11 +57,7 @@ export default async function StudentLayout({
           brandName: true,
           subdomain: true,
           dashboardThemeId: true,
-        },
-      },
-      _count: {
-        select: {
-          messages: { where: { senderRole: "coach", isRead: false } },
+          whatsappNumber: true,
         },
       },
     },
@@ -68,6 +65,10 @@ export default async function StudentLayout({
 
   if (!student || student.coach.subdomain !== domain) {
     redirect(`/site/${domain}/auth`);
+  }
+
+  if (student.status !== "active") {
+    redirect(`/site/${domain}/account-suspended`);
   }
 
   const themeId = student.dashboardThemeId || student.coach.dashboardThemeId || 1;
@@ -89,12 +90,11 @@ export default async function StudentLayout({
             domain={domain}
             brandName={student.coach.brandName}
             studentName={student.name}
-            unreadCount={student._count.messages}
-            studentId={student.id}
             position={navPosition as "left" | "right"}
           >
             <SidebarContent>{children}</SidebarContent>
           </StudentSidebarLayoutWrapper>
+          <WhatsAppFab whatsappNumber={student.coach.whatsappNumber} brandName={student.coach.brandName} />
         </div>
       </DashboardThemeProvider>
     );
@@ -129,11 +129,9 @@ export default async function StudentLayout({
           {children}
         </main>
 
-        <BottomNav
-          domain={domain}
-          unreadMessages={student._count.messages}
-          studentId={student.id}
-        />
+        <WhatsAppFab whatsappNumber={student.coach.whatsappNumber} brandName={student.coach.brandName} />
+
+        <BottomNav domain={domain} />
       </div>
     </DashboardThemeProvider>
   );

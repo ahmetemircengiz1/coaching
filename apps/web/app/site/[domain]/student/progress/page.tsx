@@ -79,34 +79,39 @@ export default async function StudentProgressPage({
         </Card>
       ) : (
         <>
-          {/* Özet Kartları - accordion dışında */}
-          <div className="grid grid-cols-2 gap-3 stagger-children">
-            <Card style={cardStyle} className="animate-count-up dashboard-card-hover">
-              <CardContent className="pt-4 pb-3 px-4">
-                <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Toplam Check-in</p>
-                <p className="text-2xl font-bold">{checkIns.length}</p>
-              </CardContent>
-            </Card>
-            <Card style={cardStyle} className="animate-count-up dashboard-card-hover">
-              <CardContent className="pt-4 pb-3 px-4">
-                <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Kilo Değişimi</p>
-                <p className="text-2xl font-bold">
-                  {weightChange
-                    ? `${Number(weightChange) > 0 ? "+" : ""}${weightChange} kg`
-                    : "-"}
-                </p>
-              </CardContent>
-            </Card>
-            <Card style={cardStyle} className="animate-count-up dashboard-card-hover">
-              <CardContent className="pt-4 pb-3 px-4">
-                <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Güncel Kilo</p>
-                <p className="text-2xl font-bold">
-                  {latest?.weight ? `${latest.weight} kg` : "-"}
-                </p>
-              </CardContent>
-            </Card>
-
-          </div>
+          {/* Check-in Notları — koçun her check-in'e yazdığı geri bildirimler */}
+          {checkIns.some((c) => c.coachFeedback) && (
+            <AccordionSection title="Check-in Notları" defaultOpen>
+              <div className="space-y-3">
+                {checkIns
+                  .filter((c) => c.coachFeedback)
+                  .slice()
+                  .reverse()
+                  .map((c) => (
+                    <div
+                      key={c.weekNumber}
+                      className="rounded-lg p-3"
+                      style={{
+                        backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 4%, var(--dashboard-card-bg))",
+                        borderLeft: "3px solid var(--dashboard-accent)",
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-xs font-semibold" style={{ color: "var(--dashboard-main-text)" }}>
+                          Hafta {c.weekNumber}
+                        </span>
+                        <span className="text-[11px]" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                          {new Date(c.date).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed" style={{ color: "var(--dashboard-main-text)" }}>
+                        {c.coachFeedback}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            </AccordionSection>
+          )}
 
           {/* Haftalık İlerleme - Fotoğraf + Ölçümler birlikte */}
           {photos.length > 0 && (

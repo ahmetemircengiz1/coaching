@@ -58,7 +58,7 @@ export function HeroDesktopImage({ content, themeBg, accentColor }: HeroDesktopI
           fill
           priority
           quality={92}
-          sizes="50vw"
+          sizes="100vw"
           className="object-contain object-bottom drop-shadow-2xl"
           style={{ filter: "drop-shadow(0 20px 40px rgba(0,0,0,0.3))" }}
         />
@@ -130,6 +130,54 @@ export function HeroMobileImage({ content }: HeroMobileImageProps) {
         style={{ objectPosition: `${focalX}% ${focalY}%` }}
         {...blurProps}
       />
+    </div>
+  );
+}
+
+interface HeroFullscreenImageProps {
+  content: LandingThemeContent;
+  themeBg: string;
+}
+
+export function HeroFullscreenImage({ content, themeBg }: HeroFullscreenImageProps) {
+  if (!hasHeroImage(content)) return null;
+  const { desktopSrc, mobileSrc, focalX, focalY, blurProps } = getHeroSrcs(content);
+
+  // Açık renkli resimlerde yazılar okunabilsin diye overlay güçlendirilir
+  const isDark = content.heroImageDark !== false; // null/true → koyu resim (hafif overlay)
+  const overlayClass = isDark
+    ? "bg-gradient-to-b from-black/50 via-transparent to-black/60"
+    : "bg-gradient-to-b from-black/70 via-black/30 to-black/70";
+
+  return (
+    <div className="absolute inset-0 z-0 overflow-hidden">
+      {/* Mobile Image — fullscreen, no gaps, unoptimized for max quality */}
+      <div className="md:hidden absolute inset-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={mobileSrc}
+          alt={content.brandName || "Coach"}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: `${focalX}% ${focalY}%` }}
+          loading="eager"
+          decoding="async"
+        />
+        <div className={`absolute inset-0 ${overlayClass}`} />
+      </div>
+
+      {/* Desktop Image — fullscreen, no gaps, raw quality, no Next.js compression */}
+      <div className="hidden md:block absolute inset-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={desktopSrc}
+          alt={content.brandName || "Coach"}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: `${focalX}% ${focalY}%` }}
+          loading="eager"
+          decoding="async"
+        />
+        <div className={`absolute inset-0 ${overlayClass}`} />
+      </div>
     </div>
   );
 }

@@ -10,23 +10,62 @@ export type HeroProcessingResult = {
   originalHeight: number;
   isLowResolution: boolean;
   autoHeroMode: "photo" | "logo";
-  desktopBuffer: Buffer;
+  heroImageDark: boolean;
   mobileBuffer: Buffer;
   blurDataUrl: string;
   /** Transparent cutout version (person only, no background) */
   cutoutBuffer: Buffer | null;
 };
 
-const DESKTOP_WIDTH = 1920;
-const DESKTOP_HEIGHT = 1080;
+// Desktop: original file is served directly — no processing needed.
+// Mobile: smart portrait crop (3:4 ratio) centered on focal point for phone screens.
 const MOBILE_WIDTH = 1080;
-const MOBILE_HEIGHT = 1350;
+const MOBILE_HEIGHT = 1440; // 3:4 portrait ratio
 const CUTOUT_HEIGHT = 1200;
 
 function clamp01(value: number) {
   if (value < 0) return 0;
   if (value > 1) return 1;
   return value;
+}
+
+/**
+ * Compute an extract region for a portrait crop centered on (focalX%, focalY%).
+ * Returns { left, top, width, height } in source-pixel coordinates.
+ */
+function computePortraitCrop(
+  srcW: number,
+  srcH: number,
+  targetRatio: number, // width / height, e.g. 3/4 = 0.75
+  focalXPct: number, // 0-100
+  focalYPct: number, // 0-100
+): { left: number; top: number; width: number; height: number } {
+  // Determine the largest rectangle with the target ratio that fits in the source
+  let cropW: number;
+  let cropH: number;
+
+  if (srcW / srcH > targetRatio) {
+    // Source is wider than target ratio — crop width, keep full height
+    cropH = srcH;
+    cropW = Math.round(srcH * targetRatio);
+  } else {
+    // Source is taller or equal — crop height, keep full width
+    cropW = srcW;
+    cropH = Math.round(srcW / targetRatio);
+  }
+
+  // Center the crop on the focal point
+  const focalX = Math.round((focalXPct / 100) * srcW);
+  const focalY = Math.round((focalYPct / 100) * srcH);
+
+  let left = focalX - Math.round(cropW / 2);
+  let top = focalY - Math.round(cropH / 2);
+
+  // Clamp to image bounds
+  left = Math.max(0, Math.min(left, srcW - cropW));
+  top = Math.max(0, Math.min(top, srcH - cropH));
+
+  return { left, top, width: cropW, height: cropH };
 }
 
 async function analyzeImageStats(input: Buffer): Promise<PixelStats> {
@@ -77,6 +116,24 @@ async function analyzeImageStats(input: Buffer): Promise<PixelStats> {
   };
 }
 
+async function analyzeHeroBrightness(rotated: Buffer, w: number, h: number): Promise<boolean> {
+  // Analyze the top-center region where hero text typically overlays
+  const regionW = Math.max(1, Math.round(w * 0.6));
+  const regionH = Math.max(1, Math.round(h * 0.5));
+  const left = Math.round((w - regionW) / 2);
+
+  const stats = await sharp(rotated)
+    .extract({ left, top: 0, width: regionW, height: regionH })
+    .stats();
+
+  const rMean = stats.channels[0].mean;
+  const gMean = stats.channels[1].mean;
+  const bMean = stats.channels[2].mean;
+  const luminance = 0.2126 * rMean + 0.7152 * gMean + 0.0722 * bMean;
+
+  return luminance < 128; // true = dark image
+}
+
 function detectHeroMode(stats: PixelStats): "photo" | "logo" {
   const transparentLike =
     typeof stats.alphaCoverage === "number" && stats.alphaCoverage < 0.6;
@@ -112,61 +169,60 @@ async function removeBackground(input: Buffer): Promise<Buffer | null> {
   }
 }
 
-export async function processHeroImage(input: Buffer): Promise<HeroProcessingResult> {
-  const meta = await sharp(input).rotate().metadata();
-  const originalWidth = meta.width ?? DESKTOP_WIDTH;
-  const originalHeight = meta.height ?? DESKTOP_HEIGHT;
+export async function processHeroImage(
+  input: Buffer,
+  focalXPct = 50,
+  focalYPct = 50,
+): Promise<HeroProcessingResult> {
+  // Auto-rotate and get actual dimensions
+  const rotated = await sharp(input).rotate().toBuffer();
+  const meta = await sharp(rotated).metadata();
+  const originalWidth = meta.width ?? 1920;
+  const originalHeight = meta.height ?? 1080;
 
-  // Run all processing in parallel
-  const [desktopBuffer, mobileBuffer, blurBuffer, analysis, cutoutBuffer] = await Promise.all([
-    sharp(input)
-      .rotate()
-      .resize(DESKTOP_WIDTH, DESKTOP_HEIGHT, {
-        fit: "cover",
-        position: "attention",
-        withoutEnlargement: false,
-      })
-      .sharpen({ sigma: 0.8, m1: 1.0, m2: 0.5 })
-      .webp({ quality: 92, effort: 4, smartSubsample: true })
+  // Compute smart portrait crop region centered on focal point
+  const crop = computePortraitCrop(
+    originalWidth,
+    originalHeight,
+    MOBILE_WIDTH / MOBILE_HEIGHT, // 0.75 = 3:4
+    focalXPct,
+    focalYPct,
+  );
+
+  // Run all processing in parallel (desktop = original, no processing needed)
+  const [mobileBuffer, blurBuffer, analysis] = await Promise.all([
+    // Mobile: smart 3:4 portrait crop centered on focal point, then resize to 1080×1440
+    sharp(rotated)
+      .extract(crop)
+      .resize(MOBILE_WIDTH, MOBILE_HEIGHT, { fit: "fill" })
+      .jpeg({ quality: 95, mozjpeg: true, chromaSubsampling: "4:4:4" })
       .toBuffer(),
 
-    sharp(input)
-      .rotate()
-      .resize(MOBILE_WIDTH, MOBILE_HEIGHT, {
-        fit: "cover",
-        position: "attention",
-        withoutEnlargement: false,
-      })
-      .sharpen({ sigma: 0.8, m1: 1.0, m2: 0.5 })
-      .webp({ quality: 90, effort: 4, smartSubsample: true })
-      .toBuffer(),
-
-    sharp(input)
-      .rotate()
-      .resize(64, 64, {
-        fit: "cover",
-        position: "attention",
-        withoutEnlargement: false,
-      })
+    // Blur placeholder (proportional, no forced crop)
+    sharp(rotated)
+      .resize(64, undefined, { fit: "inside", withoutEnlargement: false })
       .blur(2.4)
       .webp({ quality: 20, effort: 2 })
       .toBuffer(),
 
     analyzeImageStats(input),
-
-    removeBackground(input),
   ]);
+
+  // Background removal disabled — too heavy for dev server
+  const cutoutBuffer: Buffer | null = null;
+  // Brightness analysis — determines overlay intensity for text readability
+  const heroImageDark = await analyzeHeroBrightness(rotated, originalWidth, originalHeight);
 
   const blurDataUrl = `data:image/webp;base64,${blurBuffer.toString("base64")}`;
   const autoHeroMode = detectHeroMode(analysis);
-  const isLowResolution = originalWidth < DESKTOP_WIDTH || originalHeight < DESKTOP_HEIGHT;
+  const isLowResolution = originalWidth < 1920 || originalHeight < 1080;
 
   return {
     originalWidth,
     originalHeight,
     isLowResolution,
     autoHeroMode,
-    desktopBuffer,
+    heroImageDark,
     mobileBuffer,
     blurDataUrl,
     cutoutBuffer,

@@ -67,6 +67,7 @@ const SAMPLE_CONTENT: LandingThemeContent = {
     },
   ],
   transformations: [],
+  testimonials: [],
 };
 
 export default function LandingTheme1PreviewPage() {

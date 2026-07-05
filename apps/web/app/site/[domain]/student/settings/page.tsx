@@ -27,7 +27,6 @@ export default function StudentSettingsPage() {
   const [notifPrefs, setNotifPrefs] = useState({
     programAssigned: true,
     feedbackReceived: true,
-    messageReceived: true,
   });
 
   useEffect(() => {
@@ -175,8 +174,7 @@ export default function StudentSettingsPage() {
         <CardContent className="space-y-3">
           {([
             { key: "programAssigned" as const, label: "Program Atandığında", desc: "Koçunuz yeni bir program atadığında bildirim alın" },
-            { key: "feedbackReceived" as const, label: "Geri Bildirim Geldiğinde", desc: "Check-in'inize koçunuz geri bildirim yazdığında" },
-            { key: "messageReceived" as const, label: "Mesaj Geldiğinde", desc: "Koçunuzdan yeni mesaj geldiğinde" },
+            { key: "feedbackReceived" as const, label: "Geri Bildirim Geldiğinde", desc: "Check-in'lerinize ve yemek paylaşımlarınıza koçunuz yorum yazdığında" },
           ]).map((item) => (
             <div
               key={item.key}

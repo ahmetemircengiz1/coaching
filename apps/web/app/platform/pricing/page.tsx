@@ -1,190 +1,144 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, ArrowRight } from "lucide-react";
+import { PlatformFooter } from "@/src/components/platform/PlatformFooter";
 
-const packages = [
-  {
-    name: "Başlangıç",
-    tier: 1,
-    price: 499,
-    currency: "TRY",
-    period: "ay",
-    maxStudents: 5,
-    popular: false,
-    features: [
-      "Profesyonel tanıtım sayfası",
-      "1 premium kurumsal şablon",
-      "5 öğrenci kapasitesi",
-      "Antrenman programları atama",
-      "Diyet ve makro takibi",
-      "Sistematik check-in takibi",
-      "Gelişmiş analitik paneli",
-      "Platform içi anlık mesajlaşma",
-      "PWA Mobil Uygulama Desteği",
-    ],
-  },
-  {
-    name: "Profesyonel",
-    tier: 2,
-    price: 899,
-    currency: "TRY",
-    period: "ay",
-    maxStudents: 10,
-    popular: true,
-    features: [
-      "Başlangıç paketindeki her şey",
-      "3 farklı özel tasarım şablonu",
-      "10 öğrenci tam kapasite",
-      "Dönüşüm hikayeleri vitrini",
-      "Makro/Mikro detaylandırılmış analiz",
-      "Toplu program şablonları",
-      "Öncelikli mühendislik desteği",
-    ],
-  },
-  {
-    name: "Premium",
-    tier: 3,
-    price: 1499,
-    currency: "TRY",
-    period: "ay",
-    maxStudents: "Sınırsız",
-    popular: false,
-    features: [
-      "Profesyonel paketindeki her şey",
-      "Vizyoner tasarım arşivinin tamamı",
-      "Sınırsız danışan yönetimi",
-      "Tümüyle özel Domain desteği",
-      "Size özel arayüz personalizasyonu",
-      "VIP Veri & Analitik Raporlama",
-      "Coach OS ibaresiz beyaz etiket",
-      "7/24 dedike hesap uzmanı",
-    ],
-  },
+const SIGNUP_HREF = "/platform/auth?mode=signup&tier=3";
+
+// Şu an tüm özellikler herkese ücretsiz açık. İleride premium paketler eklenince
+// bu liste planlara bölünecek; bugün hepsi tek "Ücretsiz" planın altında.
+const allFeatures = [
+  "Kendi markanla profesyonel tanıtım sitesi",
+  "Tüm premium temalara erişim",
+  "Sınırsız öğrenci yönetimi",
+  "Antrenman programı oluşturma ve atama",
+  "Beslenme & makro planı oluşturma",
+  "Haftalık check-in ve ilerleme fotoğrafları",
+  "İlerleme grafikleri ve detaylı analiz",
+  "Öğrenciler için mobil panel (PWA)",
+  "WhatsApp ile doğrudan iletişim",
+  "Kendi alan adını (domain) bağlama",
+  "Öğrenci ödemelerinden sıfır komisyon",
 ];
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-[#111111] text-white selection:bg-[#ccff00] selection:text-black overflow-x-hidden relative">
-
-      {/* Abstract Glowing Backgrounds */}
-      <div className="fixed inset-0 overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-white/5 blur-[120px] rounded-full" />
-        <div className="absolute top-[20%] right-[-20%] w-[40%] h-[60%] bg-[#ccff00]/5 blur-[150px] rounded-full" />
+    <div className="relative min-h-screen overflow-x-hidden bg-[#111111] text-white selection:bg-[#ccff00] selection:text-black">
+      {/* Arka plan ışıkları */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] h-[50%] w-[50%] rounded-full bg-white/5 blur-[120px]" />
+        <div className="absolute top-[20%] right-[-20%] h-[60%] w-[40%] rounded-full bg-[#ccff00]/5 blur-[150px]" />
       </div>
 
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-[#111111]/80 backdrop-blur-xl border-b border-white/5">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="font-heading text-2xl font-bold tracking-widest flex items-center gap-2">
-            COACH<span className="text-[#ccff00]">OS</span>
+      {/* Navigasyon */}
+      <nav className="fixed top-0 z-50 w-full border-b border-white/5 bg-[#111111]/80 backdrop-blur-xl">
+        <div className="container mx-auto flex h-20 items-center justify-between px-6">
+          <Link href="/platform" className="font-heading text-2xl font-bold tracking-widest">
+            SHRED<span className="text-[#ccff00]">.</span>
           </Link>
-          <div className="hidden md:flex items-center gap-8 bg-white/5 rounded-full px-6 py-2 border border-white/5 backdrop-blur-md">
-            <Link href="/" className="text-sm font-medium text-white/70 hover:text-white transition-colors duration-300">
+          <div className="hidden items-center gap-8 rounded-full border border-white/5 bg-white/5 px-6 py-2 backdrop-blur-md md:flex">
+            <Link href="/platform" className="text-sm font-medium text-white/70 transition-colors hover:text-white">
               Ana Sayfa
             </Link>
-            <Link href="/platform/pricing" className="text-sm font-medium text-white transition-colors duration-300">
-              Paketler
+            <Link href="/platform/pricing" className="text-sm font-medium text-white transition-colors">
+              Ücretlendirme
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/platform/auth">
-              <Button className="bg-white/10 text-white hover:bg-[#1A1A1A] font-semibold rounded-full px-6 backdrop-blur-md border border-white/10 transition-all duration-300">
-                Giriş Yap
+            <Link href="/platform/auth" className="hidden text-sm font-medium text-white/70 transition-colors hover:text-white sm:block">
+              Giriş Yap
+            </Link>
+            <Link href={SIGNUP_HREF}>
+              <Button className="rounded-full bg-[#ccff00] px-6 font-semibold text-black transition-all duration-300 hover:bg-[#b8e600]">
+                Ücretsiz Başla
               </Button>
             </Link>
           </div>
         </div>
       </nav>
 
-      <div className="pt-40 pb-32 px-6 relative z-10">
-        <div className="container mx-auto max-w-7xl">
-
-          <div className="text-center mb-24 animate-fade-in-up">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1A1A1A] border border-white/10 mb-8">
-              <Sparkles className="w-4 h-4 text-[#ccff00]" />
-              <span className="text-xs font-semibold text-white/80 tracking-wide uppercase">Tüm Modüller Şeffaf ve Net</span>
+      <div className="relative z-10 px-6 pt-40 pb-32">
+        <div className="container mx-auto max-w-5xl">
+          <div className="animate-fade-in-up mb-16 text-center">
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#1A1A1A] px-3 py-1">
+              <Sparkles className="h-4 w-4 text-[#ccff00]" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-white/80">
+                Lansman dönemi
+              </span>
             </div>
-            <h1 className="font-heading text-5xl md:text-7xl font-bold mb-6 tracking-tight leading-tight">
-              Ekosisteminize <br className="md:hidden" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white/90 to-white/40">Yön Verin.</span>
+            <h1 className="font-heading mb-6 text-5xl font-bold leading-tight tracking-tight md:text-7xl">
+              Şu an her şey <br className="md:hidden" />
+              <span className="bg-gradient-to-r from-white via-white/90 to-white/40 bg-clip-text text-transparent">
+                ücretsiz.
+              </span>
             </h1>
-            <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto font-light leading-relaxed">
-              Her planda tamamen kendi kontrolünüzde olan profesyonel bir koçluk ekosistemi sizi bekliyor. Sürpriz ek maliyetler veya danışan gelirinizden kesilen haksız komisyonlar olmadan işletmenizi özgürce ölçeklendirin.
+            <p className="mx-auto max-w-2xl text-lg font-light leading-relaxed text-white/60 md:text-xl">
+              Tüm özellikleri herkese açtık. Bugün kayıt olduğunda hiçbir özellik kilitli değil,
+              gizli ücret yok. İleride premium paketler ekleyeceğiz; o zaman da seni önceden
+              haberdar edeceğiz.
             </p>
           </div>
 
-          {/* Pricing Grid */}
-          <div className="grid lg:grid-cols-3 gap-8 items-stretch max-w-6xl mx-auto">
-            {packages.map((pkg, i) => (
-              <div
-                key={pkg.tier}
-                className={`flex flex-col relative rounded-[2.5rem] p-10 transition-all duration-500 hover:-translate-y-2 group animate-fade-in-up ${pkg.popular
-                  ? "bg-gradient-to-b from-[#1C1C1E] to-[#111111] border border-[#ccff00]/30 shadow-[0_0_40px_rgba(204,255,0,0.1)]"
-                  : "bg-gradient-to-b from-[#1C1C1E] to-[#111111] border border-white/5 hover:border-white/10"
-                  }`}
-                style={{ animationDelay: `${(i + 1) * 150}ms` }}
-              >
-                {pkg.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-[#ccff00] text-black text-xs font-bold uppercase tracking-wider rounded-full shadow-[0_0_20px_rgba(204,255,0,0.3)]">
-                    Trend Tercih
-                  </div>
-                )}
-
-                <div className="mb-8">
-                  <h3 className="font-heading text-2xl font-bold mb-4">{pkg.name}</h3>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-5xl font-bold tracking-tight">{pkg.price.toLocaleString("tr-TR")}</span>
-                    <span className="text-white/40 font-medium tracking-wide">{pkg.currency} / {pkg.period}</span>
-                  </div>
-                  <p className="text-sm text-white/50 font-medium">
-                    Merkezi Ölçek: <span className="text-white font-semibold">{pkg.maxStudents} Danışan</span>
-                  </p>
-                </div>
-
-                <div className="flex-1">
-                  <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
-                  <ul className="space-y-4 mb-10">
-                    {pkg.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <div className={`mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded-full shadow-inner ${pkg.popular ? "bg-[#ccff00]/20 text-[#ccff00]" : "bg-white/10 text-white"}`}>
-                          <Check className="h-3 w-3" strokeWidth={3} />
-                        </div>
-                        <span className="text-white/70 text-sm leading-relaxed tracking-wide font-light">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="mt-auto">
-                  <Link href={`/platform/auth?tier=${pkg.tier}`} className="block w-full">
-                    <Button
-                      className={`w-full h-14 rounded-full text-base font-bold transition-all duration-300 ${pkg.popular
-
-                        ? "bg-[#ccff00] text-black hover:bg-[#b8e600] shadow-[0_0_20px_rgba(204,255,0,0.1)] group-hover:shadow-[0_0_30px_rgba(204,255,0,0.2)]"
-                        : "bg-white/5 text-white hover:bg-white/10 border border-white/10"
-                        }`}
-                    >
-                      Planı Seç
-                    </Button>
-                  </Link>
-                </div>
+          {/* Tek ücretsiz plan kartı */}
+          <div className="mx-auto max-w-2xl">
+            <div className="relative rounded-[2.5rem] border border-[#ccff00]/30 bg-gradient-to-b from-[#1C1C1E] to-[#111111] p-10 shadow-[0_0_40px_rgba(204,255,0,0.1)] md:p-12">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#ccff00] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-black shadow-[0_0_20px_rgba(204,255,0,0.3)]">
+                Tüm özellikler açık
               </div>
-            ))}
-          </div>
 
-          {/* Deep FAQ or Trust Footer inside grid */}
-          <div className="mt-32 max-w-4xl mx-auto text-center border-t border-white/5 pt-16">
-            <h3 className="text-2xl font-heading font-bold mb-4">Sıkça Sorulan Sorular</h3>
-            <p className="text-white/50 text-base mb-8">Platform kullanımında ödeme altyapısını iyzico/Stripe ile siz kuruyorsunuz. Kendi panelinizden doğrudan banka hesabınıza %0 komisyonla ödeme alın.</p>
-            <div className="inline-flex items-center gap-4 text-sm text-white/40">
-              <span className="flex items-center gap-2"><Check className="h-4 w-4" /> Anında Kurulum</span>
-              <span className="flex items-center gap-2"><Check className="h-4 w-4" /> Ücretsiz Destek</span>
-              <span className="flex items-center gap-2"><Check className="h-4 w-4" /> İptal Garantisi</span>
+              <div className="mb-8 text-center">
+                <h3 className="font-heading text-2xl font-bold">Ücretsiz</h3>
+                <div className="mt-4 flex items-baseline justify-center gap-2">
+                  <span className="text-6xl font-bold tracking-tight">₺0</span>
+                  <span className="font-medium tracking-wide text-white/40">/ ay</span>
+                </div>
+                <p className="mt-3 text-sm font-medium text-white/50">
+                  Sınırsız öğrenci · Sürpriz ücret yok
+                </p>
+              </div>
+
+              <div className="mb-8 h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+              <ul className="mb-10 grid gap-4 sm:grid-cols-2">
+                {allFeatures.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#ccff00]/20 text-[#ccff00]">
+                      <Check className="h-3 w-3" strokeWidth={3} />
+                    </span>
+                    <span className="text-sm font-light leading-relaxed tracking-wide text-white/70">
+                      {feature}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link href={SIGNUP_HREF} className="block w-full">
+                <Button className="group h-14 w-full rounded-full bg-[#ccff00] text-base font-bold text-black shadow-[0_0_20px_rgba(204,255,0,0.1)] transition-all duration-300 hover:bg-[#b8e600] hover:shadow-[0_0_30px_rgba(204,255,0,0.2)]">
+                  Ücretsiz Hesabını Oluştur
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </Button>
+              </Link>
             </div>
           </div>
 
+          {/* Şeffaflık notu */}
+          <div className="mx-auto mt-24 max-w-3xl border-t border-white/5 pt-16 text-center">
+            <h3 className="font-heading mb-4 text-2xl font-bold">Peki ya ileride?</h3>
+            <p className="mb-8 text-base leading-relaxed text-white/50">
+              İlerleyen dönemde bazı gelişmiş özellikleri premium paketlere taşıyabiliriz. Ama söz
+              veriyoruz: bugün ücretsiz kullandığın temel özellikler için seni habersiz bir ödeme
+              ekranıyla karşılaştırmayacağız. Her değişikliği önceden duyuracağız.
+            </p>
+            <div className="inline-flex flex-wrap items-center justify-center gap-4 text-sm text-white/40">
+              <span className="flex items-center gap-2"><Check className="h-4 w-4" /> Anında kurulum</span>
+              <span className="flex items-center gap-2"><Check className="h-4 w-4" /> Sıfır komisyon</span>
+              <span className="flex items-center gap-2"><Check className="h-4 w-4" /> İstediğin zaman vazgeç</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      <PlatformFooter />
     </div>
   );
 }

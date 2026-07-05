@@ -5,6 +5,7 @@ export const LANDING_THEME_IDS = [
   "theme-4",
   "theme-5",
   "theme-6",
+  "theme-elite",
 ] as const;
 
 export type LandingThemeId = (typeof LANDING_THEME_IDS)[number];
@@ -14,7 +15,8 @@ export type LegacyLandingTemplateId =
   | "fresh-light"
   | "clean-red"
   | "sport-dark"
-  | "dynamic-scroll";
+  | "dynamic-scroll"
+  | "elite-builder";
 
 export type LandingThemeTokens = Record<`--${string}`, string>;
 
@@ -35,6 +37,7 @@ const LEGACY_TO_THEME_ID: Record<LegacyLandingTemplateId, LandingThemeId> = {
   "clean-red": "theme-4",
   "sport-dark": "theme-5",
   "dynamic-scroll": "theme-6",
+  "elite-builder": "theme-elite",
 };
 
 const THEME_TO_LEGACY_ID: Record<LandingThemeId, LegacyLandingTemplateId> = {
@@ -44,6 +47,7 @@ const THEME_TO_LEGACY_ID: Record<LandingThemeId, LegacyLandingTemplateId> = {
   "theme-4": "clean-red",
   "theme-5": "sport-dark",
   "theme-6": "dynamic-scroll",
+  "theme-elite": "elite-builder",
 };
 
 const SHARED_TOKENS = {
@@ -60,12 +64,20 @@ export const LANDING_THEMES: Record<LandingThemeId, LandingThemeDefinition> = {
     previewImage: "/designs/landing/theme-1.png",
     layoutType: "split-hero",
     tokens: {
+      ...SHARED_TOKENS,
       "--bg": "#0B0B0C",
       "--text": "#F5F3EE",
       "--muted": "rgba(245,243,238,0.72)",
       "--gold1": "#C9A24D",
       "--gold2": "#E6C27A",
       "--gold3": "#A8822E",
+      "--landing-bg": "#0B0B0C",
+      "--landing-text": "#F5F3EE",
+      "--landing-text-muted": "rgba(245,243,238,0.72)",
+      "--landing-accent": "#D4AF37",
+      "--landing-accent-strong": "#F3E5AB",
+      "--landing-surface": "rgba(255,255,255,0.04)",
+      "--landing-border": "rgba(255,255,255,0.08)",
     },
   },
   "theme-2": {
@@ -76,10 +88,18 @@ export const LANDING_THEMES: Record<LandingThemeId, LandingThemeDefinition> = {
     previewImage: "/designs/landing/theme-2.png",
     layoutType: "card-hero",
     tokens: {
+      ...SHARED_TOKENS,
       "--bg": "#0B1628",
       "--text": "#e8f0f8",
       "--muted": "rgba(196,212,232,0.65)",
       "--teal": "#3E8791",
+      "--landing-bg": "#03060C",
+      "--landing-text": "#e8f0f8",
+      "--landing-text-muted": "rgba(196,212,232,0.7)",
+      "--landing-accent": "#00E5FF",
+      "--landing-accent-strong": "#3E8791",
+      "--landing-surface": "rgba(0,229,255,0.04)",
+      "--landing-border": "rgba(0,229,255,0.14)",
     },
   },
   "theme-3": {
@@ -93,8 +113,11 @@ export const LANDING_THEMES: Record<LandingThemeId, LandingThemeDefinition> = {
       ...SHARED_TOKENS,
       "--landing-bg": "#f5f6fb",
       "--landing-text": "#262a33",
+      "--landing-text-muted": "rgba(38,42,51,0.68)",
       "--landing-accent": "#ffbe10",
       "--landing-accent-strong": "#1eb7b4",
+      "--landing-surface": "#ffffff",
+      "--landing-border": "rgba(38,42,51,0.1)",
     },
   },
   "theme-4": {
@@ -108,7 +131,11 @@ export const LANDING_THEMES: Record<LandingThemeId, LandingThemeDefinition> = {
       ...SHARED_TOKENS,
       "--landing-bg": "#FAF8F5",
       "--landing-text": "#3E2F28",
+      "--landing-text-muted": "rgba(62,47,40,0.68)",
       "--landing-accent": "#C75B39",
+      "--landing-accent-strong": "#8A3A22",
+      "--landing-surface": "#FFFDF9",
+      "--landing-border": "rgba(62,47,40,0.14)",
       "--landing-font-display": "Georgia, 'Times New Roman', serif",
     },
   },
@@ -123,8 +150,11 @@ export const LANDING_THEMES: Record<LandingThemeId, LandingThemeDefinition> = {
       ...SHARED_TOKENS,
       "--landing-bg": "#0a0d14",
       "--landing-text": "#f4f7ff",
+      "--landing-text-muted": "rgba(244,247,255,0.65)",
       "--landing-accent": "#2ec8d8",
       "--landing-accent-strong": "#c4df44",
+      "--landing-surface": "rgba(46,200,216,0.06)",
+      "--landing-border": "rgba(46,200,216,0.2)",
     },
   },
   "theme-6": {
@@ -138,8 +168,29 @@ export const LANDING_THEMES: Record<LandingThemeId, LandingThemeDefinition> = {
       ...SHARED_TOKENS,
       "--landing-bg": "#000000",
       "--landing-text": "#ffffff",
+      "--landing-text-muted": "rgba(255,255,255,0.7)",
       "--landing-accent": "#ffffff",
-      "--landing-accent-strong": "#000000",
+      "--landing-accent-strong": "#ffffff",
+      "--landing-surface": "rgba(255,255,255,0.05)",
+      "--landing-border": "rgba(255,255,255,0.14)",
+    },
+  },
+  "theme-elite": {
+    id: "theme-elite",
+    legacyTemplateId: "elite-builder",
+    name: "Shred Ecosystem",
+    description: "Tamamen modüler, Lego tabanlı ve sınırsız sayfa mimarı.",
+    previewImage: "/designs/landing/theme-elite.png",
+    layoutType: "split-hero", // Temsili
+    tokens: {
+      ...SHARED_TOKENS,
+      "--landing-bg": "#000000",
+      "--landing-text": "#ffffff",
+      "--landing-text-muted": "rgba(255,255,255,0.7)",
+      "--landing-accent": "#ccff00",
+      "--landing-accent-strong": "#ffffff",
+      "--landing-surface": "rgba(255,255,255,0.05)",
+      "--landing-border": "rgba(255,255,255,0.14)",
     },
   },
 };
@@ -157,6 +208,10 @@ export function resolveLandingThemeId(value: string | null | undefined): Landing
 
   if (isLandingThemeId(value)) {
     return value;
+  }
+
+  if (value === "theme-7" || value === "7") {
+    return "theme-elite";
   }
 
   if (value in LEGACY_TO_THEME_ID) {

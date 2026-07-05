@@ -10,10 +10,8 @@ const SAMPLE_CONTENT: DashboardThemeContent = {
     activeStudents: 83,
     maxStudents: 120,
     weeklyCheckIns: 16,
-    avgCompliance: 92,
-    unreadMessages: 7,
   },
-  latestCheckIns: [
+  newCheckIns: [
     {
       id: "checkin-1",
       studentName: "Ayse Yilmaz",
@@ -21,8 +19,6 @@ const SAMPLE_CONTENT: DashboardThemeContent = {
       weekNumber: 5,
       date: "2026-04-19",
       weight: 94,
-      compliance: 89,
-      coachFeedback: "Program guzel gidiyor.",
     },
     {
       id: "checkin-2",
@@ -31,8 +27,6 @@ const SAMPLE_CONTENT: DashboardThemeContent = {
       weekNumber: 6,
       date: "2026-04-20",
       weight: 90,
-      compliance: 82,
-      coachFeedback: "Kilo dususu devam ediyor.",
     },
     {
       id: "checkin-3",
@@ -41,40 +35,9 @@ const SAMPLE_CONTENT: DashboardThemeContent = {
       weekNumber: 4,
       date: "2026-04-21",
       weight: 68,
-      compliance: 74,
-      coachFeedback: "Enerji seviyesi artti.",
-    },
-    {
-      id: "checkin-4",
-      studentName: "Lutfu Yuksek",
-      studentId: "s-4",
-      weekNumber: 5,
-      date: "2026-04-22",
-      weight: 101,
-      compliance: 58,
-      coachFeedback: "Takip siklastirilmali.",
     },
   ],
-  attentionStudents: [
-    {
-      id: "s-4",
-      name: "Lutfu Yuksek",
-      compliance: 58,
-      lastCheckInDate: "2026-04-22",
-    },
-    {
-      id: "s-5",
-      name: "Can Arda",
-      compliance: 62,
-      lastCheckInDate: "2026-04-21",
-    },
-    {
-      id: "s-6",
-      name: "Zeynep Arslan",
-      compliance: 55,
-      lastCheckInDate: "2026-04-20",
-    },
-  ],
+  dashboardNote: "Pazartesi Mehmet'in programını yenile.\nSalı 18:00 Ayşe ile görüşme.",
 };
 
 export default function DashboardPreviewPage() {

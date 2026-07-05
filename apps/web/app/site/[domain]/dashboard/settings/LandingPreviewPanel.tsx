@@ -1,108 +1,192 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Monitor, Smartphone, RefreshCw, ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { onPreviewRefresh } from "@/src/lib/preview-bus";
 
 interface LandingPreviewPanelProps {
   domain: string;
-  /** Increment this to force iframe refresh */
   refreshKey?: number;
+  /** Builder içinden çağrılırken section'lara tıklayıp drawer'da düzenleme modunu aç */
+  editMode?: boolean;
 }
 
 type PreviewDevice = "desktop" | "mobile";
 
-export function LandingPreviewPanel({ domain, refreshKey = 0 }: LandingPreviewPanelProps) {
-  const [device, setDevice] = useState<PreviewDevice>("desktop");
-  const [internalKey, setInternalKey] = useState(0);
+const DESKTOP_WIDTH = 1280;
+const DESKTOP_HEIGHT = 800;
+const MOBILE_WIDTH = 375;
+const MOBILE_HEIGHT = 667;
 
-  const iframeSrc = `/site/${domain}?preview=1&t=${refreshKey}-${internalKey}`;
+export function LandingPreviewPanel({ domain, refreshKey = 0, editMode = false }: LandingPreviewPanelProps) {
+  const [device, setDevice] = useState<PreviewDevice>("mobile");
+  const [internalKey, setInternalKey] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [scale, setScale] = useState(1);
+  const viewportRef = useRef<HTMLDivElement>(null);
+
+  const iframeSrc = `/site/${domain}?preview=1${editMode ? "&edit=1" : ""}&t=${refreshKey}-${internalKey}`;
 
   const handleRefresh = useCallback(() => {
+    setLoading(true);
     setInternalKey((k) => k + 1);
   }, []);
 
+  useEffect(() => {
+    return onPreviewRefresh(() => {
+      setLoading(true);
+      setInternalKey((k) => k + 1);
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const availW = el.clientWidth - 16;
+      const availH = el.clientHeight - 16;
+      if (availW <= 0 || availH <= 0) return;
+
+      if (device === "desktop") {
+        const s = Math.min(availW / DESKTOP_WIDTH, availH / DESKTOP_HEIGHT, 1);
+        setScale(s);
+      } else {
+        const s = Math.min(availW / MOBILE_WIDTH, availH / MOBILE_HEIGHT, 1);
+        setScale(s);
+      }
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [device]);
+
+  const frameWidth = device === "desktop" ? DESKTOP_WIDTH : MOBILE_WIDTH;
+  const frameHeight = device === "desktop" ? DESKTOP_HEIGHT : MOBILE_HEIGHT;
+
   return (
-    <div className="flex flex-col h-full rounded-xl border overflow-hidden"
+    <div
+      className="flex flex-col h-full rounded-xl border overflow-hidden"
       style={{
         borderColor: "var(--dashboard-card-border)",
         backgroundColor: "var(--dashboard-card-bg)",
       }}
     >
-      {/* Toolbar */}
       <div
         className="flex items-center justify-between px-4 py-2 border-b"
         style={{ borderColor: "var(--dashboard-card-border)" }}
       >
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setDevice("desktop")}
-            className={`p-2 rounded-lg transition-colors ${
-              device === "desktop"
-                ? "bg-white/10 text-white"
-                : "text-white/40 hover:text-white/70"
-            }`}
-            title="Masaustu"
-          >
-            <Monitor size={16} />
-          </button>
+        <div
+          className="flex items-center gap-1 rounded-lg p-1"
+          style={{ backgroundColor: "var(--dashboard-main-bg)" }}
+        >
           <button
             type="button"
             onClick={() => setDevice("mobile")}
-            className={`p-2 rounded-lg transition-colors ${
-              device === "mobile"
-                ? "bg-white/10 text-white"
-                : "text-white/40 hover:text-white/70"
-            }`}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors"
+            style={{
+              backgroundColor: device === "mobile" ? "var(--dashboard-accent)" : "transparent",
+              color: device === "mobile" ? "var(--dashboard-accent-text)" : "var(--dashboard-main-text-muted)",
+            }}
             title="Mobil"
           >
-            <Smartphone size={16} />
+            <Smartphone size={14} />
+            Mobil
+          </button>
+          <button
+            type="button"
+            onClick={() => setDevice("desktop")}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors"
+            style={{
+              backgroundColor: device === "desktop" ? "var(--dashboard-accent)" : "transparent",
+              color: device === "desktop" ? "var(--dashboard-accent-text)" : "var(--dashboard-main-text-muted)",
+            }}
+            title="Web"
+          >
+            <Monitor size={14} />
+            Web
           </button>
         </div>
-
-        <span className="text-xs font-medium" style={{ color: "var(--dashboard-main-text-muted)" }}>
-          Onizleme
-        </span>
 
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={handleRefresh}
-            className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors hover:opacity-80"
+            style={{
+              backgroundColor: "var(--dashboard-main-bg)",
+              color: "var(--dashboard-main-text)",
+              border: "1px solid var(--dashboard-card-border)",
+            }}
             title="Yenile"
           >
-            <RefreshCw size={16} />
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+            Yenile
           </button>
+
           <a
             href={`/site/${domain}`}
             target="_blank"
             rel="noreferrer"
-            className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors"
-            title="Yeni sekmede ac"
+            className="p-2 rounded-md transition-colors hover:opacity-70"
+            style={{ color: "var(--dashboard-main-text-muted)" }}
+            title="Yeni sekmede aç"
           >
-            <ExternalLink size={16} />
+            <ExternalLink size={15} />
           </a>
         </div>
       </div>
 
-      {/* Preview area */}
-      <div className="flex-1 flex items-start justify-center overflow-hidden bg-[#1a1a2e] p-4">
+      <div
+        ref={viewportRef}
+        className="flex-1 flex items-start justify-center overflow-hidden p-2 relative"
+        style={{ backgroundColor: "var(--dashboard-main-bg)" }}
+      >
+        {loading && (
+          <div
+            className="absolute inset-0 flex items-center justify-center z-10"
+            style={{ backgroundColor: "var(--dashboard-main-bg)" }}
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="w-6 h-6 border-2 rounded-full animate-spin"
+                style={{
+                  borderColor: "var(--dashboard-card-border)",
+                  borderTopColor: "var(--dashboard-accent)",
+                }}
+              />
+              <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                Yükleniyor...
+              </span>
+            </div>
+          </div>
+        )}
         <div
-          className="relative bg-white rounded-lg shadow-2xl overflow-hidden transition-all duration-300"
           style={{
-            width: device === "desktop" ? "100%" : "375px",
-            height: device === "desktop" ? "100%" : "667px",
-            maxWidth: "100%",
+            width: frameWidth * scale,
+            height: frameHeight * scale,
           }}
         >
-          <iframe
-            key={`${refreshKey}-${internalKey}`}
-            src={iframeSrc}
-            title="Landing Page Onizleme"
-            className="w-full h-full border-0"
-            style={{ transformOrigin: "top left" }}
-          />
+          <div
+            className="bg-white rounded-lg shadow-2xl overflow-hidden"
+            style={{
+              width: frameWidth,
+              height: frameHeight,
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
+            }}
+          >
+            <iframe
+              key={`${refreshKey}-${internalKey}`}
+              src={iframeSrc}
+              title="Landing Page Önizleme"
+              className="border-0"
+              style={{ width: frameWidth, height: frameHeight }}
+              onLoad={() => setLoading(false)}
+            />
+          </div>
         </div>
       </div>
     </div>

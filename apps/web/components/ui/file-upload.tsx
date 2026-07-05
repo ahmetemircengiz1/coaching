@@ -4,7 +4,9 @@ import { useState, useRef, useCallback } from "react";
 
 interface FileUploadProps {
   bucket: "logos" | "hero-images" | "transformations" | "checkins" | "avatars";
-  onUploaded: (url: string) => void;
+  /** url: DB'de saklanacak kalıcı referans. displayUrl: anlık önizleme için
+   *  (private bucket'larda imzalı URL; public'lerde url ile aynı). */
+  onUploaded: (url: string, displayUrl?: string) => void;
   currentUrl?: string;
   label?: string;
   aspectRatio?: string;
@@ -67,7 +69,7 @@ export default function FileUpload({
           return;
         }
 
-        onUploaded(data.url);
+        onUploaded(data.url, data.signedUrl ?? data.url);
       } catch {
         setError("Yükleme başarısız");
       } finally {

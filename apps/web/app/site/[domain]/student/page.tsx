@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getStudentDashboard } from "./actions";
+import { getStudentMealLog } from "./nutrition/meal-log-actions";
+import { Sun, Sunset, Moon, Coffee, Check } from "lucide-react";
+
+// Günlük yemek/antrenman özetinin midnight'ta sıfırlanması için Next.js cache'i bypass.
+export const dynamic = "force-dynamic";
 
 export default async function StudentDashboardPage({
   params,
@@ -8,47 +13,34 @@ export default async function StudentDashboardPage({
   params: Promise<{ domain: string }>;
 }) {
   const { domain } = await params;
-  const { student, trainingPlan, nutritionPlan, lastCheckIn, unreadMessages } =
-    await getStudentDashboard(domain);
+  const [{ student, trainingPlan, nutritionPlan, lastCheckIn }, mealLog] =
+    await Promise.all([
+      getStudentDashboard(domain),
+      getStudentMealLog(domain, 1),   // Sadece bugün için özet
+    ]);
+
+  const todayIso = new Date().toLocaleDateString("en-CA");
+  const todayEntries = mealLog.days.find((d) => d.date === todayIso)?.entries || [];
+  const filledTypes = new Set(todayEntries.map((e) => e.mealType));
 
   return (
     <div className="space-y-5 py-6">
-      {/* Greeting */}
-      <div className="animate-fade-in">
+      {/* Greeting — son check-in tarihi selamlamanın yanında küçük gösterilir */}
+      <div className="animate-fade-in flex items-start justify-between gap-3">
         <h1 className="font-heading text-xl font-bold">
           Merhaba, {student.name.split(" ")[0]}!
         </h1>
-        {student.packageName && (
-          <p className="text-xs mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>{student.packageName}</p>
+        {lastCheckIn && (
+          <div className="shrink-0 text-right leading-tight">
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--dashboard-main-text-muted)" }}>
+              Son Check-in
+            </p>
+            <p className="text-sm font-semibold" style={{ color: "var(--dashboard-main-text)" }}>
+              {new Date(lastCheckIn.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
+            </p>
+          </div>
         )}
       </div>
-
-      {/* Unread Messages Banner */}
-      {unreadMessages > 0 && (
-        <Link href={`/site/${domain}/student/messages`}>
-          <div
-            className="group relative overflow-hidden p-4 flex items-center justify-between transition-all hover:scale-[1.01]"
-            style={{
-              backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 10%, var(--dashboard-main-bg))",
-              border: "1px solid color-mix(in srgb, var(--dashboard-accent) 20%, transparent)",
-              borderRadius: "var(--dashboard-card-radius)",
-              boxShadow: "var(--dashboard-card-shadow)",
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-[var(--dashboard-accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative z-10 flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm"
-                style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 20%, var(--dashboard-card-bg))" }}
-              >
-                💬
-              </div>
-              <span className="text-sm font-semibold tracking-wide text-[var(--dashboard-main-text)]">{unreadMessages} okunmamış mesaj</span>
-            </div>
-            <span className="relative z-10 text-sm font-bold tracking-tight transition-transform group-hover:translate-x-1" style={{ color: "var(--dashboard-accent)" }}>Oku →</span>
-          </div>
-        </Link>
-      )}
 
       {/* Today's Program */}
       <Card
@@ -82,30 +74,6 @@ export default async function StudentDashboardPage({
               <p className="text-xs mt-1" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>Koçun sana bir program atadığında burada görünecek</p>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Son Check-in */}
-      <Card
-        className="overflow-hidden border"
-        style={{
-          backgroundColor: "var(--dashboard-glass-bg, var(--dashboard-card-bg))",
-          borderColor: "var(--dashboard-card-border)",
-          borderRadius: "var(--dashboard-card-radius)",
-          boxShadow: "var(--dashboard-card-shadow)",
-          backdropFilter: "var(--dashboard-glass-effect, none)"
-        }}
-      >
-        <CardContent className="pt-5 pb-5 flex flex-col items-center justify-center text-center">
-          <p className="text-2xl font-bold tracking-tight" style={{ color: "var(--dashboard-main-text)" }}>
-            {lastCheckIn
-              ? new Date(lastCheckIn.date).toLocaleDateString("tr-TR", {
-                day: "numeric",
-                month: "short",
-              })
-              : "-"}
-          </p>
-          <p className="text-[10px] font-bold uppercase tracking-widest mt-2" style={{ color: "var(--dashboard-main-text-muted)" }}>Son Check-in</p>
         </CardContent>
       </Card>
 
@@ -160,31 +128,78 @@ export default async function StudentDashboardPage({
         </Link>
       )}
 
-      {/* Coach Feedback */}
-      {lastCheckIn?.coachFeedback && (
+      {/* Bugünkü Yemekler */}
+      <Link href={`/site/${domain}/student/nutrition/log`} className="block">
         <Card
-          className="overflow-hidden border"
+          className="overflow-hidden border transition-all hover:scale-[1.005]"
           style={{
             backgroundColor: "var(--dashboard-glass-bg, var(--dashboard-card-bg))",
             borderColor: "var(--dashboard-card-border)",
-            borderLeftWidth: "4px",
-            borderLeftColor: "var(--dashboard-accent)",
             borderRadius: "var(--dashboard-card-radius)",
             boxShadow: "var(--dashboard-card-shadow)",
-            backdropFilter: "var(--dashboard-glass-effect, none)"
+            backdropFilter: "var(--dashboard-glass-effect, none)",
           }}
         >
-          <CardHeader className="pb-3 border-b border-[var(--dashboard-card-border)]/30">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--dashboard-main-text-muted)" }}>
-              Koçundan Mesaj
-            </CardTitle>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Bugünkü Yemekler</CardTitle>
+              <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                {filledTypes.size}/4 öğün
+              </span>
+            </div>
           </CardHeader>
-          <CardContent className="pt-4">
-            <p className="text-sm leading-relaxed">{lastCheckIn.coachFeedback}</p>
+          <CardContent>
+            <div className="grid grid-cols-4 gap-2">
+              <MealSlotMini icon={<Sun className="w-4 h-4" />} label="Kahvaltı" filled={filledTypes.has("breakfast")} />
+              <MealSlotMini icon={<Sunset className="w-4 h-4" />} label="Öğle" filled={filledTypes.has("lunch")} />
+              <MealSlotMini icon={<Moon className="w-4 h-4" />} label="Akşam" filled={filledTypes.has("dinner")} />
+              <MealSlotMini icon={<Coffee className="w-4 h-4" />} label="Ara" filled={filledTypes.has("snack")} />
+            </div>
+            <p className="text-[11px] mt-3 opacity-60">
+              {filledTypes.size === 0
+                ? "Tıkla ve ilk öğününün fotoğrafını yükle →"
+                : filledTypes.size === 4
+                  ? "Tüm öğünler yüklendi! ✨"
+                  : "Tıkla ve eksik öğünlerini tamamla →"}
+            </p>
           </CardContent>
         </Card>
-      )}
+      </Link>
 
+    </div>
+  );
+}
+
+function MealSlotMini({
+  icon,
+  label,
+  filled,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  filled: boolean;
+}) {
+  return (
+    <div
+      className="flex flex-col items-center justify-center gap-1 py-2 rounded-md text-center transition"
+      style={{
+        backgroundColor: filled
+          ? "color-mix(in srgb, var(--dashboard-accent) 12%, var(--dashboard-card-bg))"
+          : "color-mix(in srgb, var(--dashboard-card-border) 30%, transparent)",
+        border: filled
+          ? "1px solid color-mix(in srgb, var(--dashboard-accent) 40%, transparent)"
+          : "1px solid var(--dashboard-card-border)",
+      }}
+    >
+      <span style={{ color: filled ? "var(--dashboard-accent)" : "var(--dashboard-main-text-muted)" }}>
+        {filled ? <Check className="w-4 h-4" strokeWidth={3} /> : icon}
+      </span>
+      <span
+        className="text-[10px] font-semibold"
+        style={{ color: filled ? "var(--dashboard-accent)" : "var(--dashboard-main-text-muted)" }}
+      >
+        {label}
+      </span>
     </div>
   );
 }

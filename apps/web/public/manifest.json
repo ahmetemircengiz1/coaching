@@ -1,6 +1,6 @@
 {
-  "name": "Coach OS",
-  "short_name": "CoachOS",
+  "name": "Shred",
+  "short_name": "Shred",
   "description": "Fitness Koçları İçin White-Label Platform",
   "start_url": "/",
   "display": "standalone",

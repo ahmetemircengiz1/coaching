@@ -9,6 +9,16 @@ datasource db {
 }
 
 // ============================================
+// SITE MODU — Aşama 2 sadeleştirme
+// TEMPLATE: 6 hazır şablondan biri + içerik formları (Basic UI)
+// BUILDER:  Section Builder ile sıfırdan kurulum (yalnız Elite paket)
+// ============================================
+enum SiteMode {
+  TEMPLATE
+  BUILDER
+}
+
+// ============================================
 // SaaS PLATFORM - Paketler
 // ============================================
 
@@ -49,6 +59,7 @@ model Coach {
   heroFocalY      Int      @default(35) @map("hero_focal_y")
   heroFocalX      Int      @default(50) @map("hero_focal_x")
   heroMode        String   @default("photo") @map("hero_mode")
+  heroVideoUrl    String?  @map("hero_video_url") // HeroDisplayBold sağ alt notch'unda oynatılır
   subdomain       String   @unique
   customDomain    String?  @unique
 
@@ -63,10 +74,26 @@ model Coach {
   sidebarPosition String   @default("left")
 
   // Kademe 2: Gelişmiş Kişiselleştirme
+  // Aşama 2 sadeleştirme: TEMPLATE (6 şablon) vs BUILDER (Section Builder)
+  siteMode        SiteMode @default(TEMPLATE) @map("site_mode")
   landingConfig   Json?    // Bölüm sırası, görünürlük, varyantlar
+  eliteConfig     Json?    // Section Builder konfigürasyonu (siteMode=BUILDER kullanır)
   socialLinks     Json?    // { instagram, youtube, tiktok, twitter, facebook, linkedin }
   headingFont     String?  // Google Font ID
   bodyFont        String?  // Google Font ID
+  heroImageDark   Boolean? @map("hero_image_dark") // Auto-detected: true = dark hero, false = light
+  landingTexts    Json?    @map("landing_texts")   // { heroHeadline, heroSubtitle, ctaPrimaryText, ctaSecondaryText }
+  landingFaqs     Json?    @map("landing_faqs")    // [{ id, question, answer }] — Section Builder FAQ blokları için
+  aboutText       String?  @db.Text @map("about_text") // Hakkımızda sayfası metni
+  whatsappNumber  String?  @map("whatsapp_number") // +905xxxxxxxxx formatında
+  dashboardNote   String?  @db.Text @map("dashboard_note") // Koçun ana sayfa yapışkan notu
+
+  // İletişim & Yasal bilgiler (footer + yasal sayfalar için)
+  contactPhone    String?  @map("contact_phone")
+  businessAddress String?  @db.Text @map("business_address")
+  legalFullName   String?  @map("legal_full_name")   // Şahıs firması tam adı / tüzel ünvan
+  taxId           String?  @map("tax_id")            // Vergi kimlik no
+  legalTexts      Json?    @map("legal_texts")       // { gizlilik, kvkk, mesafeliSatis, iade } markdown içerikleri
 
   // Abonelik
   packageId       String
@@ -80,12 +107,15 @@ model Coach {
   stripeAccountId String?
 
   // İlişkiler
-  students        Student[]
-  coachPackages   CoachPackage[]
-  programs        Program[]
-  exercises       Exercise[]
-  transformations Transformation[]
-  nutritionPlans  NutritionPlan[]
+  students          Student[]
+  studentInvites    StudentInvite[]
+  registrationCodes CoachRegistrationCode[]
+  coachPackages     CoachPackage[]
+  programs          Program[]
+  exercises         Exercise[]
+  transformations   Transformation[]
+  testimonials      Testimonial[]
+  nutritionPlans    NutritionPlan[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -111,12 +141,59 @@ model CoachPackage {
   isActive    Boolean  @default(true)
   orderIndex  Int      @default(0)
 
-  students    Student[]
+  students          Student[]
+  studentInvites    StudentInvite[]
+  registrationCodes CoachRegistrationCode[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([coachId])
+}
+
+// ============================================
+// KAYIT KODU (koç üretir, öğrenci kayıt sırasında kullanır, tek-kullanımlık)
+// ============================================
+
+model CoachRegistrationCode {
+  id                String        @id @default(cuid())
+  coachId           String
+  coach             Coach         @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  code              String        @unique
+  label             String?
+  coachPackageId    String?
+  coachPackage      CoachPackage? @relation(fields: [coachPackageId], references: [id], onDelete: SetNull)
+  usedAt            DateTime?
+  usedByStudentId   String?
+  revokedAt         DateTime?
+  expiresAt         DateTime?
+  createdAt         DateTime      @default(now())
+
+  @@index([coachId])
+  @@index([code])
+}
+
+// ============================================
+// ÖĞRENCİ DAVETLERİ (tek-kullanımlık token)
+// ============================================
+
+model StudentInvite {
+  id               String        @id @default(cuid())
+  coachId          String
+  coach            Coach         @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  token            String        @unique
+  email            String
+  name             String
+  coachPackageId   String?
+  coachPackage     CoachPackage? @relation(fields: [coachPackageId], references: [id], onDelete: SetNull)
+  expiresAt        DateTime
+  claimedAt        DateTime?
+  claimedStudentId String?
+  revokedAt        DateTime?
+  createdAt        DateTime      @default(now())
+
+  @@index([coachId])
+  @@index([email, coachId])
 }
 
 // ============================================
@@ -151,12 +228,60 @@ model Student {
   nutritionPlans  NutritionPlan[]
   checkIns        WeeklyCheckIn[]
   metrics         Metric[]
-  messages        Message[]
+  workoutAttendances WorkoutAttendance[]
+  mealEntries     MealEntry[]
+  exerciseLogs    ExerciseLog[]
+  mealCompletions MealCompletion[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([coachId])
+}
+
+// ============================================
+// HAFTALIK SPOR DEVAM TAKVİMİ
+// (öğrenci günlük tek-tık attendance log'u)
+// ============================================
+
+model WorkoutAttendance {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  date      DateTime @db.Date         // sadece tarih (TZ-naive)
+  attended  Boolean  @default(true)
+  note      String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, date])
+  @@index([studentId, date])
+}
+
+// ============================================
+// GÜNLÜK YEMEK LOG'U
+// (öğrenci öğün başına foto + opsiyonel not yükler)
+// ============================================
+
+model MealEntry {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  date         DateTime @db.Date          // sadece tarih
+  mealType     String                     // "breakfast" | "lunch" | "dinner" | "snack"
+  photoUrl     String
+  note         String?  @db.Text          // öğrencinin notu
+  coachComment String?  @db.Text          // koç yorumu (Faz 3)
+  eatenAt      DateTime?                  // öğün saati (opsiyonel)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([studentId, date])
+  @@index([studentId, mealType])
 }
 
 // ============================================
@@ -169,12 +294,12 @@ model Exercise {
   coach       Coach?   @relation(fields: [coachId], references: [id], onDelete: Cascade)
   name        String
   category    String
-  videoUrl    String?
   imageUrl    String?
   description String?  @db.Text
   isSystem    Boolean  @default(false) // true = hazır egzersiz, false = koç ekledi
 
   workoutExercises WorkoutExercise[]
+  asAlternativeFor WorkoutExerciseAlternative[] @relation("WorkoutExerciseAlternativeFor")
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -231,7 +356,47 @@ model WorkoutExercise {
   notes           String?
   orderIndex      Int
 
+  // Öğrenci günlük logları (her gün için 1 kayıt)
+  logs            ExerciseLog[]
+
+  // Koçun tanımladığı alternatif egzersizler
+  alternatives    WorkoutExerciseAlternative[]
+
   @@index([workoutId])
+}
+
+// Koçun bir egzersiz için tanımladığı alternatif(ler). Öğrenci sıkıştığında
+// bu alternatiflerden seçim yapabilir.
+model WorkoutExerciseAlternative {
+  id                    String          @id @default(cuid())
+  workoutExerciseId     String
+  workoutExercise       WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  alternativeExerciseId String
+  alternativeExercise   Exercise        @relation("WorkoutExerciseAlternativeFor", fields: [alternativeExerciseId], references: [id], onDelete: Cascade)
+  orderIndex            Int             @default(0)
+
+  @@unique([workoutExerciseId, alternativeExerciseId])
+  @@index([workoutExerciseId])
+}
+
+// Öğrencinin günlük egzersiz logu (yaptım + opsiyonel detay)
+model ExerciseLog {
+  id                  String           @id @default(cuid())
+  studentId           String
+  student             Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  workoutExerciseId   String
+  workoutExercise     WorkoutExercise  @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  date                DateTime         @default(now()) @db.Date
+  setsCompleted       Int?
+  repsCompleted       String?          // "10,8,6" gibi set başına farklı tekrar
+  weightUsed          Decimal?         @db.Decimal(6, 2)
+  notes               String?          @db.Text
+  alternativeUsed     String?          // öğrenci alternatif egzersize geçtiyse adı
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@unique([studentId, workoutExerciseId, date])
+  @@index([studentId, date])
 }
 
 // ============================================
@@ -313,9 +478,31 @@ model Meal {
   name            String
   time            String?
   foods           Json          // [{name, portion, calories, protein, carbs, fat}]
+  alternatives    Json?         // string[] — koçun tanımladığı alternatif öğünler (ör: "Omlet + ekmek")
   orderIndex      Int
 
+  // Öğrenci öğün tamamlama kayıtları
+  completions     MealCompletion[]
+
   @@index([nutritionPlanId])
+}
+
+// Öğrencinin günlük öğün durumu (yedim/yemedim)
+model MealCompletion {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mealId          String
+  meal            Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  date            DateTime @default(now()) @db.Date
+  completed       Boolean  @default(true)
+  notes           String?  @db.Text
+  alternativeUsed String?  // öğrenci alternatif öğünü yediyse adı/metni
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([studentId, mealId, date])
+  @@index([studentId, date])
 }
 
 model NutritionLog {
@@ -371,10 +558,14 @@ model WeeklyCheckIn {
   notes           String?  @db.Text
   coachFeedback   String?  @db.Text
 
+  // Koç bu check-in'i ana sayfadan gördü mü? (null = okunmamış)
+  coachViewedAt   DateTime? @map("coach_viewed_at")
+
   createdAt   DateTime @default(now())
 
   @@index([studentId])
   @@index([date])
+  @@index([coachViewedAt])
 }
 
 // ============================================
@@ -399,27 +590,6 @@ model Metric {
 }
 
 // ============================================
-// MESAJLAŞMA
-// ============================================
-
-model Message {
-  id          String   @id @default(cuid())
-  studentId   String
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  senderId    String   // Coach veya Student userId
-  senderRole  String   // "coach" | "student"
-  content     String   @db.Text
-  attachments String[]
-  isRead      Boolean  @default(false)
-
-  createdAt   DateTime @default(now())
-
-  @@index([studentId])
-  @@index([senderId])
-  @@index([createdAt])
-}
-
-// ============================================
 // DÖNÜŞÜM HİKAYELERİ
 // ============================================
 
@@ -432,6 +602,37 @@ model Transformation {
   beforePhoto String
   afterPhoto  String
   duration    String?  // "12 hafta", "6 ay"
+  // Faz 2: Dönüşüm blokları için opsiyonel ölçüm bilgileri (koç panelinden girilebilir)
+  age           String?  // "35"
+  role          String?  // "Memur", "Öğretmen" vb. meslek/rol
+  weightBefore  String?  // "95 kg"
+  weightAfter   String?  // "74 kg"
+  bodyFatBefore String?  // "%40"
+  bodyFatAfter  String?  // "%30"
+  // Faz 2.5: Koçun isteğine göre özel istatistikler — [{ label, value }, ...]
+  // Örn: [{ label: "Squat 1RM", value: "120kg → 165kg" }]
+  customStats   Json?    @map("custom_stats")
+  isPublished Boolean  @default(true)
+  orderIndex  Int      @default(0)
+
+  createdAt   DateTime @default(now())
+
+  @@index([coachId])
+}
+
+// ============================================
+// ÖĞRENCİ YORUMLARI (TESTIMONIALS)
+// ============================================
+
+model Testimonial {
+  id          String   @id @default(cuid())
+  coachId     String
+  coach       Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  clientName  String
+  role        String?  // "Yazılımcı", "Online Danışan" vb. meslek/rol
+  quote       String   @db.Text  // yorum metni — koç panelinden girilir
+  rating      Int?     // 1-5 yıldız (opsiyonel; bazı tasarımlar gösterir)
+  avatar      String?  // danışan fotoğrafı (opsiyonel)
   isPublished Boolean  @default(true)
   orderIndex  Int      @default(0)
 

@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, Mail, Menu, MessageCircle, X, Users, Zap, Shield, ChevronRight } from "lucide-react";
-import { useMemo, useState } from "react";
-import { formatCount, formatPackagePrice, withFallbackFeatures } from "../helpers";
+import { Activity, Mail, MessageCircle, Users, Zap, Shield, ChevronRight } from "lucide-react";
+import { useMemo, useId } from "react";
+import { UnifiedNavbar } from "../shared/UnifiedNavbar";
+import { SystemHowSection } from "../shared/SystemHowSection";
+import { resolveNavbarVariant } from "../config";
+import { formatCount, formatPackagePrice, withFallbackFeatures, buildPackageInquiryUrl } from "../helpers";
 import { TransformationCarousel } from "../TransformationCarousel";
 import type { LandingThemeComponentProps, LandingPackage, LandingThemeContent } from "../types";
+import { getTextEffectStyle } from "../types";
 import type { SectionRendererProps, ThemeLayout } from "../section-types";
 import { FAQAccordion } from "../FAQSection";
 import { SocialIcons } from "../SocialIcons";
-import { HeroDesktopImage, HeroMobileImage, hasHeroImage } from "../HeroBackground";
+import { HeroFullscreenImage, hasHeroImage } from "../HeroBackground";
 
 /* ─── Theme 5 – "Electric Hybrid" ─── */
 
@@ -35,113 +39,109 @@ function Theme5Background() {
 
 /* ─── Navbar ─── */
 export function Theme5Navbar({ content }: { content: LandingThemeContent }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  return (
-    <>
-      {/* Desktop header */}
-      <header className="fixed top-0 w-full z-50 bg-[#07090F]/80 backdrop-blur-xl border-b border-[#2EC8D8]/20 hidden md:block">
-        <div className="mx-auto flex h-20 max-w-[1400px] items-center justify-between px-6 lg:px-12">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-[#2EC8D8] shadow-[0_0_10px_#2EC8D8] animate-pulse" />
-            <span className="text-xl font-black tracking-widest text-white uppercase" style={{ WebkitTextStroke: "0.5px #2EC8D8" }}>
-              {content.brandName}
-            </span>
-          </div>
-
-          <nav className="flex items-center gap-10">
-            <a href="#tanitim" className="text-xs font-bold text-[#8B9BB4] hover:text-[#2EC8D8] transition-colors uppercase tracking-[0.2em]">Hakkımızda</a>
-            {content.transformations.length > 0 && <a href="#donusumler" className="text-xs font-bold text-[#8B9BB4] hover:text-[#2EC8D8] transition-colors uppercase tracking-[0.2em]">Dönüşüm</a>}
-            <a href="#paketler" className="text-xs font-bold text-[#8B9BB4] hover:text-[#2EC8D8] transition-colors uppercase tracking-[0.2em]">Paketler</a>
-            <a href="#iletisim" className="text-xs font-bold text-[#8B9BB4] hover:text-[#2EC8D8] transition-colors uppercase tracking-[0.2em]">İletişim</a>
-          </nav>
-
-          <div className="flex items-center gap-6">
-            <Link href={content.authUrl} className="text-xs font-bold text-[#8B9BB4] hover:text-white transition-colors uppercase tracking-widest">
-              Giriş Yap
-            </Link>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded bg-[#2EC8D8]/10 border border-[#2EC8D8]/40 px-6 text-xs font-bold text-[#2EC8D8] transition-all hover:bg-[#2EC8D8] hover:text-[#07090F] hover:shadow-[0_0_20px_rgba(46,200,216,0.4)] uppercase tracking-widest relative overflow-hidden group">
-              <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-              Başla
-            </a>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile floating hamburger */}
-      <button type="button" onClick={() => setMenuOpen(true)} className="fixed top-4 right-4 z-50 inline-flex h-11 w-11 items-center justify-center border border-[#2EC8D8]/30 text-[#2EC8D8] bg-black/40 backdrop-blur-md md:hidden rounded-lg shadow-lg" aria-label="Menu">
-        <Menu size={20} />
-      </button>
-
-      {/* Mobile fullscreen menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 bg-[#07090F]/95 backdrop-blur-3xl flex flex-col items-center justify-center md:hidden">
-          <button type="button" onClick={() => setMenuOpen(false)} className="absolute top-4 right-4 h-11 w-11 inline-flex items-center justify-center border border-[#2EC8D8]/30 text-[#2EC8D8] rounded-lg" aria-label="Kapat">
-            <X size={20} />
-          </button>
-          <div className="flex items-center gap-3 mb-10">
-            <div className="h-2 w-2 rounded-full bg-[#2EC8D8] shadow-[0_0_10px_#2EC8D8] animate-pulse" />
-            <span className="text-xl font-black tracking-widest text-white uppercase" style={{ WebkitTextStroke: "0.5px #2EC8D8" }}>{content.brandName}</span>
-          </div>
-          <div className="flex flex-col gap-5 text-sm font-bold text-[#8B9BB4] uppercase tracking-widest text-center">
-            <a href="#tanitim" onClick={() => setMenuOpen(false)}>Hakkımızda</a>
-            {content.transformations.length > 0 && <a href="#donusumler" onClick={() => setMenuOpen(false)}>Dönüşüm</a>}
-            <a href="#paketler" onClick={() => setMenuOpen(false)}>Paketler</a>
-            <a href="#iletisim" onClick={() => setMenuOpen(false)}>İletişim</a>
-            <Link href={content.authUrl} className="text-[#2EC8D8]" onClick={() => setMenuOpen(false)}>Giriş Yap</Link>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="text-white">Başla</a>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  const variant = resolveNavbarVariant(content.landingConfig?.navbarVariant, "theme-5");
+  return <UnifiedNavbar content={content} variant={variant} />;
 }
 
 /* ─── Hero Section ─── */
 export function Theme5Hero({ content, variant }: SectionRendererProps) {
   const withImage = hasHeroImage(content);
+  const texts = content.landingTexts;
+  const headlineColor = texts?.heroTextColor || undefined;
+  const subtitleColor = texts?.heroSubtitleColor || undefined;
+  const effectStyle = getTextEffectStyle(texts?.heroTextEffect, headlineColor);
+  const textAlign = texts?.heroTextAlign || "center";
+
+  const posMode = texts?.heroTextPositionMode || "flex";
+  const posX = texts?.heroTextPosX ?? 50;
+  const posY = texts?.heroTextPosY ?? 50;
+  const scale = texts?.heroTextScale ?? 1;
+  const subtitleScale = Number(texts?.heroSubtitleScale ?? 1);
+  const headlineBg = texts?.heroHeadlineBgColor || "";
+  const subtitleBg = texts?.heroSubtitleBgColor || "";
+  const weight = texts?.heroTextWeight || undefined;
+  const containerId = useId().replace(/:/g, "");
+  const containerClass = `hero-text-${containerId}`;
 
   return (
-    <section className="relative min-h-[100svh] overflow-hidden bg-[#07090F]">
-      {/* Mobile background */}
-      <HeroMobileImage content={content} />
+    <section data-landing-section="hero" className="relative min-h-[100svh] overflow-hidden bg-[#07090F]">
+      <style>{`
+        .${containerClass} {
+          transform: scale(${scale});
+          transform-origin: ${textAlign === "left" ? "left center" : textAlign === "right" ? "right center" : "center center"};
+        }
+        @media (min-width: 768px) {
+          .${containerClass} {
+            ${posMode === "absolute" ? `
+              position: absolute !important;
+              left: ${posX}% !important;
+              top: ${posY}% !important;
+              transform: translate(-50%, -50%) scale(${scale}) !important;
+              margin: 0 !important;
+            ` : ""}
+          }
+        }
+      `}</style>
+      {/* Fullscreen background */}
+      <HeroFullscreenImage content={content} themeBg="#07090F" />
 
-      <div className={`relative z-10 mx-auto max-w-[1400px] px-6 lg:px-12 pt-32 pb-20 md:pt-44 md:pb-32 min-h-[100svh] flex items-center ${withImage ? "md:grid md:grid-cols-2 md:gap-12" : ""}`}>
-        {/* Left: Text */}
-        <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded bg-[#2EC8D8]/10 border border-[#2EC8D8]/30 mb-8 backdrop-blur-sm">
+      <div className={`relative z-10 mx-auto max-w-[1400px] px-6 lg:px-12 pt-32 pb-20 md:pt-44 md:pb-32 min-h-[100svh] flex items-center justify-center text-center`}>
+        {/* Text */}
+        <div className={`max-w-3xl w-full ${textAlign === "center" ? "mx-auto items-center text-center" : textAlign === "left" ? "mr-auto items-start text-left" : "ml-auto items-end text-right"} flex flex-col ${containerClass}`}>
+          <div className="inline-flex items-center justify-center gap-3 px-4 py-1.5 rounded bg-[#2EC8D8]/10 border border-[#2EC8D8]/30 mb-8 backdrop-blur-sm">
             <Zap size={14} className="text-[#2EC8D8]" />
             <span className="text-[10px] font-bold text-[#2EC8D8] tracking-[0.2em] uppercase">Protokol V2.0 Aktif</span>
           </div>
 
-          <h1 className="text-4xl md:text-6xl lg:text-[72px] font-black tracking-tighter text-white mb-6 leading-[1] uppercase">
-            Evriminizi
-            <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2EC8D8] to-[#9D4EDD]">
-              Hackleyin.
-            </span>
-          </h1>
+          {texts?.heroHeadline ? (
+            <h1 className={`text-4xl md:text-6xl lg:text-[72px] ${weight ? '' : 'font-black'} tracking-tighter ${headlineColor || headlineBg ? '' : 'text-white'} mb-6 leading-[1] uppercase`} style={{ color: headlineColor || undefined, fontWeight: weight, ...effectStyle }}>
+              {headlineBg ? (
+                <span style={{ backgroundColor: headlineBg, padding: "0.1em 0.3em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{texts.heroHeadline}</span>
+              ) : headlineColor ? (
+                <span>{texts.heroHeadline}</span>
+              ) : (
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2EC8D8] to-[#9D4EDD]">
+                  {texts.heroHeadline}
+                </span>
+              )}
+            </h1>
+          ) : (
+            <h1 className={`text-4xl md:text-6xl lg:text-[72px] ${weight ? '' : 'font-black'} tracking-tighter text-white mb-6 leading-[1] uppercase`} style={{ fontWeight: weight, ...effectStyle }}>
+              Evriminizi
+              <br className="hidden md:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2EC8D8] to-[#9D4EDD]">
+                Hackleyin.
+              </span>
+            </h1>
+          )}
 
-          <p className="mt-8 max-w-xl text-lg md:text-xl leading-relaxed text-white/60 md:text-[#8B9BB4] font-medium border-l-2 border-[#2EC8D8]/50 pl-6">
-            {content.bio || "Biyomekanik optimizasyon ve veri odaklı antrenman sistemleriyle fiziksel limitlerinizi yeniden yazın."}
+          <p className={`mt-8 max-w-xl leading-relaxed ${subtitleColor ? '' : 'text-white/60 md:text-[#8B9BB4]'} font-medium ${subtitleScale === 1 ? 'text-lg md:text-xl' : ''}`} style={{ color: subtitleColor || undefined, textShadow: subtitleBg ? undefined : "0 1px 10px rgba(0,0,0,0.5)", fontSize: subtitleScale !== 1 ? `${subtitleScale * 1.25}rem` : undefined }}>
+            {subtitleBg ? (
+              <span style={{ backgroundColor: subtitleBg, padding: "0.15em 0.4em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
+                {texts?.heroSubtitle || content.bio || "Biyomekanik optimizasyon ve veri odaklı antrenman sistemleriyle fiziksel limitlerinizi yeniden yazın."}
+              </span>
+            ) : (
+              texts?.heroSubtitle || content.bio || "Biyomekanik optimizasyon ve veri odaklı antrenman sistemleriyle fiziksel limitlerinizi yeniden yazın."
+            )}
           </p>
 
-          <div className="mt-12 flex flex-col sm:flex-row items-start gap-5">
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-5">
             <a href="#paketler" className="inline-flex h-14 items-center justify-center rounded bg-[#2EC8D8] px-10 text-sm font-black text-[#07090F] shadow-[0_0_30px_rgba(46,200,216,0.3)] transition-all hover:bg-white hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] uppercase tracking-widest w-full sm:w-auto">
-              Programları İncele
+              {texts?.ctaPrimaryText || "Programları İncele"}
             </a>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-14 items-center justify-center gap-2 rounded border border-[#8B9BB4]/30 bg-transparent px-8 text-sm font-bold text-white transition-all hover:border-[#2EC8D8]/50 hover:bg-[#2EC8D8]/5 uppercase tracking-widest w-full sm:w-auto">
-              <Shield size={16} className="text-[#9D4EDD]" />
-              Başla
-            </a>
+            {content.whatsappNumber ? (
+              <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-14 items-center justify-center gap-2 rounded border border-[#8B9BB4]/30 bg-transparent px-8 text-sm font-bold text-white transition-all hover:border-[#2EC8D8]/50 hover:bg-[#2EC8D8]/5 uppercase tracking-widest w-full sm:w-auto">
+                <MessageCircle size={16} className="text-[#9D4EDD]" />
+                {texts?.ctaSecondaryText || "WhatsApp ile Başla"}
+              </a>
+            ) : (
+              <Link href={content.authUrl} className="inline-flex h-14 items-center justify-center gap-2 rounded border border-[#8B9BB4]/30 bg-transparent px-8 text-sm font-bold text-white transition-all hover:border-[#2EC8D8]/50 hover:bg-[#2EC8D8]/5 uppercase tracking-widest w-full sm:w-auto">
+                <Shield size={16} className="text-[#9D4EDD]" />
+                {texts?.ctaSecondaryText || "Kayıt Ol"}
+              </Link>
+            )}
           </div>
         </div>
-
-        {/* Right: Hero image (desktop) */}
-        {withImage && (
-          <div className="hidden md:block relative h-[600px] lg:h-[700px]">
-            <HeroDesktopImage content={content} themeBg="#07090F" accentColor="#2EC8D8" />
-          </div>
-        )}
       </div>
     </section>
   );
@@ -150,31 +150,31 @@ export function Theme5Hero({ content, variant }: SectionRendererProps) {
 /* ─── Stats Section ─── */
 export function Theme5Stats({ content, variant }: SectionRendererProps) {
   return (
-    <section id="tanitim" className="px-6 lg:px-12 border-y border-[#2EC8D8]/20 bg-[#0C1220]/50 backdrop-blur-sm">
+    <section data-landing-section="stats" id="tanitim" className="px-6 lg:px-12 border-y border-[#2EC8D8]/20 bg-[#0C1220]/50 backdrop-blur-sm">
       <div className="mx-auto max-w-[1400px]">
         <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#2EC8D8]/20">
           <div className="py-12 md:py-16 md:px-12 flex flex-col">
             <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-5xl font-black text-white">{formatCount(content.studentCount || 1000)}+</span>
+              <span className="text-5xl font-black text-white">{content.landingTexts?.stat1Value || `${formatCount(content.studentCount || 1000)}+`}</span>
             </div>
             <p className="text-xs font-bold text-[#8B9BB4] uppercase tracking-[0.2em] flex items-center gap-2">
-              <span className="w-4 h-px bg-[#2EC8D8]" /> Aktif Öğrenci
+              <span className="w-4 h-px bg-[#2EC8D8]" /> {content.landingTexts?.stat1Label || "Aktif Öğrenci"}
             </p>
           </div>
           <div className="py-12 md:py-16 md:px-12 flex flex-col">
             <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-5xl font-black text-white">{content.transformationCount || 10}+</span>
+              <span className="text-5xl font-black text-white">{content.landingTexts?.stat2Value || `${content.transformationCount || 10}+`}</span>
             </div>
             <p className="text-xs font-bold text-[#8B9BB4] uppercase tracking-[0.2em] flex items-center gap-2">
-              <span className="w-4 h-px bg-[#9D4EDD]" /> Başarılı Dönüşüm
+              <span className="w-4 h-px bg-[#9D4EDD]" /> {content.landingTexts?.stat2Label || "Başarılı Dönüşüm"}
             </p>
           </div>
           <div className="py-12 md:py-16 md:px-12 flex flex-col">
             <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-5xl font-black text-white">5+</span>
+              <span className="text-5xl font-black text-white">{content.landingTexts?.stat3Value || "5+"}</span>
             </div>
             <p className="text-xs font-bold text-[#8B9BB4] uppercase tracking-[0.2em] flex items-center gap-2">
-              <span className="w-4 h-px bg-white" /> Yıl Deneyim
+              <span className="w-4 h-px bg-white" /> {content.landingTexts?.stat3Label || "Yıl Deneyim"}
             </p>
           </div>
         </div>
@@ -187,15 +187,15 @@ export function Theme5Stats({ content, variant }: SectionRendererProps) {
 export function Theme5Transformations({ content, variant }: SectionRendererProps) {
   if (content.transformations.length === 0) return null;
   return (
-    <section id="donusumler" className="py-24 px-6 lg:px-12 relative overflow-hidden border-b border-[#2EC8D8]/20">
+    <section data-landing-section="transformations" id="donusumler" className="py-24 px-6 lg:px-12 relative overflow-hidden border-b border-[#2EC8D8]/20">
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[#9D4EDD]/5 blur-[150px] rounded-full pointer-events-none" />
       <div className="mx-auto max-w-[1400px] flex flex-col lg:flex-row gap-16 lg:items-center">
-        <div className="lg:w-1/3">
+        <div data-section-heading className="lg:w-1/3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-[#9D4EDD]/30 mb-6 bg-[#9D4EDD]/10">
             <Activity size={12} className="text-[#9D4EDD]" />
             <span className="text-[10px] font-bold text-[#9D4EDD] tracking-widest uppercase">Görsel Kanıt</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter leading-[1]">Veri Analiz<br />Sonuçları</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter leading-[1]">{content.landingTexts?.transformationsTitle || <>Veri Analiz<br />Sonuçları</>}</h2>
           <p className="mt-6 text-[#8B9BB4] text-lg">Sistemimize entegre olan bireylerin program sonu anatomik gelişim raporları.</p>
         </div>
         <div className="lg:w-2/3 w-full max-w-xl mx-auto lg:mx-0">
@@ -212,14 +212,14 @@ export function Theme5Transformations({ content, variant }: SectionRendererProps
 export function Theme5Packages({ content, variant }: SectionRendererProps) {
   const packages = useMemo(() => normalizePackages(content.packages), [content.packages]);
   return (
-    <section id="paketler" className="py-32 px-6 lg:px-12 relative">
+    <section data-landing-section="packages" id="paketler" className="py-32 px-6 lg:px-12 relative">
       <div className="mx-auto max-w-[1400px]">
-        <div className="mb-20">
+        <div data-section-heading className="mb-20">
           <div className="inline-flex items-center gap-2 mb-4">
             <span className="w-8 h-px bg-[#2EC8D8]" />
             <span className="text-[10px] font-bold text-[#2EC8D8] tracking-[0.2em] uppercase">Erişim Yetkisi</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">Sistem Modülleri</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">{content.landingTexts?.packagesTitle || "Sistem Modülleri"}</h2>
         </div>
 
         <div className="grid gap-8 md:grid-cols-3 items-end">
@@ -255,9 +255,13 @@ export function Theme5Packages({ content, variant }: SectionRendererProps) {
                     ))}
                   </ul>
 
-                  <Link href={`${content.authUrl}?package=${pkg.id}`} className={`relative inline-flex h-12 w-full items-center justify-center border text-xs font-black uppercase tracking-[0.2em] transition-all overflow-hidden ${isPro ? "bg-[#2EC8D8] border-[#2EC8D8] text-[#07090F] hover:bg-white hover:border-white shadow-[0_0_20px_rgba(46,200,216,0.2)]" : "bg-transparent border-[#1E293B] text-white hover:border-[#2EC8D8]/50 hover:bg-[#2EC8D8]/10"}`}>
-                    Erişim Sağla
-                  </Link>
+                  {(() => {
+                    const cta = buildPackageInquiryUrl(content.brandName, pkg.name, content.whatsappNumber, content.email, content.authUrl);
+                    const cls = `relative inline-flex h-12 w-full items-center justify-center border text-xs font-black uppercase tracking-[0.2em] transition-all overflow-hidden ${isPro ? "bg-[#2EC8D8] border-[#2EC8D8] text-[#07090F] hover:bg-white hover:border-white shadow-[0_0_20px_rgba(46,200,216,0.2)]" : "bg-transparent border-[#1E293B] text-white hover:border-[#2EC8D8]/50 hover:bg-[#2EC8D8]/10"}`;
+                    return cta.external
+                      ? <a href={cta.href} target="_blank" rel="noreferrer" className={cls}>Koça Yaz</a>
+                      : <Link href={cta.href} className={cls}>Koça Yaz</Link>;
+                  })()}
                 </div>
               </article>
             );
@@ -269,16 +273,16 @@ export function Theme5Packages({ content, variant }: SectionRendererProps) {
 }
 
 /* ─── FAQ Section ─── */
-export function Theme5FAQ({ variant }: SectionRendererProps) {
+export function Theme5FAQ({ content, variant }: SectionRendererProps) {
   return (
-    <section className="py-24 px-6 lg:px-12 relative border-y border-[#2EC8D8]/20">
+    <section data-landing-section="faq" className="py-24 px-6 lg:px-12 relative border-y border-[#2EC8D8]/20">
       <div className="mx-auto max-w-[1400px]">
-        <div className="mb-16">
+        <div data-section-heading className="mb-16">
           <div className="inline-flex items-center gap-2 mb-4">
             <span className="w-8 h-px bg-[#9D4EDD]" />
             <span className="text-[10px] font-bold text-[#9D4EDD] tracking-[0.2em] uppercase">Bilgi Bankası</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">Sık Sorulan Sorular</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">{content.landingTexts?.faqTitle || "Sık Sorulan Sorular"}</h2>
         </div>
         <FAQAccordion
           variant={variant as 1 | 2}
@@ -296,7 +300,7 @@ export function Theme5FAQ({ variant }: SectionRendererProps) {
 /* ─── Contact / Footer Section ─── */
 export function Theme5Contact({ content, variant }: SectionRendererProps) {
   return (
-    <footer id="iletisim" className="mt-auto border-t border-[#2EC8D8]/20 bg-[#07090F] pt-16 pb-8 px-6 lg:px-12 relative overflow-hidden">
+    <footer data-landing-section="contact" id="iletisim" className="mt-auto border-t border-[#2EC8D8]/20 bg-[#07090F] pt-16 pb-8 px-6 lg:px-12 relative overflow-hidden">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px] opacity-30" />
 
       <div className="mx-auto max-w-[1400px] relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
@@ -304,12 +308,12 @@ export function Theme5Contact({ content, variant }: SectionRendererProps) {
           <div className="text-2xl font-black tracking-widest text-white uppercase mb-2" style={{ WebkitTextStroke: "0.5px #2EC8D8" }}>
             {content.brandName}
           </div>
-          <p className="text-xs font-bold text-[#8B9BB4] uppercase tracking-[0.2em]">Sistem Versiyonu 2.0.4</p>
+          <p className="text-xs font-bold text-[#8B9BB4] uppercase tracking-[0.2em]">{content.landingTexts?.footerTagline || "Sistem Versiyonu 2.0.4"}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-8 text-[11px] font-bold uppercase tracking-[0.2em] text-[#8B9BB4]">
           <a href={`mailto:${content.email}`} className="hover:text-[#2EC8D8] transition-colors flex items-center gap-2"><Mail size={14} className="text-[#2EC8D8]/50" /> İrtibat Teli</a>
-          <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-[#2EC8D8] transition-colors flex items-center gap-2"><MessageCircle size={14} className="text-[#2EC8D8]/50" /> Destek Ağı</a>
+          {content.whatsappNumber && <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-[#2EC8D8] transition-colors flex items-center gap-2"><MessageCircle size={14} className="text-[#2EC8D8]/50" /> Destek Ağı</a>}
           <Link href={content.authUrl} className="hover:text-[#2EC8D8] transition-colors flex items-center gap-2"><Shield size={14} className="text-[#2EC8D8]/50" /> Portal Girişi</Link>
         </div>
       </div>
@@ -338,6 +342,7 @@ export function LandingTheme5({ content }: LandingThemeComponentProps) {
         <Theme5Hero content={content} variant={1} />
         <Theme5Stats content={content} variant={1} />
         <Theme5Transformations content={content} variant={1} />
+        <SystemHowSection content={content} variant={1} />
         <Theme5Packages content={content} variant={1} />
         <Theme5Contact content={content} variant={1} />
       </div>
@@ -360,6 +365,7 @@ export const theme5Layout: ThemeLayout = {
     hero: Theme5Hero,
     stats: Theme5Stats,
     transformations: Theme5Transformations,
+    system: SystemHowSection,
     packages: Theme5Packages,
     faq: Theme5FAQ,
     contact: Theme5Contact,

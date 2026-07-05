@@ -1,5 +1,6 @@
 // Hazır antrenman program şablonları
 // Koçlar tek tıkla kendi kütüphanelerine ekleyebilir
+import { ADDITIONAL_PROGRAM_TEMPLATES } from "./program-templates-additions";
 
 export interface TemplateExercise {
   exerciseName: string; // Sistem egzersiz adıyla eşleşir
@@ -239,9 +240,12 @@ const advancedPPL: ProgramTemplate = {
 };
 
 export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
+  // ── Mevcut programlar ──
   beginnerFullBody,
   intermediateUpperLower,
   advancedPPL,
+  // ── Ek programlar (program-templates-additions.ts) ──
+  ...ADDITIONAL_PROGRAM_TEMPLATES,
 ];
 
 export const LEVEL_LABELS: Record<string, string> = {

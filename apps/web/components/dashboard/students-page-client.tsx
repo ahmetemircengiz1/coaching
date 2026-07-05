@@ -6,9 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { sendBulkMessage } from "@/app/site/[domain]/dashboard/students/assign-actions";
 import { toast } from "sonner";
 import { EmptyState, EmptySearchState } from "./empty-state";
+import { StudentCodesSection, type CodeItem, type PackageOption } from "./student-codes-section";
 
 type StudentItem = {
   id: string;
@@ -19,31 +19,35 @@ type StudentItem = {
   packageName: string;
   compliance: number;
   lastCheckIn: string | null;
-  unreadMessages: number;
   startDate: string;
   currentProgram: string | null;
-  lastMessageDate: string | null;
+  endDate: string | null;
 };
 
-type SortKey = "name" | "lastCheckIn" | "startDate" | "lastMessage";
-type StatusFilter = "all" | "active" | "pending" | "inactive";
+type SortKey = "name" | "lastCheckIn" | "startDate" | "endDateAsc";
+type StatusFilter = "all" | "active" | "inactive" | "endingSoon" | "expired";
+
+const DAY_MS = 86_400_000;
 
 export function StudentsPageClient({
   domain,
   students,
   maxStudents,
+  packages,
+  codes,
 }: {
   domain: string;
   students: StudentItem[];
   maxStudents: number;
+  packages: PackageOption[];
+  codes: CodeItem[];
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortBy, setSortBy] = useState<SortKey>("name");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkMessage, setBulkMessage] = useState("");
-  const [showBulkMessage, setShowBulkMessage] = useState(false);
-  const [bulkSending, setBulkSending] = useState(false);
+
+  const now = useMemo(() => Date.now(), []);
 
   const filtered = useMemo(() => {
     let result = students;
@@ -60,8 +64,19 @@ export function StudentsPageClient({
     }
 
     // Status filter
-    if (statusFilter !== "all") {
+    if (statusFilter === "active" || statusFilter === "inactive") {
       result = result.filter((s) => s.status === statusFilter);
+    } else if (statusFilter === "endingSoon") {
+      result = result.filter((s) => {
+        if (!s.endDate) return false;
+        const diff = new Date(s.endDate).getTime() - now;
+        return diff >= 0 && diff <= 7 * DAY_MS;
+      });
+    } else if (statusFilter === "expired") {
+      result = result.filter((s) => {
+        if (!s.endDate) return false;
+        return new Date(s.endDate).getTime() < now;
+      });
     }
 
     // Sort
@@ -73,25 +88,33 @@ export function StudentsPageClient({
           return (b.lastCheckIn || "").localeCompare(a.lastCheckIn || "");
         case "startDate":
           return (b.startDate || "").localeCompare(a.startDate || "");
-        case "lastMessage":
-          return (b.lastMessageDate || "").localeCompare(a.lastMessageDate || "");
+        case "endDateAsc": {
+          // Yakın bitiş üstte; tarihsiz olanlar sona.
+          const av = a.endDate ? new Date(a.endDate).getTime() : Number.POSITIVE_INFINITY;
+          const bv = b.endDate ? new Date(b.endDate).getTime() : Number.POSITIVE_INFINITY;
+          return av - bv;
+        }
         default:
           return 0;
       }
     });
 
     return result;
-  }, [students, search, statusFilter, sortBy]);
+  }, [students, search, statusFilter, sortBy, now]);
 
   const statusCounts = useMemo(() => {
-    const counts = { all: students.length, active: 0, pending: 0, inactive: 0 };
+    const counts = { all: students.length, active: 0, inactive: 0, endingSoon: 0, expired: 0 };
     for (const s of students) {
       if (s.status === "active") counts.active++;
-      else if (s.status === "pending") counts.pending++;
       else counts.inactive++;
+      if (s.endDate) {
+        const t = new Date(s.endDate).getTime();
+        if (t < now) counts.expired++;
+        else if (t - now <= 7 * DAY_MS) counts.endingSoon++;
+      }
     }
     return counts;
-  }, [students]);
+  }, [students, now]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -110,26 +133,6 @@ export function StudentsPageClient({
     }
   };
 
-  const handleBulkMessage = async () => {
-    if (!bulkMessage.trim() || selectedIds.size === 0) return;
-    setBulkSending(true);
-    try {
-      const result = await sendBulkMessage(domain, Array.from(selectedIds), bulkMessage.trim());
-      if (result.success) {
-        toast.success(`${result.count} öğrenciye mesaj gönderildi`);
-        setBulkMessage("");
-        setShowBulkMessage(false);
-        setSelectedIds(new Set());
-      } else {
-        toast.error(result.error || "Mesaj gönderilemedi");
-      }
-    } catch {
-      toast.error("Bir hata oluştu");
-    } finally {
-      setBulkSending(false);
-    }
-  };
-
   return (
     <div className="space-y-6" style={{ color: "var(--dashboard-main-text)" }}>
       <div className="flex items-center justify-between">
@@ -140,6 +143,16 @@ export function StudentsPageClient({
             {maxStudents === 999 ? "Sınırsız" : maxStudents} limit
           </p>
         </div>
+      </div>
+
+      <div
+        className="p-3 rounded-xl"
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 3%, transparent)",
+          border: "1px solid var(--dashboard-card-border)",
+        }}
+      >
+        <StudentCodesSection domain={domain} packages={packages} codes={codes} />
       </div>
 
       {/* Arama + Filtre + Sıralama */}
@@ -170,12 +183,13 @@ export function StudentsPageClient({
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Durum Filtreleri */}
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               {([
                 { key: "all" as StatusFilter, label: "Tümü" },
                 { key: "active" as StatusFilter, label: "Aktif" },
-                { key: "pending" as StatusFilter, label: "Bekliyor" },
                 { key: "inactive" as StatusFilter, label: "Pasif" },
+                { key: "endingSoon" as StatusFilter, label: "Bitiyor ≤7g" },
+                { key: "expired" as StatusFilter, label: "Süresi Doldu" },
               ]).map((f) => (
                 <button
                   key={f.key}
@@ -211,7 +225,7 @@ export function StudentsPageClient({
               <option value="name">Ada Göre</option>
               <option value="lastCheckIn">Son Check-in</option>
               <option value="startDate">Kayıt Tarihi</option>
-              <option value="lastMessage">Son Mesaj</option>
+              <option value="endDateAsc">Paket Bitişi (yakın)</option>
             </select>
           </div>
         </div>
@@ -230,61 +244,13 @@ export function StudentsPageClient({
             {selectedIds.size} öğrenci seçili
           </span>
           <div className="flex-1" />
-          {showBulkMessage ? (
-            <div className="flex items-center gap-2 flex-1">
-              <Input
-                value={bulkMessage}
-                onChange={(e) => setBulkMessage(e.target.value)}
-                placeholder="Mesajınızı yazın..."
-                className="flex-1 text-sm"
-                style={{
-                  backgroundColor: "var(--dashboard-card-bg)",
-                  borderColor: "var(--dashboard-card-border)",
-                  color: "var(--dashboard-main-text)",
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleBulkMessage();
-                  }
-                }}
-              />
-              <Button
-                size="sm"
-                onClick={handleBulkMessage}
-                disabled={bulkSending || !bulkMessage.trim()}
-                style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
-              >
-                {bulkSending ? "..." : "Gönder"}
-              </Button>
-              <button
-                onClick={() => setShowBulkMessage(false)}
-                className="text-xs px-2 py-1"
-                style={{ color: "var(--dashboard-main-text-muted)" }}
-              >
-                İptal
-              </button>
-            </div>
-          ) : (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowBulkMessage(true)}
-                className="text-xs"
-                style={{ borderColor: "var(--dashboard-accent)", color: "var(--dashboard-accent)" }}
-              >
-                Toplu Mesaj
-              </Button>
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="text-xs px-2 py-1"
-                style={{ color: "var(--dashboard-main-text-muted)" }}
-              >
-                Seçimi Kaldır
-              </button>
-            </>
-          )}
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs px-2 py-1"
+            style={{ color: "var(--dashboard-main-text-muted)" }}
+          >
+            Seçimi Kaldır
+          </button>
         </div>
       )}
 
@@ -292,7 +258,7 @@ export function StudentsPageClient({
         <EmptyState
           icon="👥"
           title="Henüz öğrenciniz yok"
-          description="Öğrenciler landing page'inizden kayıt olduğunda burada görünecek"
+          description="Üstteki 'Öğrenci Davet Et' butonu ile öğrencilerinize tek kullanımlık davet linki oluşturun."
         />
       ) : filtered.length === 0 ? (
         <EmptySearchState message="Aramanızla eşleşen öğrenci bulunamadı." />
@@ -346,6 +312,13 @@ export function StudentsPageClient({
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
+                    {/* Paket */}
+                    <div className="text-right hidden xl:block">
+                      <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Paket</p>
+                      <p className="text-sm truncate max-w-[120px]" style={{ color: "var(--dashboard-main-text)" }}>
+                        {student.packageName}
+                      </p>
+                    </div>
                     {/* Mevcut Program */}
                     {student.currentProgram && (
                       <div className="text-right hidden xl:block">
@@ -355,6 +328,19 @@ export function StudentsPageClient({
                         </p>
                       </div>
                     )}
+                    {/* Paket Bitiş */}
+                    <div className="text-right hidden lg:block">
+                      <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Bitis</p>
+                      <p className="text-sm" style={{
+                        color: student.endDate && new Date(student.endDate) < new Date()
+                          ? "#ef4444"
+                          : "var(--dashboard-main-text)",
+                      }}>
+                        {student.endDate
+                          ? new Date(student.endDate).toLocaleDateString("tr-TR")
+                          : "-"}
+                      </p>
+                    </div>
                     <div className="text-right hidden lg:block">
                       <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Son Check-in</p>
                       <p className="text-sm" style={{ color: "var(--dashboard-main-text)" }}>
@@ -363,23 +349,6 @@ export function StudentsPageClient({
                           : "-"}
                       </p>
                     </div>
-                    {/* Son İletişim */}
-                    <div className="text-right hidden md:block">
-                      <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Son İletişim</p>
-                      <p className="text-sm" style={{ color: "var(--dashboard-main-text)" }}>
-                        {student.lastMessageDate
-                          ? new Date(student.lastMessageDate).toLocaleDateString("tr-TR")
-                          : "-"}
-                      </p>
-                    </div>
-                    {student.unreadMessages > 0 && (
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                        style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
-                      >
-                        {student.unreadMessages}
-                      </div>
-                    )}
                     <Badge
                       variant={
                         student.status === "active"
@@ -387,11 +356,7 @@ export function StudentsPageClient({
                           : "secondary"
                       }
                     >
-                      {student.status === "active"
-                        ? "Aktif"
-                        : student.status === "pending"
-                        ? "Bekliyor"
-                        : "Pasif"}
+                      {student.status === "active" ? "Aktif" : "Pasif"}
                     </Badge>
                   </div>
                 </CardContent>

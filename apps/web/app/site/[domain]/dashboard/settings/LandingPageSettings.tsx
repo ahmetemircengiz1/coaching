@@ -1,68 +1,74 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateCoachSettings } from "../actions";
+import { notifyPreviewRefresh } from "@/src/lib/preview-bus";
 import {
   type SectionConfig,
   type LandingConfig,
+  type NavbarVariant,
   SECTION_LABELS,
   ALWAYS_ENABLED_SECTIONS,
   SECTION_VARIANT_COUNT,
   VARIANT_LABELS,
   DEFAULT_SECTIONS,
+  NAVBAR_VARIANTS,
+  NAVBAR_VARIANT_LABELS,
+  NAVBAR_VARIANT_DESCRIPTIONS,
+  DEFAULT_NAVBAR_BY_THEME,
   resolveLandingConfig,
 } from "@/src/components/landing/config";
-import { FONT_OPTIONS, getFontById, DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT } from "@/src/theme/fonts";
 import type { LandingFeatures } from "@/src/lib/plan";
-import { Lock } from "lucide-react";
 
 interface LandingPageSettingsProps {
   domain: string;
   initialLandingConfig: unknown;
-  initialHeadingFont: string | null;
-  initialBodyFont: string | null;
   features: LandingFeatures;
-  onSaved?: () => void;
+  themeId: string;
+  onSaved?: (saved: { landingConfig?: unknown }) => void;
 }
 
 export function LandingPageSettings({
   domain,
   initialLandingConfig,
-  initialHeadingFont,
-  initialBodyFont,
   features,
+  themeId,
   onSaved,
 }: LandingPageSettingsProps) {
   const resolved = resolveLandingConfig(initialLandingConfig);
+  const themeDefaultNavbar = DEFAULT_NAVBAR_BY_THEME[themeId] || "strip";
   const [sections, setSections] = useState<SectionConfig[]>(resolved.sections);
-  const [headingFont, setHeadingFont] = useState(initialHeadingFont || DEFAULT_HEADING_FONT);
-  const [bodyFont, setBodyFont] = useState(initialBodyFont || DEFAULT_BODY_FONT);
+  const [navbarVariant, setNavbarVariant] = useState<NavbarVariant>(
+    resolved.navbarVariant || themeDefaultNavbar,
+  );
   const [saving, setSaving] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
-  const mountedRef = useRef(false);
+  const initialSectionsRef = useRef(JSON.stringify(resolved.sections));
+  const initialNavbarRef = useRef<NavbarVariant>(resolved.navbarVariant || themeDefaultNavbar);
 
-  // Auto-preview: debounced silent save when sections, fonts change
+  // Debounced silent save when sections / navbar change
   useEffect(() => {
-    if (!mountedRef.current) {
-      mountedRef.current = true;
-      return;
-    }
+    const sectionsChanged = JSON.stringify(sections) !== initialSectionsRef.current;
+    const navbarChanged = navbarVariant !== initialNavbarRef.current;
+    if (!sectionsChanged && !navbarChanged) return;
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      const landingConfig: LandingConfig = { sections };
+      const landingConfig: LandingConfig = { sections, navbarVariant };
       await updateCoachSettings(domain, {
         landingConfig: landingConfig as unknown as Record<string, unknown>,
-        headingFont,
-        bodyFont,
       });
-      onSaved?.();
-    }, 600);
+      initialSectionsRef.current = JSON.stringify(sections);
+      initialNavbarRef.current = navbarVariant;
+      onSaved?.({ landingConfig });
+      notifyPreviewRefresh();
+    }, 1500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sections, headingFont, bodyFont]);
+  }, [sections, navbarVariant]);
 
   const moveSection = useCallback((index: number, direction: -1 | 1) => {
     setSections((prev) => {
@@ -94,29 +100,73 @@ export function LandingPageSettings({
 
   const handleSave = async () => {
     setSaving(true);
-    const landingConfig: LandingConfig = { sections };
+    const landingConfig: LandingConfig = { sections, navbarVariant };
     const result = await updateCoachSettings(domain, {
       landingConfig: landingConfig as unknown as Record<string, unknown>,
-      headingFont,
-      bodyFont,
     });
     if (result?.success === false) {
       toast.error("error" in result ? (result as { error: string }).error : "Kaydetme hatasi");
     } else {
       toast.success("Landing sayfa ayarlari kaydedildi.");
-      onSaved?.();
+      initialSectionsRef.current = JSON.stringify(sections);
+      initialNavbarRef.current = navbarVariant;
+      onSaved?.({ landingConfig });
+      notifyPreviewRefresh();
     }
     setSaving(false);
   };
 
   const handleReset = () => {
     setSections([...DEFAULT_SECTIONS]);
-    setHeadingFont(DEFAULT_HEADING_FONT);
-    setBodyFont(DEFAULT_BODY_FONT);
+    setNavbarVariant(themeDefaultNavbar);
   };
 
   return (
     <div className="space-y-6">
+      {/* Navbar variant picker */}
+      <Card style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text)" }}>
+        <CardHeader>
+          <CardTitle className="text-lg">Navbar Tasarimi</CardTitle>
+          <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>
+            Sitenizin ust kisminda gozukecek navigasyon cubugunun stilini secin. Secim temadan bagimsizdir.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {NAVBAR_VARIANTS.map((v) => {
+              const active = navbarVariant === v;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setNavbarVariant(v)}
+                  className="flex flex-col items-start gap-2 rounded-lg border p-3 text-left transition"
+                  style={{
+                    borderColor: active ? "var(--dashboard-accent)" : "var(--dashboard-card-border)",
+                    backgroundColor: active
+                      ? "color-mix(in srgb, var(--dashboard-accent) 8%, var(--dashboard-card-bg))"
+                      : "var(--dashboard-main-bg)",
+                  }}
+                >
+                  <NavbarVariantPreview variant={v} active={active} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{NAVBAR_VARIANT_LABELS[v]}</span>
+                    {v === themeDefaultNavbar && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--dashboard-main-bg)", border: "1px solid var(--dashboard-card-border)", color: "var(--dashboard-main-text-muted)" }}>
+                        Tema varsayilani
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                    {NAVBAR_VARIANT_DESCRIPTIONS[v]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Section ordering */}
       <Card style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text)" }}>
         <CardHeader>
@@ -235,90 +285,6 @@ export function LandingPageSettings({
         </CardContent>
       </Card>
 
-      {/* Font selection */}
-      <Card style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text)", opacity: features.canSelectFonts ? 1 : 0.7 }}>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-lg">Fontlar</CardTitle>
-            {!features.canSelectFonts && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--dashboard-main-bg)", border: "1px solid var(--dashboard-card-border)", color: "var(--dashboard-main-text-muted)" }}>
-                <Lock className="h-2.5 w-2.5" /> PRO
-              </span>
-            )}
-          </div>
-          <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>
-            Landing sayfaniz icin baslik ve metin fontu secin.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* Heading font */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Baslik Fontu</label>
-              <select
-                value={headingFont}
-                onChange={(e) => setHeadingFont(e.target.value)}
-                disabled={!features.canSelectFonts}
-                className="w-full rounded-md px-3 py-2 text-sm disabled:opacity-50"
-                style={{
-                  border: "1px solid var(--dashboard-card-border)",
-                  backgroundColor: "var(--dashboard-main-bg)",
-                  color: "var(--dashboard-main-text)",
-                }}
-              >
-                {FONT_OPTIONS.map((font) => (
-                  <option key={font.id} value={font.id}>
-                    {font.name} ({font.category})
-                  </option>
-                ))}
-              </select>
-              <div
-                className="mt-2 rounded-md border px-3 py-2 text-lg font-bold"
-                style={{
-                  borderColor: "var(--dashboard-card-border)",
-                  backgroundColor: "var(--dashboard-main-bg)",
-                  fontFamily: `"${getFontById(headingFont)?.name || "Inter"}", sans-serif`,
-                }}
-              >
-                Aa Bb Cc 123
-              </div>
-            </div>
-
-            {/* Body font */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Metin Fontu</label>
-              <select
-                value={bodyFont}
-                onChange={(e) => setBodyFont(e.target.value)}
-                disabled={!features.canSelectFonts}
-                className="w-full rounded-md px-3 py-2 text-sm disabled:opacity-50"
-                style={{
-                  border: "1px solid var(--dashboard-card-border)",
-                  backgroundColor: "var(--dashboard-main-bg)",
-                  color: "var(--dashboard-main-text)",
-                }}
-              >
-                {FONT_OPTIONS.map((font) => (
-                  <option key={font.id} value={font.id}>
-                    {font.name} ({font.category})
-                  </option>
-                ))}
-              </select>
-              <div
-                className="mt-2 rounded-md border px-3 py-2 text-sm"
-                style={{
-                  borderColor: "var(--dashboard-card-border)",
-                  backgroundColor: "var(--dashboard-main-bg)",
-                  fontFamily: `"${getFontById(bodyFont)?.name || "Inter"}", sans-serif`,
-                }}
-              >
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Actions */}
       <div className="flex items-center gap-3">
         <Button
@@ -344,6 +310,69 @@ export function LandingPageSettings({
           Varsayilana Sifirla
         </Button>
       </div>
+    </div>
+  );
+}
+
+function NavbarVariantPreview({ variant, active }: { variant: NavbarVariant; active: boolean }) {
+  const accent = active ? "var(--dashboard-accent)" : "var(--dashboard-main-text-muted)";
+  const subtle = active ? "var(--dashboard-accent)" : "var(--dashboard-card-border)";
+  const bg = "var(--dashboard-main-bg)";
+  const pageBg = active
+    ? "color-mix(in srgb, var(--dashboard-accent) 6%, var(--dashboard-card-bg))"
+    : "var(--dashboard-card-bg)";
+
+  if (variant === "strip") {
+    return (
+      <div className="w-full h-14 rounded-md relative overflow-hidden" style={{ backgroundColor: pageBg, border: `1px solid ${subtle}` }}>
+        <div className="absolute top-0 inset-x-0 h-5 flex items-center justify-between px-2" style={{ backgroundColor: bg, borderBottom: `1px solid ${subtle}` }}>
+          <div className="h-1.5 w-6 rounded-sm" style={{ backgroundColor: accent }} />
+          <div className="flex items-center gap-1">
+            <div className="h-1 w-4 rounded-sm" style={{ backgroundColor: subtle }} />
+            <div className="h-1 w-4 rounded-sm" style={{ backgroundColor: subtle }} />
+            <div className="h-1 w-4 rounded-sm" style={{ backgroundColor: subtle }} />
+          </div>
+          <div className="h-2 w-6 rounded-sm" style={{ backgroundColor: accent }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "pill") {
+    return (
+      <div className="w-full h-14 rounded-md relative overflow-hidden" style={{ backgroundColor: pageBg, border: `1px solid ${subtle}` }}>
+        <div className="absolute top-1.5 left-2 right-2 h-5 rounded-full flex items-center justify-between px-2" style={{ backgroundColor: bg, border: `1px solid ${subtle}` }}>
+          <div className="h-1.5 w-5 rounded-sm" style={{ backgroundColor: accent }} />
+          <div className="flex items-center gap-1">
+            <div className="h-1 w-3 rounded-sm" style={{ backgroundColor: subtle }} />
+            <div className="h-1 w-3 rounded-sm" style={{ backgroundColor: subtle }} />
+            <div className="h-1 w-3 rounded-sm" style={{ backgroundColor: subtle }} />
+          </div>
+          <div className="h-2 w-5 rounded-full" style={{ backgroundColor: accent }} />
+        </div>
+      </div>
+    );
+  }
+
+  // integrated
+  return (
+    <div className="w-full h-14 rounded-md relative overflow-hidden" style={{ backgroundColor: pageBg, border: `1px solid ${subtle}` }}>
+      <div className="absolute top-1.5 inset-x-2 h-5 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: accent }} />
+          <div className="flex flex-col gap-0.5">
+            <div className="h-1 w-5 rounded-sm" style={{ backgroundColor: accent }} />
+            <div className="h-0.5 w-4 rounded-sm" style={{ backgroundColor: subtle }} />
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="h-1 w-3 rounded-sm" style={{ backgroundColor: subtle }} />
+          <div className="h-1 w-3 rounded-sm" style={{ backgroundColor: subtle }} />
+          <div className="h-1 w-3 rounded-sm" style={{ backgroundColor: subtle }} />
+        </div>
+        <div className="h-2 w-6 rounded-sm" style={{ backgroundColor: bg, border: `1px solid ${accent}` }} />
+      </div>
+      <div className="absolute bottom-1 left-2 right-2 h-1 rounded-sm" style={{ backgroundColor: subtle, opacity: 0.5 }} />
     </div>
   );
 }

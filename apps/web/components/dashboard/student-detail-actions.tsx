@@ -8,7 +8,6 @@ import {
   assignProgramToStudent,
   addCheckInFeedback,
   updateCheckInMeasurements,
-  sendCoachMessage,
 } from "@/app/site/[domain]/dashboard/students/assign-actions";
 import { useRouter } from "next/navigation";
 
@@ -416,59 +415,3 @@ export function CheckInFeedbackList({
   );
 }
 
-// Mesaj gönderme bileşeni
-export function QuickMessageBox({
-  domain,
-  studentId,
-  embedded,
-}: {
-  domain: string;
-  studentId: string;
-  embedded?: boolean;
-}) {
-  const router = useRouter();
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-
-  const handleSend = async () => {
-    if (!message.trim()) return;
-    setLoading(true);
-
-    const msg = message.trim();
-    setMessage("");
-    setLoading(false);
-    setSent(true);
-    setTimeout(() => setSent(false), 2000);
-
-    sendCoachMessage(domain, studentId, msg).then(() => {
-      router.refresh();
-    });
-  };
-
-  const content = (
-    <div className="flex gap-2">
-      <Input value={message} onChange={(e) => setMessage(e.target.value)}
-        placeholder="Öğrenciye mesaj gönder..."
-        className="flex-1"
-        style={inputStyle}
-        onKeyDown={(e) => e.key === "Enter" && handleSend()} />
-      <Button onClick={handleSend} disabled={loading || !message.trim()}
-        className="font-semibold hover:opacity-90"
-        style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}>
-        {loading ? "..." : sent ? "Gönderildi!" : "Gönder"}
-      </Button>
-    </div>
-  );
-
-  if (embedded) return content;
-
-  return (
-    <Card style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)" }}>
-      <CardHeader>
-        <CardTitle className="text-lg" style={{ color: "var(--dashboard-main-text)" }}>Hızlı Mesaj</CardTitle>
-      </CardHeader>
-      <CardContent>{content}</CardContent>
-    </Card>
-  );
-}

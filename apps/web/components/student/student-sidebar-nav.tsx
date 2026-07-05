@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,7 +9,6 @@ import {
   Apple,
   Camera,
   TrendingUp,
-  MessageCircle,
   Settings,
   Menu,
   X,
@@ -19,14 +18,12 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { logoutAction } from "@/app/site/[domain]/auth/logout-action";
 
 type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  badge?: boolean;
 };
 
 const navItems: NavItem[] = [
@@ -35,16 +32,13 @@ const navItems: NavItem[] = [
   { href: "/nutrition", label: "Beslenme", icon: Apple },
   { href: "/checkin", label: "Check-in", icon: Camera },
   { href: "/progress", label: "İlerleme", icon: TrendingUp },
-  { href: "/messages", label: "Mesajlar", icon: MessageCircle, badge: true },
   { href: "/settings", label: "Ayarlar", icon: Settings },
 ];
 
 export function StudentSidebarNav({
   domain,
   brandName,
-  studentName,
-  unreadCount: initialUnread = 0,
-  studentId,
+  studentName: _studentName,
   position = "left",
   collapsed = false,
   onToggle,
@@ -52,49 +46,17 @@ export function StudentSidebarNav({
   domain: string;
   brandName: string;
   studentName: string;
+  /** @deprecated mesajlaşma kaldırıldı — geriye dönük uyum için kabul edilir, kullanılmaz */
   unreadCount?: number;
+  /** @deprecated mesajlaşma kaldırıldı — realtime kanal artık dinlenmiyor */
   studentId?: string;
   position?: "left" | "right";
   collapsed?: boolean;
   onToggle?: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(initialUnread);
   const pathname = usePathname();
   const basePath = `/site/${domain}/student`;
-
-  useEffect(() => {
-    if (!studentId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel("student-sidebar-unread")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "Message",
-          filter: `studentId=eq.${studentId}`,
-        },
-        (payload) => {
-          const msg = payload.new as Record<string, unknown>;
-          if (msg.senderRole === "coach" && !pathname.includes("/messages")) {
-            setUnreadCount((prev) => prev + 1);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [studentId, pathname]);
-
-  useEffect(() => {
-    if (pathname.includes("/messages")) {
-      setUnreadCount(0);
-    }
-  }, [pathname]);
 
   const isRight = position === "right";
 
@@ -240,21 +202,7 @@ export function StudentSidebarNav({
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
-                {item.badge && unreadCount > 0 && (
-                  <span
-                    className={cn(
-                      "flex items-center justify-center rounded-full text-[10px] font-bold",
-                      collapsed ? "absolute -right-0.5 -top-0.5 h-4 w-4 text-[9px]" : "ml-auto h-5 w-5"
-                    )}
-                    style={{
-                      backgroundColor: "var(--dashboard-accent)",
-                      color: "var(--dashboard-accent-text)",
-                    }}
-                  >
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-                {!collapsed && isActive && !item.badge && (
+                {!collapsed && isActive && (
                   <div
                     className="ml-auto h-1.5 w-1.5 rounded-full"
                     style={{ backgroundColor: "var(--dashboard-accent)" }}

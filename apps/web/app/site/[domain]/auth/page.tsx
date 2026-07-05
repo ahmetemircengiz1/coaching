@@ -6,20 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import { linkStudentToAuth, determineUserRole } from "../dashboard/students/actions";
+import { determineUserRole } from "../dashboard/students/actions";
 import { getPublicCoachPackages } from "./actions";
-
-type CoachPackagePublic = {
-  id: string;
-  name: string;
-  description: string;
-  duration: number;
-  price: number;
-  currency: string;
-  features: string[];
-};
+import { signUpStudentWithCode } from "./register-actions";
 
 type Tab = "coach" | "student";
+type StudentMode = "login" | "register";
 
 /* ─── Theme color definitions matching landing themes ─── */
 const THEME_COLORS: Record<number, {
@@ -116,22 +108,36 @@ const THEME_COLORS: Record<number, {
     tabInactiveBg: "rgba(255,255,255,0.05)",
     tabInactiveText: "rgba(255,255,255,0.5)",
   },
+  7: {
+    bg: "#000000",
+    cardBg: "rgba(10,10,10,0.85)",
+    cardBorder: "rgba(204,255,0,0.15)",
+    text: "#ffffff",
+    muted: "rgba(255,255,255,0.5)",
+    accent: "#ccff00",
+    accentText: "#000000",
+    inputBg: "rgba(204,255,0,0.05)",
+    inputBorder: "rgba(204,255,0,0.2)",
+    tabInactiveBg: "rgba(204,255,0,0.05)",
+    tabInactiveText: "rgba(255,255,255,0.5)",
+  },
 };
 
 const DEFAULT_THEME = THEME_COLORS[1];
 
 export default function CoachSiteAuthPage() {
   const [tab, setTab] = useState<Tab>("student");
-  const [studentMode, setStudentMode] = useState<"login" | "register">("login");
+  const [studentMode, setStudentMode] = useState<StudentMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [packages, setPackages] = useState<CoachPackagePublic[]>([]);
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [coachBrand, setCoachBrand] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [themeId, setThemeId] = useState(1);
   const [isReady, setIsReady] = useState(false);
 
@@ -139,7 +145,6 @@ export default function CoachSiteAuthPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const domain = params.domain as string;
-  const preselectedPackage = searchParams.get("package");
 
   const t = useMemo(() => THEME_COLORS[themeId] || DEFAULT_THEME, [themeId]);
 
@@ -147,6 +152,9 @@ export default function CoachSiteAuthPage() {
     const tabParam = searchParams.get("tab");
     if (tabParam === "coach") {
       setTab("coach");
+    } else if (tabParam === "register") {
+      setTab("student");
+      setStudentMode("register");
     }
   }, [searchParams]);
 
@@ -154,27 +162,24 @@ export default function CoachSiteAuthPage() {
     async function loadData() {
       const data = await getPublicCoachPackages(domain);
       if (data) {
-        setPackages(data.packages);
         setCoachBrand(data.brandName);
-        if (data.landingThemeId && data.landingThemeId >= 1 && data.landingThemeId <= 6) {
+        setWhatsappNumber(data.whatsappNumber || null);
+        if (data.landingThemeId && data.landingThemeId >= 1 && data.landingThemeId <= 7) {
           setThemeId(data.landingThemeId);
-        }
-        if (preselectedPackage) {
-          setSelectedPackageId(preselectedPackage);
-          setTab("student");
-          setStudentMode("register");
         }
       }
       setIsReady(true);
     }
     loadData();
-  }, [domain, preselectedPackage]);
+  }, [domain]);
 
   const resetForm = () => {
     setEmail("");
     setPassword("");
+    setConfirmPassword("");
     setName("");
     setPhone("");
+    setCode("");
     setError("");
   };
 
@@ -193,8 +198,10 @@ export default function CoachSiteAuthPage() {
     if (authError) {
       setError(
         authError.message === "Invalid login credentials"
-          ? "E-posta veya şifre hatalı"
-          : authError.message
+          ? "E-posta veya şifre hatalı."
+          : authError.message === "Email not confirmed"
+            ? "E-postanız henüz doğrulanmadı. Lütfen e-postanızı kontrol edin."
+            : "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin."
       );
       setLoading(false);
       return;
@@ -211,96 +218,84 @@ export default function CoachSiteAuthPage() {
     }
   };
 
-  // --- Öğrenci Giriş/Kayıt ---
+  // --- Öğrenci Girişi / Kayıt ---
   const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const supabase = createClient();
-
-    if (studentMode === "login") {
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
+    if (studentMode === "register") {
+      if (password !== confirmPassword) {
+        setError("Şifreler eşleşmiyor.");
+        setLoading(false);
+        return;
+      }
+      const result = await signUpStudentWithCode(domain, {
+        email: email.trim(),
+        password,
+        confirmPassword,
+        name: name.trim(),
+        phone: phone.trim() || undefined,
+        code: code.trim().toUpperCase(),
+      });
+      if ("error" in result) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+      // Kayıt başarılı → otomatik giriş
+      const supabase = createClient();
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: result.email,
         password,
       });
-
-      if (authError) {
-        setError(
-          authError.message === "Invalid login credentials"
-            ? "E-posta veya şifre hatalı"
-            : authError.message
-        );
+      if (signInErr) {
+        setError("Kayıt tamamlandı, ancak giriş yapılamadı. Lütfen giriş sekmesinden deneyin.");
+        setStudentMode("login");
         setLoading(false);
         return;
       }
-
-      const { role } = await determineUserRole(domain);
-
-      if (role === "student") {
-        router.push(`/site/${domain}/student`);
-      } else if (role === "coach") {
-        setError("Bu bir koç hesabı. Lütfen 'Koç Girişi' sekmesini kullanın.");
-        await supabase.auth.signOut();
-        setLoading(false);
-        return;
-      } else {
-        const pkgId = selectedPackageId && selectedPackageId !== "skip" ? selectedPackageId : undefined;
-        const linkResult = await linkStudentToAuth(domain, pkgId);
-        if (linkResult.error) {
-          setError(linkResult.error);
-          setLoading(false);
-          return;
-        }
-        router.push(`/site/${domain}/student`);
-      }
-    } else {
-      // Kayıt
-      if (!name.trim()) {
-        setError("Ad soyad gerekli");
-        setLoading(false);
-        return;
-      }
-
-      const { error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: name.trim(),
-            role: "student",
-            coach_domain: domain,
-          },
-        },
-      });
-
-      if (authError) {
-        if (authError.message === "User already registered") {
-          setError("Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.");
-        } else {
-          setError(authError.message);
-        }
-        setLoading(false);
-        return;
-      }
-
-      const pkgId = selectedPackageId && selectedPackageId !== "skip" ? selectedPackageId : undefined;
-      const linkResult = await linkStudentToAuth(domain, pkgId);
-      if (linkResult.error) {
-        setError(linkResult.error);
-        setLoading(false);
-        return;
-      }
-
       router.push(`/site/${domain}/student`);
+      return;
     }
 
+    // Login
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authError) {
+      setError(
+        authError.message === "Invalid login credentials"
+          ? "E-posta veya şifre hatalı."
+          : authError.message === "Email not confirmed"
+            ? "E-postanız henüz doğrulanmadı. Lütfen e-postanızı kontrol edin."
+            : "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin."
+      );
+      setLoading(false);
+      return;
+    }
+
+    const { role } = await determineUserRole(domain);
+
+    if (role === "student") {
+      router.push(`/site/${domain}/student`);
+      return;
+    }
+
+    if (role === "coach") {
+      setError("Bu bir koç hesabı. Lütfen 'Koç Girişi' sekmesini kullanın.");
+      await supabase.auth.signOut();
+      setLoading(false);
+      return;
+    }
+
+    setError("Bu site için kaydınız bulunmuyor. Koçunuzdan bir kayıt kodu alın.");
+    await supabase.auth.signOut();
     setLoading(false);
   };
-
-  const selectedPkg = packages.find((p) => p.id === selectedPackageId);
-
-  const inputClassName = "h-11 text-sm placeholder:opacity-40";
 
   if (!isReady) {
     return (
@@ -376,14 +371,14 @@ export default function CoachSiteAuthPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="ornek@email.com"
                     className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all"
-                    style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "---tw-ring-color": t.accent } as React.CSSProperties}
+                    style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
                     required
                   />
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-1.5 block px-1 flex justify-between" style={{ color: t.muted }}>
                     <span>Şifre</span>
-                    <a href="#" className="text-xs hover:underline" style={{ color: t.accent }}>Şifremi Unuttum</a>
+                    <a href={`/site/${domain}/auth/forgot-password`} className="text-xs hover:underline" style={{ color: t.accent }}>Şifremi Unuttum</a>
                   </label>
                   <Input
                     type="password"
@@ -391,7 +386,7 @@ export default function CoachSiteAuthPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="En az 6 karakter"
                     className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all"
-                    style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "---tw-ring-color": t.accent } as React.CSSProperties}
+                    style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
                     required
                     minLength={6}
                   />
@@ -412,72 +407,43 @@ export default function CoachSiteAuthPage() {
         {/* ===== ÖĞRENCİ GİRİŞİ / KAYIT ===== */}
         {tab === "student" && (
           <>
-            {/* Seçilen Paket Bilgisi */}
-            {studentMode === "register" && selectedPkg && (
-              <div
-                className="rounded-xl p-4 border"
-                style={{ borderColor: t.accent, backgroundColor: `color-mix(in srgb, ${t.accent} 5%, transparent)` }}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm" style={{ color: t.muted }}>Seçilen paket</p>
-                    <p className="font-semibold" style={{ color: t.text }}>{selectedPkg.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold" style={{ color: t.accent }}>
-                      {selectedPkg.price.toLocaleString("tr-TR")} {selectedPkg.currency}
-                    </p>
-                    <p className="text-xs" style={{ color: t.muted }}>{selectedPkg.duration} hafta</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedPackageId(null)}
-                  className="text-xs mt-2 transition hover:opacity-80"
-                  style={{ color: t.muted }}
-                >
-                  Paketi kaldır
-                </button>
-              </div>
-            )}
-
-            {/* Paket Seçimi */}
-            {studentMode === "register" && !selectedPackageId && packages.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm text-center" style={{ color: t.muted }}>Bir paket seçin (opsiyonel)</p>
-                <div className="space-y-2">
-                  {packages.map((pkg) => (
-                    <button
-                      key={pkg.id}
-                      onClick={() => setSelectedPackageId(pkg.id)}
-                      className="w-full text-left rounded-xl p-4 border transition hover:opacity-80"
-                      style={{ borderColor: t.cardBorder, backgroundColor: t.cardBg }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-sm" style={{ color: t.text }}>{pkg.name}</p>
-                          <p className="text-xs mt-0.5" style={{ color: t.muted }}>{pkg.duration} hafta</p>
-                        </div>
-                        <p className="font-bold" style={{ color: t.accent }}>
-                          {pkg.price.toLocaleString("tr-TR")} {pkg.currency}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setSelectedPackageId("skip")}
-                    className="w-full text-center text-xs py-2 transition hover:opacity-80"
-                    style={{ color: t.muted }}
-                  >
-                    Paketsiz devam et
-                  </button>
-                </div>
-              </div>
-            )}
-
             <Card style={{ backgroundColor: t.cardBg, borderColor: t.cardBorder }}>
               <CardContent className="pt-6">
+                {/* Login/Register sub-toggle */}
+                <div
+                  className="flex rounded-lg overflow-hidden border mb-5"
+                  style={{ borderColor: t.cardBorder }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setStudentMode("login"); resetForm(); }}
+                    className="flex-1 py-2 text-xs font-semibold transition"
+                    style={
+                      studentMode === "login"
+                        ? { backgroundColor: t.accent, color: t.accentText }
+                        : { backgroundColor: t.tabInactiveBg, color: t.tabInactiveText }
+                    }
+                  >
+                    Giriş Yap
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setStudentMode("register"); resetForm(); }}
+                    className="flex-1 py-2 text-xs font-semibold transition"
+                    style={
+                      studentMode === "register"
+                        ? { backgroundColor: t.accent, color: t.accentText }
+                        : { backgroundColor: t.tabInactiveBg, color: t.tabInactiveText }
+                    }
+                  >
+                    Kayıt Ol
+                  </button>
+                </div>
+
                 <p className="text-sm text-center mb-4" style={{ color: t.muted }}>
-                  {studentMode === "login" ? "Hesabına giriş yap" : "Yeni hesap oluştur"}
+                  {studentMode === "login"
+                    ? "Hesabınıza giriş yapın"
+                    : "Koçunuzdan aldığınız kod ile kayıt olun"}
                 </p>
                 <form onSubmit={handleStudentSubmit} className="space-y-4">
                   {error && (
@@ -487,33 +453,20 @@ export default function CoachSiteAuthPage() {
                   )}
 
                   {studentMode === "register" && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>Ad Soyad</label>
-                        <Input
-                          type="text"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Orn: Caner Yılmaz"
-                          className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all"
-                          style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "---tw-ring-color": t.accent } as React.CSSProperties}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>
-                          Telefon <span style={{ opacity: 0.5 }}>(opsiyonel)</span>
-                        </label>
-                        <Input
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="05XX XXX XX XX"
-                          className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all"
-                          style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "---tw-ring-color": t.accent } as React.CSSProperties}
-                        />
-                      </div>
-                    </>
+                    <div>
+                      <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>Ad Soyad</label>
+                      <Input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Adınız Soyadınız"
+                        className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all"
+                        style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
+                        required
+                        minLength={2}
+                        maxLength={100}
+                      />
+                    </div>
                   )}
 
                   <div>
@@ -524,27 +477,82 @@ export default function CoachSiteAuthPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="ornek@email.com"
                       className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all"
-                      style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "---tw-ring-color": t.accent } as React.CSSProperties}
+                      style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
                       required
                     />
                   </div>
 
+                  {studentMode === "register" && (
+                    <div>
+                      <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>Telefon (opsiyonel)</label>
+                      <Input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+90 5xx xxx xx xx"
+                        className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all"
+                        style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
+                      />
+                    </div>
+                  )}
+
                   <div>
                     <label className="text-sm font-medium mb-1.5 block px-1 flex justify-between" style={{ color: t.muted }}>
                       <span>Şifre</span>
-                      {studentMode === "login" && <a href="#" className="text-xs hover:underline" style={{ color: t.accent }}>Şifremi Unuttum</a>}
+                      {studentMode === "login" && (
+                        <a
+                          href={`/site/${domain}/auth/forgot-password`}
+                          className="text-xs hover:underline"
+                          style={{ color: t.accent }}
+                        >
+                          Şifremi Unuttum
+                        </a>
+                      )}
                     </label>
                     <Input
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="En az 6 karakter"
+                      placeholder={studentMode === "register" ? "En az 8 karakter" : "Şifreniz"}
                       className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all"
-                      style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "---tw-ring-color": t.accent } as React.CSSProperties}
+                      style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
+
+                  {studentMode === "register" && (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>Şifre (Tekrar)</label>
+                        <Input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Şifrenizi tekrar girin"
+                          className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all"
+                          style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
+                          required
+                          minLength={8}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>Koç Kodu</label>
+                        <Input
+                          type="text"
+                          value={code}
+                          onChange={(e) => setCode(e.target.value.toUpperCase())}
+                          placeholder="Koçunuzdan aldığınız kod"
+                          className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all uppercase tracking-widest font-mono"
+                          style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
+                          required
+                          minLength={6}
+                          maxLength={32}
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <Button
                     type="submit"
@@ -554,34 +562,43 @@ export default function CoachSiteAuthPage() {
                   >
                     {loading
                       ? "Yükleniyor..."
-                      : studentMode === "login"
-                        ? "Giriş Yap"
-                        : "Kayıt Ol"}
+                      : studentMode === "register"
+                        ? "Kayıt Ol"
+                        : "Giriş Yap"}
                   </Button>
                 </form>
-
-                <div className="mt-6 text-center">
-                  <button
-                    onClick={() => {
-                      setStudentMode(studentMode === "login" ? "register" : "login");
-                      setError("");
-                    }}
-                    className="text-sm transition hover:opacity-80"
-                    style={{ color: t.muted }}
-                  >
-                    {studentMode === "login"
-                      ? "Hesabın yok mu? Kayıt ol"
-                      : "Zaten hesabın var mı? Giriş yap"}
-                  </button>
-                </div>
               </CardContent>
             </Card>
+
+            {studentMode === "login" && (
+              <div
+                className="rounded-xl border p-4 text-sm text-center"
+                style={{ borderColor: t.cardBorder, backgroundColor: t.cardBg, color: t.muted }}
+              >
+                <p className="mb-2">
+                  Henüz hesabınız yok mu? Yukarıdaki <strong style={{ color: t.text }}>Kayıt Ol</strong> sekmesinden, koçunuzdan aldığınız kod ile kayıt olabilirsiniz.
+                </p>
+                {whatsappNumber && (
+                  <a
+                    href={`https://wa.me/${whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
+                      `Merhaba, ${coachBrand} sitesine kayıt olmak istiyorum. Bana bir kayıt kodu gönderebilir misiniz?`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block text-sm font-semibold hover:underline"
+                    style={{ color: t.accent }}
+                  >
+                    Kod almak için koçla iletişime geç
+                  </a>
+                )}
+              </div>
+            )}
           </>
         )}
 
         {/* Footer */}
         <p className="text-center text-xs" style={{ color: t.muted, opacity: 0.4 }}>
-          Coach OS ile oluşturuldu
+          Shred ile oluşturuldu
         </p>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { getAuthUser } from "@/lib/supabase/server";
 import prisma from "@coach-os/database";
 import { redirect } from "next/navigation";
 import { createNotification } from "@/lib/notifications";
+import { signPhotoUrls } from "@/lib/supabase/signed-url";
 
 // Auth + Student kaydı al
 export async function getStudentData(domain: string) {
@@ -35,7 +36,7 @@ export async function getStudentDashboard(domain: string) {
   const student = await getStudentData(domain);
 
   // Bağımsız sorguları paralel çalıştır
-  const [trainingPlan, nutritionPlan, lastCheckIn, unreadMessages] =
+  const [trainingPlan, nutritionPlan, lastCheckIn] =
     await Promise.all([
       // Aktif antrenman planı
       prisma.trainingPlan.findFirst({
@@ -68,14 +69,6 @@ export async function getStudentDashboard(domain: string) {
           coachFeedback: true,
         },
       }),
-      // Okunmamış mesajlar
-      prisma.message.count({
-        where: {
-          studentId: student.id,
-          senderRole: "coach",
-          isRead: false,
-        },
-      }),
     ]);
 
   return {
@@ -96,11 +89,10 @@ export async function getStudentDashboard(domain: string) {
           weight: lastCheckIn.weight ? Number(lastCheckIn.weight) : null,
         }
       : null,
-    unreadMessages,
   };
 }
 
-// Antrenman programı
+// Antrenman programı (salt görüntüleme — öğrenci sadece programını hafta hafta görür)
 export async function getStudentTraining(domain: string) {
   const student = await getStudentData(domain);
 
@@ -112,7 +104,15 @@ export async function getStudentTraining(domain: string) {
           workouts: {
             include: {
               exercises: {
-                include: { exercise: true },
+                include: {
+                  exercise: true,
+                  alternatives: {
+                    include: {
+                      alternativeExercise: { select: { id: true, name: true, category: true } },
+                    },
+                    orderBy: { orderIndex: "asc" },
+                  },
+                },
                 orderBy: { orderIndex: "asc" },
               },
             },
@@ -130,17 +130,37 @@ export async function getStudentTraining(domain: string) {
 export async function getStudentNutrition(domain: string) {
   const student = await getStudentData(domain);
 
-  const nutritionPlan = await prisma.nutritionPlan.findFirst({
-    where: { studentId: student.id, status: "active" },
-    orderBy: { createdAt: "desc" },
-    include: {
-      meals: {
-        orderBy: { orderIndex: "asc" },
-      },
-    },
-  });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  return { student, nutritionPlan };
+  const [nutritionPlan, todayCompletions] = await Promise.all([
+    prisma.nutritionPlan.findFirst({
+      where: { studentId: student.id, status: "active" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        meals: {
+          orderBy: { orderIndex: "asc" },
+        },
+      },
+    }),
+    prisma.mealCompletion.findMany({
+      where: { studentId: student.id, date: today },
+      select: { mealId: true, completed: true, alternativeUsed: true },
+    }),
+  ]);
+
+  // mealId → { completed, alternativeUsed }
+  const mealStatus: Record<string, { completed: boolean; alternativeUsed: string | null }> = {};
+  for (const c of todayCompletions) {
+    mealStatus[c.mealId] = { completed: c.completed, alternativeUsed: c.alternativeUsed };
+  }
+
+  return {
+    student,
+    nutritionPlan,
+    completedMealIds: todayCompletions.filter((c) => c.completed).map((c) => c.mealId),
+    mealStatus,
+  };
 }
 
 // Check-in gönder
@@ -246,6 +266,7 @@ export async function getStudentProgress(domain: string) {
       stressLevel: true,
       notes: true,
       compliance: true,
+      coachFeedback: true,
       frontPhoto: true,
       sidePhoto: true,
       backPhoto: true,
@@ -253,19 +274,40 @@ export async function getStudentProgress(domain: string) {
     },
   });
 
+  // Private bucket — tüm check-in foto referanslarını tek batch'te imzala.
+  // Sıra: her check-in için front, side, back, ardından photos[] elemanları.
+  const flat: (string | null)[] = [];
+  for (const c of checkIns) {
+    flat.push(c.frontPhoto, c.sidePhoto, c.backPhoto, ...c.photos);
+  }
+  const signedFlat = await signPhotoUrls(flat);
+
+  let k = 0;
   return {
     student,
-    checkIns: checkIns.map((c) => ({
-      ...c,
-      date: c.date.toISOString(),
-      weight: c.weight ? Number(c.weight) : null,
-      bodyFat: c.bodyFat ? Number(c.bodyFat) : null,
-      chest: c.chest ? Number(c.chest) : null,
-      waist: c.waist ? Number(c.waist) : null,
-      hips: c.hips ? Number(c.hips) : null,
-      arms: c.arms ? Number(c.arms) : null,
-      thighs: c.thighs ? Number(c.thighs) : null,
-    })),
+    checkIns: checkIns.map((c) => {
+      const frontPhoto = signedFlat[k++];
+      const sidePhoto = signedFlat[k++];
+      const backPhoto = signedFlat[k++];
+      const photos = c.photos
+        .map(() => signedFlat[k++])
+        .filter((u): u is string => !!u);
+      return {
+        ...c,
+        frontPhoto,
+        sidePhoto,
+        backPhoto,
+        photos,
+        date: c.date.toISOString(),
+        weight: c.weight ? Number(c.weight) : null,
+        bodyFat: c.bodyFat ? Number(c.bodyFat) : null,
+        chest: c.chest ? Number(c.chest) : null,
+        waist: c.waist ? Number(c.waist) : null,
+        hips: c.hips ? Number(c.hips) : null,
+        arms: c.arms ? Number(c.arms) : null,
+        thighs: c.thighs ? Number(c.thighs) : null,
+      };
+    }),
   };
 }
 
@@ -340,42 +382,6 @@ export async function getStudentPlanHistory(domain: string) {
   };
 }
 
-// Mesajlar
-export async function getStudentMessages(domain: string) {
-  const student = await getStudentData(domain);
-
-  const messages = await prisma.message.findMany({
-    where: { studentId: student.id },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      senderId: true,
-      senderRole: true,
-      content: true,
-      createdAt: true,
-      isRead: true,
-    },
-  });
-
-  // Okunmamış mesajları okundu olarak işaretle
-  await prisma.message.updateMany({
-    where: {
-      studentId: student.id,
-      senderRole: "coach",
-      isRead: false,
-    },
-    data: { isRead: true },
-  });
-
-  return {
-    student,
-    messages: messages.map((m) => ({
-      ...m,
-      createdAt: m.createdAt.toISOString(),
-    })),
-  };
-}
-
 // Öğrenci ayarlarını getir
 export async function getStudentSettings(domain: string) {
   const student = await getStudentData(domain);
@@ -392,7 +398,7 @@ export async function getStudentSettings(domain: string) {
   if (tier >= 2) availableThemeIds = [1, 2];
   if (tier >= 3) availableThemeIds = [1, 2, 3, 4, 5];
 
-  const defaultNotifPrefs = { programAssigned: true, feedbackReceived: true, messageReceived: true };
+  const defaultNotifPrefs = { programAssigned: true, feedbackReceived: true };
   const notificationPrefs = student.notificationPrefs
     ? { ...defaultNotifPrefs, ...(student.notificationPrefs as Record<string, boolean>) }
     : defaultNotifPrefs;
@@ -411,7 +417,7 @@ export async function updateStudentSettings(
   data: {
     dashboardThemeId?: number;
     sidebarPosition?: string;
-    notificationPrefs?: { programAssigned?: boolean; feedbackReceived?: boolean; messageReceived?: boolean };
+    notificationPrefs?: { programAssigned?: boolean; feedbackReceived?: boolean };
   }
 ) {
   const student = await getStudentData(domain);
@@ -438,18 +444,3 @@ export async function updateStudentSettings(
   return { success: true };
 }
 
-// Mesaj gönder
-export async function sendMessage(domain: string, content: string) {
-  const student = await getStudentData(domain);
-
-  const message = await prisma.message.create({
-    data: {
-      studentId: student.id,
-      senderId: student.userId,
-      senderRole: "student",
-      content,
-    },
-  });
-
-  return { success: true, messageId: message.id };
-}

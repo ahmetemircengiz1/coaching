@@ -1,5 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getStudentNutrition } from "../actions";
+import { MealCompleteToggle } from "@/components/student/meal-complete-toggle";
+
+// Her gün sıfırdan "yedim" işaretlemesi yapılabilmesi için sayfa her istekte
+// taze render edilir — Next.js cache'ine düşmesin.
+export const dynamic = "force-dynamic";
+
+const TR_DATE = new Intl.DateTimeFormat("tr-TR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
 
 export default async function StudentNutritionPage({
   params,
@@ -7,7 +18,8 @@ export default async function StudentNutritionPage({
   params: Promise<{ domain: string }>;
 }) {
   const { domain } = await params;
-  const { nutritionPlan } = await getStudentNutrition(domain);
+  const { nutritionPlan, mealStatus } = await getStudentNutrition(domain);
+  const todayLabel = TR_DATE.format(new Date());
 
   const cardStyle = {
     backgroundColor: "var(--dashboard-card-bg)",
@@ -44,7 +56,12 @@ export default async function StudentNutritionPage({
     <div className="space-y-6 py-6">
       <div>
         <h1 className="font-heading text-xl font-bold" style={{ color: "var(--dashboard-main-text)" }}>Beslenme Programı</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>{nutritionPlan.name}</p>
+        <p className="text-sm mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>
+          {nutritionPlan.name} · <span style={{ opacity: 0.7 }}>{todayLabel} — yediğin öğünleri ✓ ile işaretle</span>
+        </p>
+        <p className="text-[11px] mt-1" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>
+          İşaretler her gün sıfırlanır; yarın aynı planı yeniden işaretleyebilirsin.
+        </p>
       </div>
 
       {/* Makro Hedefler */}
@@ -103,12 +120,44 @@ export default async function StudentNutritionPage({
         const totalCarbs = mealFoods.reduce((sum, f) => sum + (f.carbs || 0), 0);
         const totalFat = mealFoods.reduce((sum, f) => sum + (f.fat || 0), 0);
 
+        const status = mealStatus[meal.id];
+        const isEaten = !!status?.completed;
+        const altUsed = status?.alternativeUsed ?? null;
+        const mealAlts = Array.isArray((meal as Record<string, unknown>).alternatives)
+          ? ((meal as Record<string, unknown>).alternatives as string[])
+          : [];
+        const displayLabel = altUsed ? altUsed : meal.name;
+
         return (
-          <Card key={meal.id} style={cardStyle}>
+          <Card
+            key={meal.id}
+            style={{
+              ...cardStyle,
+              backgroundColor: isEaten
+                ? "color-mix(in srgb, #10b981 6%, var(--dashboard-card-bg))"
+                : cardStyle.backgroundColor,
+            }}
+          >
             <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center justify-between">
-                <span>{meal.name}</span>
-                <div className="flex items-center gap-2">
+              <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span style={{ textDecoration: isEaten ? "line-through" : "none", opacity: isEaten ? 0.6 : 1 }}>
+                    {meal.name}
+                  </span>
+                  {altUsed && (
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded-full font-normal"
+                      style={{
+                        backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 18%, transparent)",
+                        color: "var(--dashboard-accent)",
+                      }}
+                      title={`Yendi: ${altUsed}`}
+                    >
+                      → {altUsed}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
                   {meal.time && (
                     <span className="text-xs font-normal" style={{ color: "var(--dashboard-main-text-muted)" }}>
                       {meal.time}
@@ -123,6 +172,13 @@ export default async function StudentNutritionPage({
                   >
                     {totalCalories} kcal
                   </span>
+                  <MealCompleteToggle
+                    domain={domain}
+                    mealId={meal.id}
+                    initialCompleted={isEaten}
+                    initialAlternativeUsed={altUsed}
+                    alternatives={mealAlts}
+                  />
                 </div>
               </CardTitle>
             </CardHeader>

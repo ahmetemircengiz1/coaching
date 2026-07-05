@@ -1,7 +1,7 @@
-import prisma from "@coach-os/database";
 import { CoachSidebarLayoutWrapper } from "@/components/dashboard/sidebar-layout-wrapper";
 import { CoachBottomNav } from "@/components/dashboard/coach-bottom-nav";
 import { DashboardThemeProvider } from "@/src/components/DashboardThemeProvider";
+import { BottomNavTourWrapper, BottomNavTourButton } from "@/components/dashboard/bottom-nav-tour-wrapper";
 import {
   getDashboardTheme,
   resolveDashboardThemeId,
@@ -19,15 +19,6 @@ function SidebarContent({ children }: { children: React.ReactNode }) {
         boxShadow: "var(--dashboard-card-shadow)",
       }}
     >
-      <header
-        className="h-16 flex items-center border-b px-6 backdrop-blur-md sticky top-0 z-10"
-        style={{
-          backgroundColor: "color-mix(in srgb, var(--dashboard-main-bg) 80%, transparent)",
-          borderColor: "var(--dashboard-header-border)",
-        }}
-      >
-        <div className="ml-auto" />
-      </header>
       <div className="p-4 lg:p-6 flex-1 overflow-x-hidden animate-fade-in relative z-0">{children}</div>
     </main>
   );
@@ -45,14 +36,6 @@ export default async function DashboardLayout({
   // getCoachAuth is cached per request — no duplicate DB query
   const coach = await getCoachAuth(domain);
 
-  const unreadCount = await prisma.message.count({
-    where: {
-      student: { coachId: coach.id },
-      senderRole: "student",
-      isRead: false,
-    },
-  });
-
   const selectedTheme = coach.dashboardThemeId
     ? getDashboardTheme(coach.dashboardThemeId)
     : getDashboardTheme(resolveDashboardThemeId(coach.dashboardTemplateId));
@@ -63,6 +46,7 @@ export default async function DashboardLayout({
   if (navPosition === "bottom") {
     return (
       <DashboardThemeProvider theme={selectedTheme}>
+        <BottomNavTourWrapper>
         <div
           className="min-h-screen"
           style={{
@@ -81,6 +65,7 @@ export default async function DashboardLayout({
               {coach.brandName}
             </span>
             <div className="flex items-center gap-2">
+              <BottomNavTourButton />
               <a
                 href={`/site/${domain}`}
                 target="_blank"
@@ -113,8 +98,9 @@ export default async function DashboardLayout({
           <main className="pt-14 pb-20 px-4 max-w-4xl mx-auto">
             <div className="p-0 pt-4 lg:pt-6 animate-fade-in">{children}</div>
           </main>
-          <CoachBottomNav domain={domain} unreadCount={unreadCount} />
+          <CoachBottomNav domain={domain} />
         </div>
+        </BottomNavTourWrapper>
       </DashboardThemeProvider>
     );
   }
@@ -134,7 +120,6 @@ export default async function DashboardLayout({
             domain={domain}
             coachName={coach.name}
             brandName={coach.brandName}
-            unreadCount={unreadCount}
             position="right"
           >
             <SidebarContent>{children}</SidebarContent>
@@ -158,7 +143,6 @@ export default async function DashboardLayout({
           domain={domain}
           coachName={coach.name}
           brandName={coach.brandName}
-          unreadCount={unreadCount}
           position="left"
         >
           <SidebarContent>{children}</SidebarContent>

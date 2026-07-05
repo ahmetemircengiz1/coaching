@@ -61,7 +61,6 @@ export const messageSchema = z.object({
 export const exerciseSchema = z.object({
   name: z.string().min(2, "Egzersiz adı en az 2 karakter olmalı"),
   category: z.string(),
-  videoUrl: z.string().url().optional().or(z.literal("")),
   imageUrl: z.string().url().optional().or(z.literal("")),
   description: z.string().optional(),
 });

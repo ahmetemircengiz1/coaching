@@ -3,6 +3,7 @@
 import { getCoachAuth } from "../actions";
 import prisma from "@coach-os/database";
 import { revalidatePath } from "next/cache";
+import { revalidateCoachCache } from "@/lib/coach-cache";
 
 // Paketleri getir
 export async function getCoachPackages(domain: string) {
@@ -57,6 +58,7 @@ export async function createCoachPackage(
   });
 
   revalidatePath(`/site/${domain}/dashboard`);
+  await revalidateCoachCache(domain);
   return { success: true, packageId: pkg.id };
 }
 
@@ -98,6 +100,7 @@ export async function updateCoachPackage(
   });
 
   revalidatePath(`/site/${domain}/dashboard`);
+  await revalidateCoachCache(domain);
   return { success: true };
 }
 
@@ -124,5 +127,6 @@ export async function deleteCoachPackage(domain: string, packageId: string) {
   await prisma.coachPackage.delete({ where: { id: packageId } });
 
   revalidatePath(`/site/${domain}/dashboard`);
+  await revalidateCoachCache(domain);
   return { success: true };
 }

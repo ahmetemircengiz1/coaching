@@ -75,7 +75,7 @@ export default function AdminCoachDetailPage() {
                 <h1 className="text-xl font-bold">{coach.brandName}</h1>
                 <p className="text-sm text-white/40">{coach.email}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs font-mono text-[#ccff00]/60">{coach.subdomain}.coachsite.com</span>
+                  <span className="text-xs font-mono text-[#ccff00]/60">{coach.subdomain}.shred.com.tr</span>
                   {coach.customDomain && (
                     <>
                       <span className="text-white/20">|</span>

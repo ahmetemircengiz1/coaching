@@ -4,11 +4,16 @@ import { LandingTheme3 } from "./themes/LandingTheme3";
 import { LandingTheme4 } from "./themes/LandingTheme4";
 import { LandingTheme5 } from "./themes/LandingTheme5";
 import { LandingTheme6 } from "./themes/LandingTheme6";
+import { EliteLandingRenderer } from "./themes/EliteLandingRenderer";
 import { DynamicLandingRenderer } from "./DynamicLandingRenderer";
+import { FloatingWhatsApp } from "./shared/FloatingWhatsApp";
 import type { LandingThemeComponentProps } from "./types";
 
-export function LandingRenderer(props: LandingThemeComponentProps) {
-  // landingConfig varsa dinamik renderer kullan (bölüm sırası, açma/kapama, varyant)
+function renderTheme(props: LandingThemeComponentProps) {
+  if (props.themeId === "theme-elite") {
+    return <EliteLandingRenderer content={props.content} />;
+  }
+
   if (props.content.landingConfig) {
     return (
       <DynamicLandingRenderer
@@ -19,7 +24,6 @@ export function LandingRenderer(props: LandingThemeComponentProps) {
     );
   }
 
-  // Yoksa mevcut monolitik temalar (geriye uyumlu)
   switch (props.themeId) {
     case "theme-2":
       return <LandingTheme2 {...props} />;
@@ -35,4 +39,16 @@ export function LandingRenderer(props: LandingThemeComponentProps) {
     default:
       return <LandingTheme1 {...props} />;
   }
+}
+
+export function LandingRenderer(props: LandingThemeComponentProps) {
+  return (
+    <>
+      {renderTheme(props)}
+      <FloatingWhatsApp
+        whatsappUrl={props.content.whatsappUrl}
+        whatsappNumber={props.content.whatsappNumber}
+      />
+    </>
+  );
 }

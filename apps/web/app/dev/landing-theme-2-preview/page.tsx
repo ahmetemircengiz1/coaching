@@ -101,6 +101,7 @@ const SAMPLE_CONTENT: LandingThemeContent = {
       description: null,
     },
   ],
+  testimonials: [],
 };
 
 export default function LandingTheme2PreviewPage() {

@@ -1,69 +1,202 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { checkRateLimitAsync, getClientIp, AUTH_LIMIT } from "@/lib/rate-limit";
+import prisma from "@coach-os/database";
+import {
+  signUpSchema,
+  signInSchema,
+  resetPasswordSchema,
+  updatePasswordSchema,
+} from "@/lib/validation/schemas";
+
+function getBaseUrl(hdrs: Headers): string {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl) return envUrl.replace(/\/$/, "");
+  const host = hdrs.get("host") || "localhost:3002";
+  const proto = hdrs.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 export async function signUp(formData: FormData) {
-  const supabase = await createClient();
+  const hdrs = await headers();
+  const ip = getClientIp(hdrs);
+  const rl = await checkRateLimitAsync(`auth:signup:${ip}`, AUTH_LIMIT);
+  if (!rl.success) {
+    return { error: "Çok fazla deneme. Lütfen birkaç dakika bekleyin." };
+  }
 
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const name = formData.get("name") as string;
+  const tierRaw = formData.get("tier");
+  const tier = typeof tierRaw === "string" && /^[1-3]$/.test(tierRaw) ? tierRaw : "1";
+
+  const parsed = signUpSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+    name: formData.get("name"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Geçersiz giriş bilgileri." };
+  }
+
+  const supabase = await createClient();
+  const { email, password, name } = parsed.data;
+  const baseUrl = getBaseUrl(hdrs);
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: {
-        name,
-        role: "coach",
-      },
+      data: { name, role: "coach" },
+      emailRedirectTo: `${baseUrl}/platform/auth/callback?next=/platform/onboarding?tier=${tier}`,
     },
   });
 
   if (error) {
-    return { error: error.message };
+    if (error.message.toLowerCase().includes("already") || error.message.toLowerCase().includes("registered")) {
+      return { error: "Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin." };
+    }
+    return { error: "Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin." };
   }
 
-  // Kayıt başarılı - onboarding'e yönlendir
-  redirect("/platform/onboarding");
+  // Supabase email confirmation açıkken session dönmez
+  const needsConfirmation = !data.session;
+  if (needsConfirmation) {
+    return { emailSent: true, email };
+  }
+
+  redirect(`/platform/onboarding?tier=${tier}`);
 }
 
-export async function signIn(formData: FormData) {
+export async function resendConfirmation(formData: FormData) {
+  const hdrs = await headers();
+  const ip = getClientIp(hdrs);
+  const rl = await checkRateLimitAsync(`auth:resend:${ip}`, AUTH_LIMIT);
+  if (!rl.success) {
+    return { error: "Çok fazla deneme. Lütfen birkaç dakika bekleyin." };
+  }
+
+  const parsed = resetPasswordSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Geçersiz e-posta." };
+  }
+
   const supabase = await createClient();
+  const baseUrl = getBaseUrl(hdrs);
 
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: parsed.data.email,
+    options: {
+      emailRedirectTo: `${baseUrl}/platform/auth/callback?next=/platform/onboarding`,
+    },
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: "Onay e-postası gönderilemedi. Lütfen tekrar deneyin." };
+  }
+  return { success: true };
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const hdrs = await headers();
+  const ip = getClientIp(hdrs);
+  const rl = await checkRateLimitAsync(`auth:reset:${ip}`, AUTH_LIMIT);
+  if (!rl.success) {
+    return { error: "Çok fazla deneme. Lütfen birkaç dakika bekleyin." };
   }
 
-  // Kullanıcının rolüne göre yönlendir
-  const role = data.user?.user_metadata?.role;
+  const parsed = resetPasswordSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Geçersiz e-posta." };
+  }
 
+  const supabase = await createClient();
+  const baseUrl = getBaseUrl(hdrs);
+
+  // Enumeration'ı önlemek için sonucu her durumda success döndür
+  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo: `${baseUrl}/platform/auth/reset`,
+  });
+
+  return { success: true };
+}
+
+export async function updatePassword(formData: FormData) {
+  const parsed = updatePasswordSchema.safeParse({ password: formData.get("password") });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Geçersiz şifre." };
+  }
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    return { error: "Oturum doğrulanamadı. Lütfen sıfırlama linkine tekrar tıklayın." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    return { error: "Şifre güncellenemedi. Lütfen tekrar deneyin." };
+  }
+  return { success: true };
+}
+
+export async function signIn(formData: FormData) {
+  const hdrs = await headers();
+  const ip = getClientIp(hdrs);
+  const rl = await checkRateLimitAsync(`auth:signin:${ip}`, AUTH_LIMIT);
+  if (!rl.success) {
+    return { error: "Çok fazla deneme. Lütfen birkaç dakika bekleyin." };
+  }
+
+  const tierRaw = formData.get("tier");
+  const tier = typeof tierRaw === "string" && /^[1-3]$/.test(tierRaw) ? tierRaw : null;
+
+  const parsed = signInSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Geçersiz giriş bilgileri." };
+  }
+
+  const supabase = await createClient();
+  const { email, password } = parsed.data;
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    if (error.message === "Invalid login credentials") {
+      return { error: "E-posta veya şifre hatalı." };
+    }
+    if (error.message === "Email not confirmed") {
+      return { error: "E-postanız henüz doğrulanmadı. Lütfen e-postanızı kontrol edin." };
+    }
+    return { error: "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin." };
+  }
+
+  if (!data.user) {
+    return { error: "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin." };
+  }
+
+  const role = data.user.user_metadata?.role;
   if (role === "admin") {
     redirect("/platform/admin/dashboard");
   }
 
-  // Coach ise kendi sitesine yönlendir
-  const { data: coach } = await supabase
-    .from("Coach")
-    .select("subdomain")
-    .eq("userId", data.user.id)
-    .single();
+  const coach = await prisma.coach.findUnique({
+    where: { userId: data.user.id },
+    select: { subdomain: true },
+  });
 
   if (coach?.subdomain) {
     redirect(`/site/${coach.subdomain}/dashboard`);
   }
 
-  // Henüz onboarding tamamlanmamış
-  redirect("/platform/onboarding");
+  redirect(tier ? `/platform/onboarding?tier=${tier}` : "/platform/onboarding");
 }
 
 export async function signOut() {

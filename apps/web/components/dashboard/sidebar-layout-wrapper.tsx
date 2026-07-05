@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SidebarNav } from "./sidebar-nav";
+import { TourProvider } from "./onboarding-tour";
 
 const STORAGE_KEY = "sidebar-collapsed";
 
@@ -9,14 +10,12 @@ export function CoachSidebarLayoutWrapper({
   domain,
   coachName,
   brandName,
-  unreadCount,
   position,
   children,
 }: {
   domain: string;
   coachName: string;
   brandName: string;
-  unreadCount: number;
   position: "left" | "right";
   children: React.ReactNode;
 }) {
@@ -54,12 +53,11 @@ export function CoachSidebarLayoutWrapper({
       : "pl-0 lg:pl-0 pr-2 lg:pr-4";
 
   return (
-    <>
+    <TourProvider>
       <SidebarNav
         domain={domain}
         coachName={coachName}
         brandName={brandName}
-        unreadCount={unreadCount}
         position={position}
         collapsed={isCollapsed}
         onToggle={toggle}
@@ -69,6 +67,6 @@ export function CoachSidebarLayoutWrapper({
       >
         {children}
       </div>
-    </>
+    </TourProvider>
   );
 }

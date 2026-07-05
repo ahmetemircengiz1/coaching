@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, MessageCircle, X, ArrowRight, TrendingUp, ShieldCheck, Zap, Star } from "lucide-react";
-import { useMemo, useState } from "react";
-import { formatCount, formatPackagePrice, withFallbackFeatures } from "../helpers";
+import { MessageCircle, ArrowRight, TrendingUp, ShieldCheck, Zap, Star } from "lucide-react";
+import { useMemo, useState, useId } from "react";
+import { formatCount, formatPackagePrice, withFallbackFeatures, buildPackageInquiryUrl } from "../helpers";
 import { TransformationCarousel } from "../TransformationCarousel";
 import type { LandingThemeComponentProps, LandingPackage, LandingThemeContent } from "../types";
+import { getTextEffectStyle } from "../types";
 import type { SectionRendererProps, ThemeLayout } from "../section-types";
 import { FAQAccordion } from "../FAQSection";
 import { SocialIcons } from "../SocialIcons";
-import { HeroDesktopImage, HeroMobileImage, hasHeroImage } from "../HeroBackground";
+import { HeroFullscreenImage, hasHeroImage } from "../HeroBackground";
+import { UnifiedNavbar } from "../shared/UnifiedNavbar";
+import { SystemHowSection } from "../shared/SystemHowSection";
+import { resolveNavbarVariant } from "../config";
 
 /* ─── Theme 1 – "Midnight Gold" ─── Premium Luxury, Deep Dark, Gold Accents, Glowing Effects */
 
@@ -35,105 +39,106 @@ function Theme1Background() {
 
 /* ─── Navbar ─── */
 export function Theme1Navbar({ content }: { content: LandingThemeContent }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  return (
-    <>
-      {/* Desktop header */}
-      <header className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#0A0A0C]/60 backdrop-blur-2xl transition-all duration-300 hidden md:block">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
-          <span className="text-lg font-black tracking-widest text-[#D4AF37] uppercase" style={{ letterSpacing: "0.2em" }}>{content.brandName}</span>
-
-          <nav className="flex items-center gap-10">
-            <a href="#tanitim" className="text-xs font-semibold text-white/50 hover:text-[#D4AF37] transition-all uppercase tracking-widest">Hakkımızda</a>
-            {content.transformations.length > 0 && <a href="#donusumler" className="text-xs font-semibold text-white/50 hover:text-[#D4AF37] transition-all uppercase tracking-widest">Dönüşüm</a>}
-            <a href="#paketler" className="text-xs font-semibold text-white/50 hover:text-[#D4AF37] transition-all uppercase tracking-widest">Paketler</a>
-            <a href="#iletisim" className="text-xs font-semibold text-white/50 hover:text-[#D4AF37] transition-all uppercase tracking-widest">İletişim</a>
-          </nav>
-
-          <div className="flex items-center gap-5">
-            <Link href={content.authUrl} className="text-sm font-semibold text-white/70 hover:text-white transition-colors">
-              Giriş Yap
-            </Link>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] px-6 text-xs font-bold text-black transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(212,175,55,0.4)]">
-              Başla
-            </a>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile floating hamburger */}
-      <button type="button" onClick={() => setMenuOpen(true)} className="fixed top-4 right-4 z-50 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[#D4AF37] md:hidden shadow-lg" aria-label="Menu">
-        <Menu size={20} />
-      </button>
-
-      {/* Mobile fullscreen menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 bg-[#0A0A0C]/95 backdrop-blur-3xl flex flex-col items-center justify-center md:hidden">
-          <button type="button" onClick={() => setMenuOpen(false)} className="absolute top-4 right-4 h-11 w-11 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-[#D4AF37]" aria-label="Kapat">
-            <X size={20} />
-          </button>
-          <span className="text-lg font-black tracking-widest text-[#D4AF37] uppercase mb-10" style={{ letterSpacing: "0.2em" }}>{content.brandName}</span>
-          <div className="flex flex-col gap-6 text-sm font-semibold text-white/70 tracking-widest uppercase text-center">
-            <a href="#tanitim" onClick={() => setMenuOpen(false)}>Hakkımızda</a>
-            {content.transformations.length > 0 && <a href="#donusumler" onClick={() => setMenuOpen(false)}>Dönüşüm</a>}
-            <a href="#paketler" onClick={() => setMenuOpen(false)}>Paketler</a>
-            <a href="#iletisim" onClick={() => setMenuOpen(false)}>İletişim</a>
-            <Link href={content.authUrl} onClick={() => setMenuOpen(false)}>Giriş Yap</Link>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="text-[#D4AF37]">Başla</a>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  const variant = resolveNavbarVariant(content.landingConfig?.navbarVariant, "theme-1");
+  return <UnifiedNavbar content={content} variant={variant} />;
 }
 
 /* ─── Hero Section ─── */
 export function Theme1Hero({ content, variant }: SectionRendererProps) {
-  const withImage = hasHeroImage(content);
+  const texts = content.landingTexts;
+  const headlineColor = texts?.heroTextColor || undefined;
+  const subtitleColor = texts?.heroSubtitleColor || undefined;
+  const effectStyle = getTextEffectStyle(texts?.heroTextEffect, headlineColor);
+  const textAlign = texts?.heroTextAlign || "center";
+
+  const posMode = texts?.heroTextPositionMode || "flex";
+  const posX = texts?.heroTextPosX ?? 50;
+  const posY = texts?.heroTextPosY ?? 50;
+  const scale = texts?.heroTextScale ?? 1;
+  const subtitleScale = Number(texts?.heroSubtitleScale ?? 1);
+  const headlineBg = texts?.heroHeadlineBgColor || "";
+  const subtitleBg = texts?.heroSubtitleBgColor || "";
+  const weight = texts?.heroTextWeight || undefined;
+  const containerId = useId().replace(/:/g, "");
+  const containerClass = `hero-text-${containerId}`;
 
   return (
-    <section className="relative min-h-[100svh] overflow-hidden">
-      {/* Mobile background */}
-      <HeroMobileImage content={content} />
+    <section data-landing-section="hero" className="relative min-h-[100svh] overflow-hidden">
+      <style>{`
+        .${containerClass} {
+          transform: scale(${scale});
+          transform-origin: ${textAlign === "left" ? "left center" : textAlign === "right" ? "right center" : "center center"};
+        }
+        @media (min-width: 768px) {
+          .${containerClass} {
+            ${posMode === "absolute" ? `
+              position: absolute !important;
+              left: ${posX}% !important;
+              top: ${posY}% !important;
+              transform: translate(-50%, -50%) scale(${scale}) !important;
+              margin: 0 !important;
+            ` : ""}
+          }
+        }
+      `}</style>
+      <HeroFullscreenImage content={content} themeBg="#0A0A0C" />
 
-      <div className={`relative z-10 mx-auto max-w-7xl px-6 lg:px-8 pt-32 pb-20 md:pt-40 md:pb-24 min-h-[100svh] flex items-center ${withImage ? "md:grid md:grid-cols-2 md:gap-12" : "justify-center text-center"}`}>
-        {/* Left: Text */}
-        <div className={`${withImage ? "" : "max-w-5xl mx-auto"} animate-in fade-in slide-in-from-bottom-8 duration-1000`}>
-          <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/20 mb-8 backdrop-blur-md">
+      <div className={`relative z-10 mx-auto max-w-7xl px-6 lg:px-8 pt-32 pb-20 md:pt-40 md:pb-24 min-h-[100svh] flex items-center ${textAlign === "left" ? "justify-start text-left" : textAlign === "right" ? "justify-end text-right" : "justify-center text-center"}`}>
+        <div className={`max-w-3xl w-full ${textAlign === "center" ? "mx-auto" : ""} animate-in fade-in slide-in-from-bottom-8 duration-1000 ${containerClass}`}>
+          <div className="inline-flex items-center justify-center gap-3 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/20 mb-8 backdrop-blur-md">
             <Star className="h-3 w-3 text-[#D4AF37] fill-[#D4AF37]" />
             <span className="text-[10px] font-bold text-[#D4AF37] tracking-[0.3em] uppercase">Premium Koçluk Ekosistemi</span>
             <Star className="h-3 w-3 text-[#D4AF37] fill-[#D4AF37]" />
           </div>
 
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight text-white mb-8 leading-[1.1] font-serif">
-            Mükemmeliğe <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9A24D] via-[#FFE58F] to-[#C9A24D]">
-              Ulaşın.
-            </span>
-          </h1>
+          {texts?.heroHeadline ? (
+            <h1 className={`text-4xl md:text-6xl lg:text-7xl ${weight ? '' : 'font-black'} tracking-tight mb-8 leading-[1.1] font-serif`} style={{ color: headlineColor || "white", fontWeight: weight, ...effectStyle }}>
+              {headlineBg ? (
+                <span style={{ backgroundColor: headlineBg, padding: "0.05em 0.25em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{texts.heroHeadline}</span>
+              ) : texts.heroHeadline}
+            </h1>
+          ) : (
+            <h1 className={`text-4xl md:text-6xl lg:text-7xl ${weight ? '' : 'font-black'} tracking-tight text-white mb-8 leading-[1.1] font-serif`} style={{ fontWeight: weight, ...effectStyle }}>
+              {headlineBg ? (
+                <span style={{ backgroundColor: headlineBg, padding: "0.05em 0.25em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>Mükemmeliğe Ulaşın.</span>
+              ) : (
+                <>
+                  Mükemmeliğe <br className="hidden md:block" />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9A24D] via-[#FFE58F] to-[#C9A24D]">
+                    Ulaşın.
+                  </span>
+                </>
+              )}
+            </h1>
+          )}
 
-          <p className="mt-8 max-w-xl text-lg md:text-xl leading-relaxed text-white/70 md:text-gray-400 font-medium">
-            {content.bio || "En üst düzey performans. Size özel tasarlanmış, lüks ve bilimsel verilerle şekillendirilen bir gelişim serüveni."}
+          <p className={`mt-8 max-w-xl leading-relaxed font-medium ${subtitleScale === 1 ? 'text-lg md:text-xl' : ''}`} style={{ color: subtitleColor || "rgba(255,255,255,0.7)", textShadow: subtitleBg ? undefined : "0 1px 10px rgba(0,0,0,0.5)", fontSize: subtitleScale !== 1 ? `${subtitleScale * 1.25}rem` : undefined }}>
+            {subtitleBg ? (
+              <span style={{ backgroundColor: subtitleBg, padding: "0.15em 0.4em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
+                {texts?.heroSubtitle || content.bio || "En üst düzey performans. Size özel tasarlanmış, lüks ve bilimsel verilerle şekillendirilen bir gelişim serüveni."}
+              </span>
+            ) : (
+              texts?.heroSubtitle || content.bio || "En üst düzey performans. Size özel tasarlanmış, lüks ve bilimsel verilerle şekillendirilen bir gelişim serüveni."
+            )}
           </p>
 
           <div className="mt-14 flex flex-col sm:flex-row items-start gap-5">
             <a href="#paketler" className="inline-flex h-14 items-center justify-center rounded-full bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] px-10 text-sm font-bold text-black shadow-[0_0_40px_rgba(212,175,55,0.25)] transition-all hover:scale-105 hover:shadow-[0_0_60px_rgba(212,175,55,0.4)] group w-full sm:w-auto">
-              Koleksiyonu İncele
+              {texts?.ctaPrimaryText || "Koleksiyonu İncele"}
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-14 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-10 text-sm font-bold text-white transition-all hover:bg-white/10 hover:border-[#D4AF37]/50 backdrop-blur-md w-full sm:w-auto group">
-              <MessageCircle size={16} className="text-gray-400 group-hover:text-[#D4AF37] transition-colors" />
-              Başla
-            </a>
+            {content.whatsappNumber ? (
+              <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-14 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-10 text-sm font-bold text-white transition-all hover:bg-white/10 hover:border-[#D4AF37]/50 backdrop-blur-md w-full sm:w-auto group">
+                <MessageCircle size={16} className="text-gray-400 group-hover:text-[#D4AF37] transition-colors" />
+                {texts?.ctaSecondaryText || "WhatsApp ile Başla"}
+              </a>
+            ) : (
+              <Link href={content.authUrl} className="inline-flex h-14 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-10 text-sm font-bold text-white transition-all hover:bg-white/10 hover:border-[#D4AF37]/50 backdrop-blur-md w-full sm:w-auto group">
+                {texts?.ctaSecondaryText || "Kayıt Ol"}
+              </Link>
+            )}
           </div>
         </div>
-
-        {/* Right: Hero image (desktop) */}
-        {withImage && (
-          <div className="hidden md:block relative h-[600px] lg:h-[700px]">
-            <HeroDesktopImage content={content} themeBg="#0A0A0C" accentColor="#D4AF37" />
-          </div>
-        )}
       </div>
     </section>
   );
@@ -142,7 +147,7 @@ export function Theme1Hero({ content, variant }: SectionRendererProps) {
 /* ─── Stats Section ─── */
 export function Theme1Stats({ content, variant }: SectionRendererProps) {
   return (
-    <section id="tanitim" className="px-6 py-20 relative z-10">
+    <section data-landing-section="stats" id="tanitim" className="px-6 py-20 relative z-10">
       <div className="mx-auto max-w-6xl">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="rounded-[2rem] border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent p-10 flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden group">
@@ -150,8 +155,8 @@ export function Theme1Stats({ content, variant }: SectionRendererProps) {
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#D4AF37]/20 to-transparent flex items-center justify-center mb-6 border border-[#D4AF37]/20">
               <TrendingUp className="text-[#D4AF37] h-8 w-8" />
             </div>
-            <h3 className="text-5xl font-black text-white mb-2 tracking-tight group-hover:scale-105 transition-transform duration-500">{formatCount(content.studentCount || 1000)}+</h3>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-[0.2em]">Aktif Öğrenci</p>
+            <h3 className="text-5xl font-black text-white mb-2 tracking-tight group-hover:scale-105 transition-transform duration-500">{content.landingTexts?.stat1Value || `${formatCount(content.studentCount || 1000)}+`}</h3>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-[0.2em]">{content.landingTexts?.stat1Label || "Aktif Öğrenci"}</p>
           </div>
 
           <div className="rounded-[2rem] border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent p-10 flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden group">
@@ -159,8 +164,8 @@ export function Theme1Stats({ content, variant }: SectionRendererProps) {
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#D4AF37]/20 to-transparent flex items-center justify-center mb-6 border border-[#D4AF37]/20">
               <ShieldCheck className="text-[#D4AF37] h-8 w-8" />
             </div>
-            <h3 className="text-5xl font-black text-white mb-2 tracking-tight group-hover:scale-105 transition-transform duration-500">{content.transformationCount || 10}+</h3>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-[0.2em]">Başarılı Dönüşüm</p>
+            <h3 className="text-5xl font-black text-white mb-2 tracking-tight group-hover:scale-105 transition-transform duration-500">{content.landingTexts?.stat2Value || `${content.transformationCount || 10}+`}</h3>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-[0.2em]">{content.landingTexts?.stat2Label || "Başarılı Dönüşüm"}</p>
           </div>
 
           <div className="rounded-[2rem] border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent p-10 flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden group">
@@ -168,8 +173,8 @@ export function Theme1Stats({ content, variant }: SectionRendererProps) {
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#D4AF37]/20 to-transparent flex items-center justify-center mb-6 border border-[#D4AF37]/20">
               <Zap className="text-[#D4AF37] h-8 w-8" />
             </div>
-            <h3 className="text-5xl font-black text-white mb-2 tracking-tight group-hover:scale-105 transition-transform duration-500">5+</h3>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-[0.2em]">Yıl Deneyim</p>
+            <h3 className="text-5xl font-black text-white mb-2 tracking-tight group-hover:scale-105 transition-transform duration-500">{content.landingTexts?.stat3Value || "5+"}</h3>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-[0.2em]">{content.landingTexts?.stat3Label || "Yıl Deneyim"}</p>
           </div>
         </div>
       </div>
@@ -181,11 +186,11 @@ export function Theme1Stats({ content, variant }: SectionRendererProps) {
 export function Theme1Transformations({ content, variant }: SectionRendererProps) {
   if (content.transformations.length === 0) return null;
   return (
-    <section id="donusumler" className="py-24 px-6 border-y border-white/5 bg-[#060608] relative">
+    <section data-landing-section="transformations" id="donusumler" className="py-24 px-6 border-y border-white/5 bg-[#060608] relative">
       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#D4AF37]/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="mx-auto max-w-6xl relative z-10">
-        <div className="mb-20 text-center">
-          <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight font-serif mb-6">Şaheserler.</h2>
+        <div data-section-heading className="mb-20 text-center">
+          <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight font-serif mb-6">{content.landingTexts?.transformationsTitle || "Şaheserler."}</h2>
           <div className="h-1 w-20 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent mx-auto opacity-50" />
         </div>
         <div className="mx-auto max-w-xl">
@@ -200,15 +205,15 @@ export function Theme1Transformations({ content, variant }: SectionRendererProps
 export function Theme1Packages({ content, variant }: SectionRendererProps) {
   const packages = useMemo(() => normalizePackages(content.packages), [content.packages]);
   return (
-    <section id="paketler" className="py-32 px-6 relative">
+    <section data-landing-section="packages" id="paketler" className="py-32 px-6 relative">
       <div className="absolute inset-0 bg-[#060608] -z-10" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-[#D4AF37]/5 blur-[150px] rounded-full pointer-events-none" />
 
       <div className="mx-auto max-w-6xl relative z-10">
-        <div className="text-center mb-24">
-          <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight font-serif mb-6">Özel Koleksiyon.</h2>
+        <div data-section-heading className="text-center mb-24">
+          <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight font-serif mb-6">{content.landingTexts?.packagesTitle || "Özel Koleksiyon."}</h2>
           <div className="h-1 w-20 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent mx-auto opacity-50 mb-6" />
-          <p className="text-gray-400 font-medium tracking-wide">Sadece en iyisini arayanlar için tasarlandı.</p>
+          <p className="text-gray-400 font-medium tracking-wide">{content.landingTexts?.packagesSubtitle || "Sadece en iyisini arayanlar için tasarlandı."}</p>
         </div>
 
         <div className="grid gap-8 md:grid-cols-3 items-stretch">
@@ -244,9 +249,13 @@ export function Theme1Packages({ content, variant }: SectionRendererProps) {
                   ))}
                 </ul>
 
-                <Link href={`${content.authUrl}?package=${pkg.id}`} className={`mt-auto inline-flex h-14 w-full items-center justify-center rounded-2xl text-xs font-bold uppercase tracking-widest transition-all duration-300 ${isPro ? "bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] text-black shadow-[0_0_30px_rgba(212,175,55,0.2)] hover:scale-105" : "bg-white/5 text-white border border-white/10 hover:bg-white/10"}`}>
-                  Seçimi Onayla
-                </Link>
+                {(() => {
+                  const cta = buildPackageInquiryUrl(content.brandName, pkg.name, content.whatsappNumber, content.email, content.authUrl);
+                  const cls = `mt-auto inline-flex h-14 w-full items-center justify-center rounded-2xl text-xs font-bold uppercase tracking-widest transition-all duration-300 ${isPro ? "bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] text-black shadow-[0_0_30px_rgba(212,175,55,0.2)] hover:scale-105" : "bg-white/5 text-white border border-white/10 hover:bg-white/10"}`;
+                  return cta.external
+                    ? <a href={cta.href} target="_blank" rel="noreferrer" className={cls}>Koça Yaz</a>
+                    : <Link href={cta.href} className={cls}>Koça Yaz</Link>;
+                })()}
               </article>
             );
           })}
@@ -257,12 +266,12 @@ export function Theme1Packages({ content, variant }: SectionRendererProps) {
 }
 
 /* ─── FAQ Section ─── */
-export function Theme1FAQ({ variant }: SectionRendererProps) {
+export function Theme1FAQ({ content, variant }: SectionRendererProps) {
   return (
-    <section className="py-24 px-6 relative z-10 bg-[#060608]">
+    <section data-landing-section="faq" className="py-24 px-6 relative z-10 bg-[#060608]">
       <div className="mx-auto max-w-6xl">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight font-serif mb-4">Sık Sorulan Sorular</h2>
+        <div data-section-heading className="text-center mb-16">
+          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight font-serif mb-4">{content.landingTexts?.faqTitle || "Sık Sorulan Sorular"}</h2>
           <div className="h-1 w-20 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent mx-auto opacity-50" />
         </div>
         <FAQAccordion
@@ -281,7 +290,7 @@ export function Theme1FAQ({ variant }: SectionRendererProps) {
 /* ─── Contact / Footer Section ─── */
 export function Theme1Contact({ content, variant }: SectionRendererProps) {
   return (
-    <footer id="iletisim" className="mt-auto border-t border-white/5 bg-[#030304] py-16 px-6 relative z-10">
+    <footer data-landing-section="contact" id="iletisim" className="mt-auto border-t border-white/5 bg-[#030304] py-16 px-6 relative z-10">
       <div className="mx-auto max-w-6xl flex flex-col md:flex-row justify-between items-center gap-8">
         <div className="text-2xl font-black tracking-[0.2em] text-[#D4AF37] uppercase font-serif">
           {content.brandName}
@@ -289,7 +298,7 @@ export function Theme1Contact({ content, variant }: SectionRendererProps) {
 
         <div className="flex items-center gap-8 text-xs font-semibold text-gray-500 tracking-widest uppercase">
           <a href={`mailto:${content.email}`} className="hover:text-[#D4AF37] transition-colors">E-posta</a>
-          <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-[#D4AF37] transition-colors">WhatsApp</a>
+          {content.whatsappNumber && <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-[#D4AF37] transition-colors">WhatsApp</a>}
           <Link href={content.authUrl} className="hover:text-[#D4AF37] transition-colors">VIP Giriş</Link>
         </div>
 
@@ -298,7 +307,7 @@ export function Theme1Contact({ content, variant }: SectionRendererProps) {
         )}
 
         <p className="text-[10px] font-semibold text-gray-700 uppercase tracking-[0.2em]">
-          &copy; {new Date().getFullYear()} Elite Ekosistem. Tüm Hakları Saklıdır.
+          &copy; {new Date().getFullYear()} {content.landingTexts?.footerTagline || "Elite Ekosistem. Tüm Hakları Saklıdır."}
         </p>
       </div>
     </footer>
@@ -315,6 +324,7 @@ export function LandingTheme1({ content }: LandingThemeComponentProps) {
         <Theme1Hero content={content} variant={1} />
         <Theme1Stats content={content} variant={1} />
         <Theme1Transformations content={content} variant={1} />
+        <SystemHowSection content={content} variant={1} />
         <Theme1Packages content={content} variant={1} />
         <Theme1Contact content={content} variant={1} />
       </div>
@@ -337,6 +347,7 @@ export const theme1Layout: ThemeLayout = {
     hero: Theme1Hero,
     stats: Theme1Stats,
     transformations: Theme1Transformations,
+    system: SystemHowSection,
     packages: Theme1Packages,
     faq: Theme1FAQ,
     contact: Theme1Contact,

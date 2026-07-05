@@ -1,10 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ domain: string }> },
+) {
+  const { domain } = await params;
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") || "/";
+  const next = searchParams.get("next") || `/site/${domain}/student`;
 
   if (code) {
     const supabase = await createClient();
@@ -15,5 +19,7 @@ export async function GET(request: Request) {
   }
 
   // Auth hatası - auth sayfasına geri yönlendir
-  return NextResponse.redirect(`${origin}/auth?error=auth_failed`);
+  return NextResponse.redirect(
+    `${origin}/site/${domain}/auth?error=auth_failed`,
+  );
 }

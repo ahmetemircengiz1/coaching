@@ -13,6 +13,8 @@ export async function getPublicCoachPackages(domain: string) {
       secondaryColor: true,
       landingThemeId: true,
       templateId: true,
+      whatsappNumber: true,
+      email: true,
       coachPackages: {
         where: { isActive: true },
         orderBy: { orderIndex: "asc" },
@@ -40,6 +42,8 @@ export async function getPublicCoachPackages(domain: string) {
         secondaryColor: true,
         landingThemeId: true,
         templateId: true,
+        whatsappNumber: true,
+        email: true,
         coachPackages: {
           where: { isActive: true },
           orderBy: { orderIndex: "asc" },
@@ -62,6 +66,8 @@ export async function getPublicCoachPackages(domain: string) {
       brandName: coachByDomain.brandName,
       logo: coachByDomain.logo,
       landingThemeId: coachByDomain.landingThemeId,
+      whatsappNumber: coachByDomain.whatsappNumber,
+      email: coachByDomain.email,
       packages: coachByDomain.coachPackages.map((p) => ({
         ...p,
         price: Number(p.price),
@@ -74,6 +80,8 @@ export async function getPublicCoachPackages(domain: string) {
     brandName: coach.brandName,
     logo: coach.logo,
     landingThemeId: coach.landingThemeId,
+    whatsappNumber: coach.whatsappNumber,
+    email: coach.email,
     packages: coach.coachPackages.map((p) => ({
       ...p,
       price: Number(p.price),

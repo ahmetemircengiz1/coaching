@@ -36,9 +36,35 @@ export function getBrandInitials(brandName: string): string {
   return parts.map((part) => part.charAt(0).toUpperCase()).join("");
 }
 
-export function buildWhatsAppUrl(brandName: string): string {
+export function buildWhatsAppUrl(brandName: string, whatsappNumber?: string | null): string {
   const message = `Merhaba, ${brandName} koçluk hizmeti hakkında bilgi almak istiyorum.`;
-  return `https://wa.me/?text=${encodeURIComponent(message)}`;
+  const cleanNumber = whatsappNumber?.replace(/[^+\d]/g, "").replace(/^\+/, "") || "";
+  return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Package CTA URL — koç kodu ile öğrenci kayıt akışına yönlendirir.
+ * Öğrenciler artık paket butonuna basınca doğrudan kayıt sayfasına gidiyor;
+ * orada koçlarından aldıkları kod ile hesap açıyorlar.
+ *
+ * `brandName`, `packageName`, `whatsappNumber`, `email` parametreleri geriye
+ * dönük uyum için tutulur (ileride farklı CTA modları desteklenebilir).
+ */
+export function buildPackageInquiryUrl(
+  brandName: string,
+  packageName: string,
+  _whatsappNumber?: string | null,
+  _email?: string | null,
+  fallbackUrl?: string,
+): { href: string; external: boolean } {
+  void brandName;
+  void packageName;
+  // /site/[domain]/auth?tab=register — kullanıcı bunu auth/page.tsx'te yakalıyor
+  if (fallbackUrl) {
+    const sep = fallbackUrl.includes("?") ? "&" : "?";
+    return { href: `${fallbackUrl}${sep}tab=register`, external: false };
+  }
+  return { href: "#", external: false };
 }
 
 export function withFallbackFeatures(features: string[]): string[] {

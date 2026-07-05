@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createProgram, deleteProgram, duplicateProgram, importTemplateProgram } from "@/app/site/[domain]/dashboard/programs/actions";
-import { PROGRAM_TEMPLATES, LEVEL_LABELS, LEVEL_COLORS } from "@/lib/data/program-templates";
+import { deleteProgram, duplicateProgram, importProgramFromFile, updateProgram } from "@/app/site/[domain]/dashboard/programs/actions";
+import { ImportDialog, PROGRAM_FORMAT_EXAMPLE } from "@/components/dashboard/import-dialog";
+import { ConfirmDialog, useConfirmDialog } from "@/components/dashboard/confirm-dialog";
+import { AssignToStudentsModal } from "@/components/dashboard/assign-to-students-modal";
+import { NewProgramWizard } from "@/components/dashboard/new-program-wizard";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 
 interface ProgramData {
   id: string;
@@ -15,6 +20,7 @@ interface ProgramData {
   description: string | null;
   weeks: number;
   assignedStudents: number;
+  assignedStudentsPreview: { id: string; name: string }[];
 }
 
 export default function ProgramsPageClient({
@@ -31,42 +37,54 @@ export default function ProgramsPageClient({
     setLocalPrograms(programs);
   }, [programs]);
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [weeks, setWeeks] = useState(4);
-  const [loading, setLoading] = useState(false);
-  const [importing, setImporting] = useState<string | null>(null);
+  const [showWizard, setShowWizard] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<{ id: string; name: string } | null>(null);
+  const { confirm, dialogProps } = useConfirmDialog();
+  // Program rename state
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
-  const handleCreate = async () => {
-    if (!name.trim()) return;
-    setLoading(true);
-    const result = await createProgram(domain, {
-      name: name.trim(),
-      description: description.trim() || undefined,
-      weeks,
+  const savePrgRename = async (prg: ProgramData) => {
+    const next = renameDraft.trim();
+    if (!next || next === prg.name) {
+      setRenamingId(null);
+      return;
+    }
+    setLocalPrograms((prev) => prev.map((p) => (p.id === prg.id ? { ...p, name: next } : p)));
+    setRenamingId(null);
+    const result = await updateProgram(domain, prg.id, {
+      name: next,
+      description: prg.description || undefined,
+      weeks: prg.weeks,
     });
-    setLoading(false);
-    if (result.success) {
-      router.push(`/site/${domain}/dashboard/programs/${result.programId}`);
+    if (!result.success) {
+      toast.error(("error" in result && result.error) || "Program adı güncellenemedi");
+      setLocalPrograms((prev) => prev.map((p) => (p.id === prg.id ? { ...p, name: prg.name } : p)));
+    } else {
+      router.refresh();
     }
   };
 
   const handleDelete = async (id: string) => {
     const program = localPrograms.find(p => p.id === id);
-    const msg = program && program.assignedStudents > 0
-      ? `"${program.name}" programı ${program.assignedStudents} öğrenciye atanmış. Silmek istediğine emin misin?`
-      : `"${program?.name || "Bu program"}" programını silmek istediğine emin misin?`;
-    if (!confirm(msg)) return;
+    const desc = program && program.assignedStudents > 0
+      ? `"${program.name}" programi ${program.assignedStudents} ogrenciye atanmis. Bu islem geri alinamaz.`
+      : `"${program?.name || "Bu program"}" programi kalici olarak silinecek.`;
+    const confirmed = await confirm({
+      title: "Programi Sil",
+      description: desc,
+      confirmText: "Sil",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
-    // Optimistic delete
     setLocalPrograms(prev => prev.filter(p => p.id !== id));
 
     const result = await deleteProgram(domain, id);
     if (!result.success) {
-      alert("error" in result ? result.error : "Hata oluştu");
-      setLocalPrograms(programs); // Revert
+      toast.error("error" in result ? result.error : "Hata olustu");
+      setLocalPrograms(programs);
     }
   };
 
@@ -75,209 +93,56 @@ export default function ProgramsPageClient({
     if (result.success && "programId" in result) {
       router.push(`/site/${domain}/dashboard/programs/${result.programId}`);
     } else {
-      alert("error" in result ? result.error : "Kopyalama hatası");
+      toast.error("error" in result ? result.error : "Kopyalama hatası");
     }
-  };
-
-  const handleImportTemplate = async (templateId: string) => {
-    setImporting(templateId);
-    const result = await importTemplateProgram(domain, templateId);
-    if (result.success && "programId" in result) {
-      router.push(`/site/${domain}/dashboard/programs/${result.programId}`);
-    } else {
-      alert("error" in result ? result.error : "İçe aktarma hatası");
-    }
-    setImporting(null);
   };
 
   return (
     <div className="space-y-6 py-6" style={{ color: "var(--dashboard-main-text)" }}>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-xl font-bold">Program Şablonları</h1>
+          <h1 className="font-heading text-xl font-bold">Programlar</h1>
           <p className="text-sm mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>{localPrograms.length} program</p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => { setShowTemplates(!showTemplates); setShowCreate(false); }}
-            className="font-medium text-sm border rounded-md px-4 py-2"
-            style={{
-              backgroundColor: "transparent",
-              borderColor: "var(--dashboard-card-border)",
-              color: "var(--dashboard-main-text)",
-            }}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowImportDialog(true)}
+            className="text-xs underline transition-opacity hover:opacity-70"
+            style={{ color: "var(--dashboard-main-text-muted)" }}
           >
-            Hazır Şablonlar
-          </Button>
+            Dosyadan aktar
+          </button>
           <Button
-            onClick={() => { setShowCreate(!showCreate); setShowTemplates(false); }}
+            onClick={() => setShowWizard(true)}
             style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
             className="font-semibold hover:opacity-90"
           >
-            + Yeni Program
+            + Program Oluştur
           </Button>
         </div>
       </div>
 
-      {/* Hazır Şablonlar */}
-      {showTemplates && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold" style={{ color: "var(--dashboard-main-text-muted)" }}>Hazır Program Şablonları</h2>
-            <span className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">
-              Tek tıkla içe aktar
-            </span>
-          </div>
-          <div className="grid md:grid-cols-3 gap-4 stagger-children">
-            {PROGRAM_TEMPLATES.map((t) => (
-              <Card key={t.id} className="animate-fade-in-up dashboard-card-hover" style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)" }}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-semibold text-sm" style={{ color: "var(--dashboard-main-text)" }}>{t.name}</h3>
-                      <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full border ${LEVEL_COLORS[t.level]}`}>
-                        {LEVEL_LABELS[t.level]}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>{t.description}</p>
-                  <div className="flex gap-3 text-xs" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>
-                    <span>{t.weeks} hafta</span>
-                    <span>{t.daysPerWeek} gün/hafta</span>
-                  </div>
-                  <div className="text-[11px]" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.6 }}>
-                    Hedef: {t.goal}
-                  </div>
-
-                  {/* Örnek günler */}
-                  <div className="space-y-1">
-                    {t.template[0].workouts.slice(0, 3).map((w, i) => (
-                      <div key={i} className="flex items-center gap-2 text-[11px]">
-                        <span style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.5 }} className="w-12">
-                          {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"][w.dayOfWeek - 1]}
-                        </span>
-                        <span style={{ color: "var(--dashboard-main-text-muted)" }}>{w.name}</span>
-                        <span style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.5 }}>({w.exercises.length} egz.)</span>
-                      </div>
-                    ))}
-                    {t.template[0].workouts.length > 3 && (
-                      <p className="text-[10px]" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.5 }}>+{t.template[0].workouts.length - 3} gün daha</p>
-                    )}
-                  </div>
-
-                  <Button
-                    onClick={() => handleImportTemplate(t.id)}
-                    disabled={importing === t.id}
-                    className="w-full bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/20 text-sm"
-                  >
-                    {importing === t.id ? "İçe aktarılıyor..." : "Kütüphaneme Ekle"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Program Oluşturma Formu */}
-      {showCreate && (
-        <Card style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)" }}>
-          <CardContent className="p-4 space-y-3">
-            <h3 className="font-semibold" style={{ color: "var(--dashboard-main-text)" }}>Yeni Program Oluştur</h3>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Program adı (örn: Başlangıç Full Body)"
-              disabled={loading}
-              style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text)" }}
-            />
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Açıklama (opsiyonel)"
-              rows={2}
-              disabled={loading}
-              className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 disabled:opacity-50"
-              style={{
-                backgroundColor: "var(--dashboard-card-bg)",
-                borderColor: "var(--dashboard-card-border)",
-                color: "var(--dashboard-main-text)",
-                border: "1px solid var(--dashboard-card-border)",
-              }}
-            />
-            <div className="flex items-center gap-2">
-              <label className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>Hafta sayısı:</label>
-              <Input
-                type="number"
-                value={weeks}
-                onChange={(e) => setWeeks(Number(e.target.value))}
-                className="w-20"
-                disabled={loading}
-                style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text)" }}
-                min={1}
-                max={52}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleCreate}
-                disabled={loading || !name.trim()}
-                style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
-                className="font-semibold hover:opacity-90"
-              >
-                {loading ? "Oluşturuluyor..." : "Oluştur ve Düzenle"}
-              </Button>
-              <Button
-                onClick={() => setShowCreate(false)}
-                disabled={loading}
-                className="border rounded-md px-4 py-2"
-                style={{
-                  backgroundColor: "transparent",
-                  borderColor: "var(--dashboard-card-border)",
-                  color: "var(--dashboard-main-text)",
-                }}
-              >
-                İptal
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Program Listesi */}
-      {localPrograms.length === 0 && !showCreate && !showTemplates ? (
+      {localPrograms.length === 0 ? (
         <Card className="animate-fade-in" style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)" }}>
           <CardContent className="py-16 text-center">
             <p className="text-4xl mb-3">📋</p>
             <p className="text-lg font-medium mb-1" style={{ color: "var(--dashboard-main-text-muted)" }}>
-              Henüz program şablonu yok
+              Henüz program yok
             </p>
             <p className="text-sm mb-6 max-w-md mx-auto" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>
-              Hazır şablonları kullanarak hızlıca başlayın veya sıfırdan oluşturun
+              Hazır şablonlardan başla veya sıfırdan oluştur — sihirbaz seni yönlendirir.
             </p>
-            <div className="flex gap-3 justify-center">
-              <Button
-                onClick={() => setShowTemplates(true)}
-                className="border rounded-md px-4 py-2"
-                style={{
-                  backgroundColor: "transparent",
-                  borderColor: "var(--dashboard-card-border)",
-                  color: "var(--dashboard-main-text)",
-                }}
-              >
-                Hazır Şablonları Gör
-              </Button>
-              <Button
-                onClick={() => setShowCreate(true)}
-                style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
-                className="font-semibold hover:opacity-90"
-              >
-                + Sıfırdan Oluştur
-              </Button>
-            </div>
+            <Button
+              onClick={() => setShowWizard(true)}
+              style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
+              className="font-semibold hover:opacity-90"
+            >
+              + Program Oluştur
+            </Button>
           </CardContent>
         </Card>
-      ) : localPrograms.length > 0 ? (
+      ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
           {localPrograms.map((program) => (
             <Card
@@ -287,7 +152,37 @@ export default function ProgramsPageClient({
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg" style={{ color: "var(--dashboard-main-text)" }}>{program.name}</CardTitle>
+                  {renamingId === program.id ? (
+                    <Input
+                      autoFocus
+                      value={renameDraft}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onBlur={() => savePrgRename(program)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") savePrgRename(program);
+                        if (e.key === "Escape") setRenamingId(null);
+                      }}
+                      className="text-lg font-semibold h-auto py-1 px-2 flex-1 mr-2"
+                      style={{
+                        backgroundColor: "var(--dashboard-main-bg)",
+                        borderColor: "var(--dashboard-card-border)",
+                        color: "var(--dashboard-main-text)",
+                      }}
+                    />
+                  ) : (
+                    <CardTitle
+                      className="text-lg inline-flex items-center gap-2 group cursor-pointer"
+                      style={{ color: "var(--dashboard-main-text)" }}
+                      onClick={() => {
+                        setRenameDraft(program.name);
+                        setRenamingId(program.id);
+                      }}
+                      title="Tıklayıp adı değiştir"
+                    >
+                      {program.name}
+                      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                    </CardTitle>
+                  )}
                   <div className="flex gap-1">
                     <button
                       onClick={(e) => { e.preventDefault(); handleDuplicate(program.id); }}
@@ -309,27 +204,95 @@ export default function ProgramsPageClient({
                 <p className="text-sm mb-4" style={{ color: "var(--dashboard-main-text-muted)" }}>
                   {program.description || "Açıklama yok"}
                 </p>
-                <div className="flex justify-between text-sm mb-4" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>
+                <div className="flex items-center justify-between text-sm mb-4" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>
                   <span>{program.weeks} hafta</span>
-                  <span>{program.assignedStudents} öğrenci</span>
+                  {program.assignedStudents > 0 ? (
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex -space-x-2">
+                        {program.assignedStudentsPreview.map((s) => (
+                          <div
+                            key={s.id}
+                            title={s.name}
+                            className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] font-semibold"
+                            style={{
+                              backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 20%, var(--dashboard-card-bg))",
+                              color: "var(--dashboard-accent)",
+                              borderColor: "var(--dashboard-card-bg)",
+                            }}
+                          >
+                            {s.name.charAt(0).toUpperCase()}
+                          </div>
+                        ))}
+                      </div>
+                      {program.assignedStudents > program.assignedStudentsPreview.length && (
+                        <span className="text-xs opacity-80">
+                          +{program.assignedStudents - program.assignedStudentsPreview.length}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs opacity-60">Atanmamış</span>
+                  )}
                 </div>
-                <Link href={`/site/${domain}/dashboard/programs/${program.id}`}>
+                <div className="flex gap-2">
+                  <Link href={`/site/${domain}/dashboard/programs/${program.id}`} className="flex-1">
+                    <Button
+                      className="w-full text-sm border rounded-md"
+                      style={{
+                        backgroundColor: "transparent",
+                        borderColor: "var(--dashboard-card-border)",
+                        color: "var(--dashboard-main-text)",
+                      }}
+                    >
+                      Düzenle
+                    </Button>
+                  </Link>
                   <Button
-                    className="w-full text-sm border rounded-md"
-                    style={{
-                      backgroundColor: "transparent",
-                      borderColor: "var(--dashboard-card-border)",
-                      color: "var(--dashboard-main-text)",
-                    }}
+                    onClick={() => setAssignTarget({ id: program.id, name: program.name })}
+                    className="text-sm font-semibold hover:opacity-90"
+                    style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
                   >
-                    Düzenle
+                    Ata
                   </Button>
-                </Link>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
-      ) : null}
+      )}
+
+      <NewProgramWizard
+        domain={domain}
+        open={showWizard}
+        onClose={() => setShowWizard(false)}
+      />
+
+      <ImportDialog
+        open={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onImport={async (raw) => {
+          const result = await importProgramFromFile(domain, raw);
+          if (result.success) router.refresh();
+          return result;
+        }}
+        title="Antrenman Programı İçe Aktar"
+        description="Düz metin, Excel/CSV veya JSON formatında hazır programını kütüphanene ekle."
+        formatExample={PROGRAM_FORMAT_EXAMPLE}
+        kind="program"
+      />
+      <ConfirmDialog {...dialogProps} />
+
+      <AssignToStudentsModal
+        domain={domain}
+        kind="program"
+        planId={assignTarget?.id ?? ""}
+        planName={assignTarget?.name ?? ""}
+        open={!!assignTarget}
+        onClose={() => setAssignTarget(null)}
+        onAssigned={() => {
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ValidatedInput } from "@/components/dashboard/validated-input";
 import FoodSearch from "./food-search";
 import type { FoodData } from "@/lib/data/food-database";
 import { supplementDatabase, supplementCategories } from "@/lib/data/supplement-database";
@@ -13,11 +15,17 @@ import {
   duplicateNutritionPlan,
   addMeal,
   deleteMeal,
+  setMealAlternatives,
+  updateNutritionPlan,
   updatePlanNotes,
   updatePlanSupplements,
+  importNutritionFromFile,
 } from "@/app/site/[domain]/dashboard/nutrition/actions";
+import { ImportDialog, NUTRITION_FORMAT_EXAMPLE } from "@/components/dashboard/import-dialog";
+import { ConfirmDialog, useConfirmDialog } from "@/components/dashboard/confirm-dialog";
+import { AssignToStudentsModal } from "@/components/dashboard/assign-to-students-modal";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ChevronDown, ChevronRight, Check } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, Check, Pencil } from "lucide-react";
 
 interface FoodItem {
   name: string;
@@ -49,6 +57,7 @@ interface MealData {
   name: string;
   time: string | null;
   foods: unknown;
+  alternatives?: unknown;
   orderIndex: number;
 }
 
@@ -62,6 +71,7 @@ interface PlanData {
   coachNotes?: string | null;
   supplements?: unknown;
   assignedCount: number;
+  assignedStudentsPreview: { id: string; name: string }[];
   meals: MealData[];
   createdAt: string;
 }
@@ -164,6 +174,9 @@ export default function NutritionPageClient({
   }, [plans]);
 
   const [showCreate, setShowCreate] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<{ id: string; name: string } | null>(null);
+  const { confirm, dialogProps } = useConfirmDialog();
   const [loading, setLoading] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
 
@@ -197,6 +210,36 @@ export default function NutritionPageClient({
   const [mealTime, setMealTime] = useState("");
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [editingNotesFor, setEditingNotesFor] = useState<string | null>(null);
+  // Plan adı rename state'i
+  const [renamingPlanId, setRenamingPlanId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+
+  const savePlanRename = async (plan: PlanData) => {
+    const next = renameDraft.trim();
+    if (!next || next === plan.name) {
+      setRenamingPlanId(null);
+      return;
+    }
+    // Optimistic
+    setLocalPlans((prev) => prev.map((p) => (p.id === plan.id ? { ...p, name: next } : p)));
+    setRenamingPlanId(null);
+    const supplementsData = (plan.supplements as SupplementItem[] | null) || undefined;
+    const result = await updateNutritionPlan(domain, plan.id, {
+      name: next,
+      targetCalories: plan.targetCalories ?? undefined,
+      targetProtein: plan.targetProtein ?? undefined,
+      targetCarbs: plan.targetCarbs ?? undefined,
+      targetFat: plan.targetFat ?? undefined,
+      coachNotes: plan.coachNotes ?? undefined,
+      supplements: supplementsData,
+    });
+    if (!result.success) {
+      toast.error(("error" in result && result.error) || "Plan adı güncellenemedi");
+      setLocalPlans((prev) => prev.map((p) => (p.id === plan.id ? { ...p, name: plan.name } : p)));
+    } else {
+      router.refresh();
+    }
+  };
   const [notesText, setNotesText] = useState("");
   const [addingSupTo, setAddingSupTo] = useState<string | null>(null);
   const [existingSupSearch, setExistingSupSearch] = useState("");
@@ -329,7 +372,14 @@ export default function NutritionPageClient({
 
   // ─── Existing Plan Handlers ───
   const handleDelete = async (planId: string) => {
-    if (!confirm("Bu beslenme planını silmek istediğine emin misin?")) return;
+    const plan = localPlans.find(p => p.id === planId);
+    const confirmed = await confirm({
+      title: "Beslenme Planini Sil",
+      description: `"${plan?.name || "Bu plan"}" kalici olarak silinecek. Bu islem geri alinamaz.`,
+      confirmText: "Sil",
+      variant: "danger",
+    });
+    if (!confirmed) return;
     setLocalPlans(prev => prev.filter(p => p.id !== planId));
     await deleteNutritionPlan(domain, planId);
   };
@@ -339,7 +389,7 @@ export default function NutritionPageClient({
     if (result.success) {
       router.refresh();
     } else {
-      alert("error" in result ? result.error : "Kopyalama hatası");
+      toast.error("error" in result ? result.error : "Kopyalama hatası");
     }
   };
 
@@ -560,13 +610,26 @@ export default function NutritionPageClient({
           <h1 className="font-heading text-xl font-bold">Beslenme Planlari</h1>
           <p className="text-sm mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>{localPlans.length} plan</p>
         </div>
-        <Button
-          onClick={() => { setShowCreate(!showCreate); if (showCreate) resetForm(); }}
-          style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
-          className="font-semibold hover:opacity-90"
-        >
-          + Yeni Plan
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowImportDialog(true)}
+            className="font-medium text-sm border rounded-md px-4 py-2"
+            style={{
+              backgroundColor: "transparent",
+              borderColor: "var(--dashboard-card-border)",
+              color: "var(--dashboard-main-text)",
+            }}
+          >
+            Dosyadan Aktar
+          </Button>
+          <Button
+            onClick={() => { setShowCreate(!showCreate); if (showCreate) resetForm(); }}
+            style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
+            className="font-semibold hover:opacity-90"
+          >
+            + Yeni Plan
+          </Button>
+        </div>
       </div>
 
       {/* ═══ Create Form (Single Page with Collapsible Sections) ═══ */}
@@ -578,10 +641,11 @@ export default function NutritionPageClient({
             {/* Plan Adı */}
             <div>
               <label className="text-xs font-medium mb-1 block" style={{ color: "var(--dashboard-main-text-muted)" }}>Plan Adi *</label>
-              <Input
+              <ValidatedInput
                 value={planName}
                 onChange={(e) => setPlanName(e.target.value)}
                 placeholder="Plan adi (orn: Kilo Verme Plani)"
+                error={!planName.trim() ? "Plan adi zorunludur" : undefined}
                 style={inputStyle}
               />
             </div>
@@ -870,12 +934,69 @@ export default function NutritionPageClient({
                 }>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-base" style={{ color: "var(--dashboard-main-text)" }}>{plan.name}</CardTitle>
+                      {renamingPlanId === plan.id ? (
+                        <Input
+                          autoFocus
+                          value={renameDraft}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setRenameDraft(e.target.value)}
+                          onBlur={() => savePlanRename(plan)}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === "Enter") savePlanRename(plan);
+                            if (e.key === "Escape") setRenamingPlanId(null);
+                          }}
+                          className="text-base font-semibold h-auto py-1 px-2"
+                          style={{
+                            backgroundColor: "var(--dashboard-main-bg)",
+                            borderColor: "var(--dashboard-card-border)",
+                            color: "var(--dashboard-main-text)",
+                          }}
+                        />
+                      ) : (
+                        <CardTitle
+                          className="text-base inline-flex items-center gap-2 group"
+                          style={{ color: "var(--dashboard-main-text)" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenameDraft(plan.name);
+                            setRenamingPlanId(plan.id);
+                          }}
+                          title="Tıklayıp adı değiştir"
+                        >
+                          {plan.name}
+                          <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                        </CardTitle>
+                      )}
                       <p className="text-xs mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>
                         {plan.meals.length} ogun
                         {planSupplements.length > 0 && ` • ${planSupplements.length} takviye`}
-                        {plan.assignedCount > 0 && ` • ${plan.assignedCount} ogrenciye atandi`}
                       </p>
+                      {plan.assignedCount > 0 && (
+                        <div className="flex items-center gap-1.5 mt-2">
+                          <div className="flex -space-x-2">
+                            {plan.assignedStudentsPreview.map((s) => (
+                              <div
+                                key={s.id}
+                                title={s.name}
+                                className="w-5 h-5 rounded-full border-2 flex items-center justify-center text-[9px] font-semibold"
+                                style={{
+                                  backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 20%, var(--dashboard-card-bg))",
+                                  color: "var(--dashboard-accent)",
+                                  borderColor: "var(--dashboard-card-bg)",
+                                }}
+                              >
+                                {s.name.charAt(0).toUpperCase()}
+                              </div>
+                            ))}
+                          </div>
+                          {plan.assignedCount > plan.assignedStudentsPreview.length && (
+                            <span className="text-[11px] opacity-80" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                              +{plan.assignedCount - plan.assignedStudentsPreview.length}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-xs hidden md:flex gap-3" style={{ color: "var(--dashboard-main-text-muted)" }}>
@@ -884,6 +1005,13 @@ export default function NutritionPageClient({
                         {plan.targetCarbs && <span className="text-orange-300">K:{plan.targetCarbs}g</span>}
                         {plan.targetFat && <span className="text-yellow-300">Y:{plan.targetFat}g</span>}
                       </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAssignTarget({ id: plan.id, name: plan.name }); }}
+                        className="text-xs font-semibold px-3 py-1.5 rounded transition hover:opacity-90"
+                        style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
+                      >
+                        Ata
+                      </button>
                       <button onClick={(e) => { e.stopPropagation(); handleDuplicate(plan.id); }}
                         className="text-xs px-2 py-1 transition" style={{ color: "var(--dashboard-main-text-muted)" }}>Kopyala</button>
                       <button onClick={(e) => { e.stopPropagation(); handleDelete(plan.id); }}
@@ -1100,6 +1228,11 @@ export default function NutritionPageClient({
                               </div>
                             </div>
                           )}
+                          <MealAlternativesEditor
+                            domain={domain}
+                            mealId={meal.id}
+                            initialAlternatives={Array.isArray(meal.alternatives) ? (meal.alternatives as string[]) : []}
+                          />
                         </div>
                       );
                     })}
@@ -1164,6 +1297,152 @@ export default function NutritionPageClient({
               </Card>
             );
           })}
+        </div>
+      )}
+
+      <ImportDialog
+        open={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onImport={async (raw) => {
+          const result = await importNutritionFromFile(domain, raw);
+          if (result.success) router.refresh();
+          return result;
+        }}
+        title="Beslenme Planı İçe Aktar"
+        description="Düz metin, Excel/CSV veya JSON formatında hazır planını kütüphanene ekle."
+        formatExample={NUTRITION_FORMAT_EXAMPLE}
+        kind="nutrition"
+      />
+      <ConfirmDialog {...dialogProps} />
+
+      <AssignToStudentsModal
+        domain={domain}
+        kind="nutrition"
+        planId={assignTarget?.id ?? ""}
+        planName={assignTarget?.name ?? ""}
+        open={!!assignTarget}
+        onClose={() => setAssignTarget(null)}
+        onAssigned={() => {
+          router.refresh();
+        }}
+      />
+    </div>
+  );
+}
+
+// ── Alternatif Öğün Editörü ──────────────────────────────────────────────
+function MealAlternativesEditor({
+  domain,
+  mealId,
+  initialAlternatives,
+}: {
+  domain: string;
+  mealId: string;
+  initialAlternatives: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [alts, setAlts] = useState<string[]>(initialAlternatives);
+  const [newAlt, setNewAlt] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const persist = async (next: string[]) => {
+    const prev = alts;
+    setAlts(next);
+    setSaving(true);
+    const result = await setMealAlternatives(domain, mealId, next);
+    setSaving(false);
+    if (!result.success) {
+      setAlts(prev);
+      toast.error(("error" in result && result.error) || "Alternatif güncellenemedi");
+    }
+  };
+
+  const addAlt = () => {
+    const v = newAlt.trim();
+    if (!v) return;
+    if (alts.length >= 10) return;
+    persist([...alts, v]);
+    setNewAlt("");
+  };
+
+  const removeAlt = (idx: number) => {
+    persist(alts.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="mt-2 pt-2" style={{ borderTop: "1px dashed var(--dashboard-card-border)" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-[11px] underline transition-opacity hover:opacity-80"
+        style={{ color: "var(--dashboard-main-text-muted)" }}
+      >
+        Alternatif öğünler {alts.length > 0 && `(${alts.length})`} {open ? "▲" : "▼"}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          {alts.length === 0 ? (
+            <p className="text-[11px]" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>
+              Henüz alternatif yok. Öğrenci öğünü yiyemediğinde seçebileceği seçenekler ekle.
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {alts.map((a, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-2 px-2 py-1 rounded text-xs"
+                  style={{
+                    backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 8%, transparent)",
+                    color: "var(--dashboard-main-text)",
+                  }}
+                >
+                  <span>{a}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeAlt(i)}
+                    className="text-red-400/70 hover:text-red-400"
+                    aria-label={`${a} alternatifini kaldır`}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex gap-2">
+            <Input
+              value={newAlt}
+              onChange={(e) => setNewAlt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addAlt();
+                }
+              }}
+              placeholder="Örn: Omlet + 2 dilim ekmek"
+              className="text-xs h-7"
+              style={{
+                backgroundColor: "var(--dashboard-card-bg)",
+                borderColor: "var(--dashboard-card-border)",
+                color: "var(--dashboard-main-text)",
+              }}
+              disabled={saving || alts.length >= 10}
+            />
+            <button
+              type="button"
+              onClick={addAlt}
+              disabled={saving || !newAlt.trim() || alts.length >= 10}
+              className="shrink-0 text-xs font-semibold px-3 py-1 rounded hover:opacity-90 disabled:opacity-40"
+              style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
+            >
+              Ekle
+            </button>
+          </div>
+          {alts.length >= 10 && (
+            <p className="text-[10px]" style={{ color: "var(--dashboard-main-text-muted)" }}>
+              Max 10 alternatif.
+            </p>
+          )}
         </div>
       )}
     </div>

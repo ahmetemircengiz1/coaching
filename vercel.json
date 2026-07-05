@@ -8,5 +8,11 @@
     "deploymentEnabled": {
       "main": true
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-meal-photos",
+      "schedule": "0 3 * * 0"
+    }
+  ]
 }

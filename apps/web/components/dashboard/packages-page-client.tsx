@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ValidatedInput } from "@/components/dashboard/validated-input";
 import {
   createCoachPackage,
   updateCoachPackage,
   deleteCoachPackage,
 } from "@/app/site/[domain]/dashboard/packages/actions";
+import { ConfirmDialog, useConfirmDialog } from "@/components/dashboard/confirm-dialog";
 import { useRouter } from "next/navigation";
 
 interface PackageData {
@@ -48,6 +51,7 @@ export default function PackagesPageClient({
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const { confirm, dialogProps } = useConfirmDialog();
   const [loading, setLoading] = useState(false);
 
   // Form state
@@ -131,7 +135,14 @@ export default function PackagesPageClient({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bu paketi silmek istediğine emin misin?")) return;
+    const pkg = localPackages.find(p => p.id === id);
+    const confirmed = await confirm({
+      title: "Paketi Sil",
+      description: `"${pkg?.name || "Bu paket"}" kalici olarak silinecek. Bu islem geri alinamaz.`,
+      confirmText: "Sil",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     // Optimistic delete
     setLocalPackages(prev => prev.filter(p => p.id !== id));
@@ -139,7 +150,7 @@ export default function PackagesPageClient({
     // Background execution
     const result = await deleteCoachPackage(domain, id);
     if (!result.success) {
-      alert("error" in result ? result.error : "Hata");
+      toast.error("error" in result ? result.error : "Hata");
       setLocalPackages(packages); // rever to known good prop state
     }
   };
@@ -171,8 +182,9 @@ export default function PackagesPageClient({
             <h3 className="font-semibold">
               {editingId ? "Paketi Düzenle" : "Yeni Paket Oluştur"}
             </h3>
-            <Input value={name} onChange={(e) => setName(e.target.value)}
+            <ValidatedInput value={name} onChange={(e) => setName(e.target.value)}
               placeholder="Paket adı (örn: Premium Koçluk)"
+              error={!name.trim() ? "Paket adi zorunludur" : undefined}
               style={inputStyle} disabled={loading} />
             <textarea value={description} onChange={(e) => setDescription(e.target.value)}
               placeholder="Paket açıklaması"
@@ -298,6 +310,7 @@ export default function PackagesPageClient({
           ))}
         </div>
       )}
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }

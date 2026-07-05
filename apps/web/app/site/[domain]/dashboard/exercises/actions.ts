@@ -28,7 +28,6 @@ export async function createExercise(
     name: string;
     category: string;
     description?: string;
-    videoUrl?: string;
     imageUrl?: string;
   }
 ) {
@@ -40,7 +39,6 @@ export async function createExercise(
       name: data.name,
       category: data.category,
       description: data.description || null,
-      videoUrl: data.videoUrl || null,
       imageUrl: data.imageUrl || null,
       isSystem: false,
     },
@@ -58,7 +56,6 @@ export async function updateExercise(
     name: string;
     category: string;
     description?: string;
-    videoUrl?: string;
     imageUrl?: string;
   }
 ) {
@@ -82,7 +79,6 @@ export async function updateExercise(
       name: data.name,
       category: data.category,
       description: data.description || null,
-      videoUrl: data.videoUrl || null,
       imageUrl: data.imageUrl || null,
     },
   });

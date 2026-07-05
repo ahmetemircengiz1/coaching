@@ -4,12 +4,51 @@ import { getAuthUser } from "@/lib/supabase/server";
 import prisma from "@coach-os/database";
 import { redirect } from "next/navigation";
 
-// Admin yetki kontrolü
+/**
+ * Admin allow-list: env variable ADMIN_EMAILS (comma-separated).
+ * Falls back to user_metadata.role check for dev convenience.
+ * In production, ALWAYS set ADMIN_EMAILS for security.
+ */
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 async function requireAdmin() {
   const user = await getAuthUser();
   if (!user) redirect("/platform/auth");
-  if (user.user_metadata?.role !== "admin") redirect("/platform/auth");
+
+  const email = user.email?.toLowerCase() || "";
+
+  // Primary check: env-based allow-list (tamper-proof)
+  if (ADMIN_EMAILS.length > 0) {
+    if (!ADMIN_EMAILS.includes(email)) {
+      redirect("/platform/auth");
+    }
+    return user;
+  }
+
+  // Production'da ADMIN_EMAILS zorunlu — metadata fallback devre dışı
+  if (process.env.NODE_ENV === "production") {
+    console.error("[SECURITY] ADMIN_EMAILS env variable not set in production");
+    redirect("/platform/auth");
+  }
+
+  // Fallback for dev only: user_metadata role check
+  if (user.user_metadata?.role !== "admin") {
+    redirect("/platform/auth");
+  }
   return user;
+}
+
+function auditLog(action: string, adminEmail: string, details?: Record<string, unknown>) {
+  console.log(JSON.stringify({
+    type: "ADMIN_AUDIT",
+    action,
+    admin: adminEmail,
+    timestamp: new Date().toISOString(),
+    ...details,
+  }));
 }
 
 // Dashboard istatistikleri
@@ -229,11 +268,20 @@ export async function updateCoachSubscription(
   coachId: string,
   data: { subscriptionStatus?: string; packageId?: string }
 ) {
-  await requireAdmin();
+  const { updateSubscriptionSchema } = await import("@/lib/validation/schemas");
+  const parsed = updateSubscriptionSchema.safeParse(data);
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message || "Geçersiz veri" };
+
+  const admin = await requireAdmin();
 
   await prisma.coach.update({
     where: { id: coachId },
-    data,
+    data: parsed.data,
+  });
+
+  auditLog("UPDATE_COACH_SUBSCRIPTION", admin.email || "unknown", {
+    coachId,
+    changes: parsed.data,
   });
 
   return { success: true };

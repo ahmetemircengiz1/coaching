@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, MessageCircle, X, ArrowRight, Play, CheckCircle2 } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
-import { formatCount, formatPackagePrice, withFallbackFeatures } from "../helpers";
+import { MessageCircle, ArrowRight, Play, CheckCircle2 } from "lucide-react";
+import { useMemo, useState, useEffect, useId } from "react";
+import { UnifiedNavbar } from "../shared/UnifiedNavbar";
+import { SystemHowSection } from "../shared/SystemHowSection";
+import { resolveNavbarVariant } from "../config";
+import { formatCount, formatPackagePrice, withFallbackFeatures, buildPackageInquiryUrl } from "../helpers";
 import { TransformationCarousel } from "../TransformationCarousel";
 import type { LandingThemeComponentProps, LandingPackage, LandingThemeContent } from "../types";
+import { getTextEffectStyle } from "../types";
 import type { SectionRendererProps, ThemeLayout } from "../section-types";
 import { FadeInScroll } from "../FadeInScroll";
 import { FAQAccordion } from "../FAQSection";
 import { SocialIcons } from "../SocialIcons";
-import { HeroDesktopImage, HeroMobileImage, hasHeroImage } from "../HeroBackground";
+import { HeroFullscreenImage, hasHeroImage } from "../HeroBackground";
 
 /* ─── Theme 6 – "Dynamic Flow" ─── */
 
@@ -32,98 +36,112 @@ const BG_IMAGES = [
 
 /* ─── Navbar ─── */
 export function Theme6Navbar({ content }: { content: LandingThemeContent }) {
-    const [menuOpen, setMenuOpen] = useState(false);
-    return (
-        <>
-            {/* Desktop header */}
-            <header className="fixed top-0 left-0 right-0 z-50 h-20 items-center justify-between px-6 md:px-12 backdrop-blur-sm bg-black/20 border-b border-white/10 transition-colors duration-500 hidden md:flex">
-                <span className="text-xl font-bold tracking-widest uppercase text-white">
-                    {content.brandName}
-                </span>
-
-                <nav className="flex items-center gap-10">
-                    <a href="#hakkimizda" className="text-[13px] font-medium tracking-widest uppercase text-white/70 hover:text-white transition-colors">Hakkımızda</a>
-                    {content.transformations.length > 0 && <a href="#donusumler" className="text-[13px] font-medium tracking-widest uppercase text-white/70 hover:text-white transition-colors">Dönüşüm</a>}
-                    <a href="#paketler" className="text-[13px] font-medium tracking-widest uppercase text-white/70 hover:text-white transition-colors">Paketler</a>
-                </nav>
-
-                <div className="flex items-center gap-6">
-                    <Link href={content.authUrl} className="text-[13px] font-bold tracking-widest uppercase text-white hover:text-white/80 transition-colors">Giriş Yap</Link>
-                </div>
-            </header>
-
-            {/* Mobile floating hamburger */}
-            <button type="button" onClick={() => setMenuOpen(true)} className="fixed top-4 right-4 z-50 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white md:hidden shadow-lg border border-white/10" aria-label="Menu">
-                <Menu size={20} />
-            </button>
-
-            {/* Mobile fullscreen menu */}
-            {menuOpen && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center md:hidden animate-in fade-in zoom-in-95">
-                    <button onClick={() => setMenuOpen(false)} className="absolute top-4 right-4 h-11 w-11 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white" aria-label="Kapat"><X size={20} /></button>
-                    <span className="text-xl font-bold tracking-widest uppercase text-white mb-10">{content.brandName}</span>
-                    <div className="flex flex-col gap-8 text-center text-xl font-bold tracking-widest uppercase text-white">
-                        <a href="#hakkimizda" onClick={() => setMenuOpen(false)}>Hakkımızda</a>
-                        {content.transformations.length > 0 && <a href="#donusumler" onClick={() => setMenuOpen(false)}>Dönüşüm</a>}
-                        <a href="#paketler" onClick={() => setMenuOpen(false)}>Paketler</a>
-                        <Link href={content.authUrl} onClick={() => setMenuOpen(false)}>Giriş Yap</Link>
-                    </div>
-                </div>
-            )}
-        </>
-    );
+    const variant = resolveNavbarVariant(content.landingConfig?.navbarVariant, "theme-6");
+    return <UnifiedNavbar content={content} variant={variant} />;
 }
 
 /* ─── Hero Section ─── */
 export function Theme6Hero({ content, variant }: SectionRendererProps) {
     const withImage = hasHeroImage(content);
+    const texts = content.landingTexts;
+    const headlineColor = texts?.heroTextColor || undefined;
+    const subtitleColor = texts?.heroSubtitleColor || undefined;
+    const effectStyle = getTextEffectStyle(texts?.heroTextEffect, headlineColor);
+    const textAlign = texts?.heroTextAlign || "center";
+
+    const posMode = texts?.heroTextPositionMode || "flex";
+    const posX = texts?.heroTextPosX ?? 50;
+    const posY = texts?.heroTextPosY ?? 50;
+    const scale = texts?.heroTextScale ?? 1;
+    const subtitleScale = Number(texts?.heroSubtitleScale ?? 1);
+    const headlineBg = texts?.heroHeadlineBgColor || "";
+    const subtitleBg = texts?.heroSubtitleBgColor || "";
+    const weight = texts?.heroTextWeight || undefined;
+    const containerId = useId().replace(/:/g, "");
+    const containerClass = `hero-text-${containerId}`;
 
     return (
-        <section className="relative min-h-[100svh] overflow-hidden bg-black">
-            {/* Mobile background */}
-            <HeroMobileImage content={content} />
+    <section data-landing-section="hero" className="relative min-h-[100svh] overflow-hidden bg-black">
+      <style>{`
+        .${containerClass} {
+          transform: scale(${scale});
+          transform-origin: ${textAlign === "left" ? "left center" : textAlign === "right" ? "right center" : "center center"};
+        }
+        @media (min-width: 768px) {
+          .${containerClass} {
+            ${posMode === "absolute" ? `
+              position: absolute !important;
+              left: ${posX}% !important;
+              top: ${posY}% !important;
+              transform: translate(-50%, -50%) scale(${scale}) !important;
+              margin: 0 !important;
+            ` : ""}
+          }
+        }
+      `}</style>
+      {/* Fullscreen background */}
+      <HeroFullscreenImage content={content} themeBg="#000000" />
 
-            <div className={`relative z-10 mx-auto max-w-7xl px-6 md:px-12 pt-32 pb-20 md:pt-40 md:pb-24 min-h-[100svh] flex items-center ${withImage ? "md:grid md:grid-cols-2 md:gap-12" : ""}`}>
-                {/* Left: Text */}
-                <div className="max-w-5xl">
-                    <FadeInScroll delay={200} duration={1200} direction="up" distance={50}>
-                        <h1 className="text-4xl md:text-7xl lg:text-8xl font-black uppercase tracking-tighter text-white leading-[0.9] mb-8">
-                            Limitleri <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">Yeniden Tanımla</span>
-                        </h1>
-                    </FadeInScroll>
-
-                    <FadeInScroll delay={400} duration={1200} direction="up" distance={50}>
-                        <p className="max-w-xl text-lg md:text-2xl text-white/70 font-light leading-relaxed mb-12 border-l-2 border-white/20 pl-6">
-                            {content.bio || "Standart olan hiçbir şey mükemmel değildir. Bireysel analizin gücüyle inşa edilen, elit seviye fiziksel dönüşüm sistemi."}
-                        </p>
-                    </FadeInScroll>
-
-                    <FadeInScroll delay={600} duration={1000} direction="up" distance={30}>
-                        <div className="flex flex-col sm:flex-row gap-6">
-                            <a href="#paketler" className="inline-flex h-16 items-center justify-center bg-white text-black px-10 rounded-full text-sm font-bold uppercase tracking-widest transition-transform hover:scale-105">
-                                Sisteme Dahil Ol
-                                <ArrowRight className="ml-3 w-5 h-5" />
-                            </a>
-                        </div>
-                    </FadeInScroll>
-                </div>
-
-                {/* Right: Hero image (desktop) */}
-                {withImage && (
-                    <div className="hidden md:block relative h-[600px] lg:h-[700px]">
-                        <HeroDesktopImage content={content} themeBg="#000000" accentColor="rgba(255,255,255,0.2)" />
-                    </div>
+      <div className={`relative z-10 mx-auto max-w-7xl px-6 md:px-12 pt-32 pb-20 md:pt-40 md:pb-24 min-h-[100svh] flex items-center justify-center text-center`}>
+        {/* Text */}
+        <div className={`max-w-3xl w-full ${textAlign === "center" ? "mx-auto items-center text-center" : textAlign === "left" ? "mr-auto items-start text-left" : "ml-auto items-end text-right"} flex flex-col ${containerClass}`}>
+          <FadeInScroll delay={200} duration={1200} direction="up" distance={50}>
+            {texts?.heroHeadline ? (
+              <h1 className={`text-4xl md:text-7xl lg:text-8xl ${weight ? '' : 'font-black'} uppercase tracking-tighter leading-[0.9] mb-8 ${headlineColor || headlineBg ? '' : 'text-white'}`} style={{ color: headlineColor || undefined, fontWeight: weight, ...effectStyle }}>
+                {headlineBg ? (
+                  <span style={{ backgroundColor: headlineBg, padding: "0.05em 0.25em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{texts.heroHeadline}</span>
+                ) : headlineColor ? (
+                  <span>{texts.heroHeadline}</span>
+                ) : (
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">{texts.heroHeadline}</span>
                 )}
+              </h1>
+            ) : (
+              <h1 className={`text-4xl md:text-7xl lg:text-8xl ${weight ? '' : 'font-black'} uppercase tracking-tighter leading-[0.9] mb-8 ${headlineColor || headlineBg ? '' : 'text-white'}`} style={{ color: headlineColor || undefined, fontWeight: weight, ...effectStyle }}>
+                {headlineBg ? (
+                  <span style={{ backgroundColor: headlineBg, padding: "0.05em 0.25em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>Limitleri Yeniden Tanımla</span>
+                ) : headlineColor ? (
+                  <>Limitleri <br />Yeniden Tanımla</>
+                ) : (
+                  <>
+                    Limitleri <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">Yeniden Tanımla</span>
+                  </>
+                )}
+              </h1>
+            )}
+          </FadeInScroll>
+
+          <FadeInScroll delay={400} duration={1200} direction="up" distance={50}>
+            <p className={`max-w-xl font-light leading-relaxed mb-12 ${subtitleColor ? '' : 'text-white/70'} ${subtitleScale === 1 ? 'text-lg md:text-2xl' : ''}`} style={{ color: subtitleColor || undefined, textShadow: subtitleBg ? undefined : "0 1px 10px rgba(0,0,0,0.5)", fontSize: subtitleScale !== 1 ? `${subtitleScale * 1.5}rem` : undefined }}>
+              {subtitleBg ? (
+                <span style={{ backgroundColor: subtitleBg, padding: "0.15em 0.4em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
+                  {texts?.heroSubtitle || content.bio || "Standart olan hiçbir şey mükemmel değildir. Bireysel analizin gücüyle inşa edilen, elit seviye fiziksel dönüşüm sistemi."}
+                </span>
+              ) : (
+                texts?.heroSubtitle || content.bio || "Standart olan hiçbir şey mükemmel değildir. Bireysel analizin gücüyle inşa edilen, elit seviye fiziksel dönüşüm sistemi."
+              )}
+            </p>
+          </FadeInScroll>
+
+          <FadeInScroll delay={600} duration={1000} direction="up" distance={30}>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <a href="#paketler" className="inline-flex h-16 items-center justify-center bg-white text-black px-10 rounded-full text-sm font-bold uppercase tracking-widest transition-transform hover:scale-105">
+                {texts?.ctaPrimaryText || "Sisteme Dahil Ol"}
+                <ArrowRight className="ml-3 w-5 h-5" />
+              </a>
             </div>
-        </section>
+          </FadeInScroll>
+        </div>
+      </div>
+    </section>
     );
 }
 
 /* ─── Stats Section (Combined with Info) ─── */
 export function Theme6Stats({ content, variant }: SectionRendererProps) {
     return (
-        <section id="hakkimizda" className="relative min-h-screen flex items-center justify-center px-6 md:px-12 py-32">
+        <section data-landing-section="stats" id="hakkimizda" className="relative min-h-screen flex items-center justify-center px-6 md:px-12 py-32">
             <div className="w-full max-w-[1400px] flex flex-col md:flex-row items-center gap-16 lg:gap-32">
                 <div className="w-full md:w-1/2">
                     <FadeInScroll delay={200} duration={1000} direction="up" distance={60}>
@@ -163,14 +181,14 @@ export function Theme6Stats({ content, variant }: SectionRendererProps) {
                         <div className="relative w-full max-w-md bg-black/40 backdrop-blur-xl border border-white/10 p-10 rounded-3xl overflow-hidden group">
                             <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                             <div className="relative z-10 text-center">
-                                <p className="text-6xl font-black mb-4">{formatCount(content.studentCount || 1000)}+</p>
-                                <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-12">Aktif Öğrenci Ağı</p>
+                                <p className="text-6xl font-black mb-4">{content.landingTexts?.stat1Value || `${formatCount(content.studentCount || 1000)}+`}</p>
+                                <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-12">{content.landingTexts?.stat1Label || "Aktif Öğrenci Ağı"}</p>
 
-                                <p className="text-6xl font-black mb-4">5+</p>
-                                <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-12">Yıl Sektörel Deneyim</p>
+                                <p className="text-6xl font-black mb-4">{content.landingTexts?.stat3Value || "5+"}</p>
+                                <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-12">{content.landingTexts?.stat3Label || "Yıl Sektörel Deneyim"}</p>
 
-                                <p className="text-6xl font-black mb-4">{content.transformationCount || 10}+</p>
-                                <p className="text-xs font-bold uppercase tracking-widest text-white/50">Onaylı Dönüşüm</p>
+                                <p className="text-6xl font-black mb-4">{content.landingTexts?.stat2Value || `${content.transformationCount || 10}+`}</p>
+                                <p className="text-xs font-bold uppercase tracking-widest text-white/50">{content.landingTexts?.stat2Label || "Onaylı Dönüşüm"}</p>
                             </div>
                         </div>
                     </FadeInScroll>
@@ -184,14 +202,13 @@ export function Theme6Stats({ content, variant }: SectionRendererProps) {
 export function Theme6Transformations({ content, variant }: SectionRendererProps) {
     if (content.transformations.length === 0) return null;
     return (
-        <section id="donusumler" className="relative min-h-screen flex items-center justify-center px-6 md:px-12 py-32">
+        <section data-landing-section="transformations" id="donusumler" className="relative min-h-screen flex items-center justify-center px-6 md:px-12 py-32">
             <div className="w-full max-w-[1400px]">
                 <FadeInScroll delay={200} duration={1000} direction="up" distance={40}>
-                    <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
+                    <div data-section-heading className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
                         <div>
                             <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none mb-4">
-                                Söz Değil <br />
-                                <span className="text-white/40">Eserler</span>
+                                {content.landingTexts?.transformationsTitle || <>Söz Değil <br /><span className="text-white/40">Eserler</span></>}
                             </h2>
                             <p className="text-white/60 max-w-lg">
                                 Disiplin ve tutkunun fiziksel bir forma bürünmüş hali. İşte sistemimizin gücünün en büyük kanıtları.
@@ -216,13 +233,12 @@ export function Theme6Transformations({ content, variant }: SectionRendererProps
 export function Theme6Packages({ content, variant }: SectionRendererProps) {
     const packages = useMemo(() => normalizePackages(content.packages), [content.packages]);
     return (
-        <section id="paketler" className="relative min-h-screen flex items-center justify-center px-6 md:px-12 py-32">
+        <section data-landing-section="packages" id="paketler" className="relative min-h-screen flex items-center justify-center px-6 md:px-12 py-32">
             <div className="w-full max-w-[1400px]">
                 <FadeInScroll delay={200} duration={1000} direction="up" distance={40}>
-                    <div className="text-center mb-20">
+                    <div data-section-heading className="text-center mb-20">
                         <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none mb-6">
-                            Evrimi <br className="md:hidden" />
-                            <span className="text-white/40">Başlat</span>
+                            {content.landingTexts?.packagesTitle || <>Evrimi <br className="md:hidden" /><span className="text-white/40">Başlat</span></>}
                         </h2>
                     </div>
                 </FadeInScroll>
@@ -254,9 +270,13 @@ export function Theme6Packages({ content, variant }: SectionRendererProps) {
                                         ))}
                                     </ul>
 
-                                    <Link href={`${content.authUrl}?package=${pkg.id}`} className={`mt-auto inline-flex h-14 w-full items-center justify-center rounded-full text-xs font-bold uppercase tracking-widest transition-colors ${isPro ? "bg-black text-white hover:bg-black/90" : "bg-white text-black hover:bg-white/90"}`}>
-                                        Planı Seç
-                                    </Link>
+                                    {(() => {
+                                        const cta = buildPackageInquiryUrl(content.brandName, pkg.name, content.whatsappNumber, content.email, content.authUrl);
+                                        const cls = `mt-auto inline-flex h-14 w-full items-center justify-center rounded-full text-xs font-bold uppercase tracking-widest transition-colors ${isPro ? "bg-black text-white hover:bg-black/90" : "bg-white text-black hover:bg-white/90"}`;
+                                        return cta.external
+                                            ? <a href={cta.href} target="_blank" rel="noreferrer" className={cls}>Koça Yaz</a>
+                                            : <Link href={cta.href} className={cls}>Koça Yaz</Link>;
+                                    })()}
                                 </article>
                             </FadeInScroll>
                         );
@@ -268,15 +288,14 @@ export function Theme6Packages({ content, variant }: SectionRendererProps) {
 }
 
 /* ─── FAQ Section ─── */
-export function Theme6FAQ({ variant }: SectionRendererProps) {
+export function Theme6FAQ({ content, variant }: SectionRendererProps) {
     return (
-        <section className="relative py-32 px-6 md:px-12">
+        <section data-landing-section="faq" className="relative py-32 px-6 md:px-12">
             <div className="w-full max-w-[1400px] mx-auto">
                 <FadeInScroll delay={200} duration={1000} direction="up" distance={40}>
-                    <div className="mb-16">
+                    <div data-section-heading className="mb-16">
                         <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none mb-4">
-                            Sık Sorulan <br className="md:hidden" />
-                            <span className="text-white/40">Sorular</span>
+                            {content.landingTexts?.faqTitle || <>Sık Sorulan <br className="md:hidden" /><span className="text-white/40">Sorular</span></>}
                         </h2>
                     </div>
                 </FadeInScroll>
@@ -296,18 +315,18 @@ export function Theme6FAQ({ variant }: SectionRendererProps) {
 /* ─── Contact / Footer Section ─── */
 export function Theme6Contact({ content, variant }: SectionRendererProps) {
     return (
-        <footer id="iletisim" className="relative z-20 border-t border-white/10 bg-black/90 backdrop-blur-xl pt-20 pb-10 px-6 md:px-12">
+        <footer data-landing-section="contact" id="iletisim" className="relative z-20 border-t border-white/10 bg-black/90 backdrop-blur-xl pt-20 pb-10 px-6 md:px-12">
             <div className="mx-auto max-w-[1400px] flex flex-col md:flex-row justify-between items-end gap-10">
                 <div>
                     <div className="text-3xl font-black uppercase tracking-widest text-white mb-4">
                         {content.brandName}
                     </div>
-                    <p className="text-white/40 text-sm max-w-xs font-light">Eksiksiz koçluk deneyimi, mükemmeli arayanlar için.</p>
+                    <p className="text-white/40 text-sm max-w-xs font-light">{content.landingTexts?.footerTagline || "Eksiksiz koçluk deneyimi, mükemmeli arayanlar için."}</p>
                 </div>
 
                 <div className="flex flex-col md:text-right gap-4 text-[11px] font-bold tracking-widest uppercase text-white/60">
                     <a href={`mailto:${content.email}`} className="hover:text-white transition-colors">İletişim Kur</a>
-                    <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">WhatsApp Destek</a>
+                    {content.whatsappNumber && <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">WhatsApp Destek</a>}
                     <Link href={content.authUrl} className="hover:text-white transition-colors border-t border-white/10 pt-4 mt-2">Uygulamaya Giriş</Link>
                 </div>
             </div>
@@ -371,6 +390,7 @@ export function LandingTheme6({ content }: LandingThemeComponentProps) {
                         <Theme6Transformations content={content} variant={1} />
                     </div>
                 )}
+                <SystemHowSection content={content} variant={1} />
                 <div data-section-index="3" className="dynamic-section">
                     <Theme6Packages content={content} variant={1} />
                 </div>
@@ -400,6 +420,7 @@ export const theme6Layout: ThemeLayout = {
         hero: Theme6Hero,
         stats: Theme6Stats,
         transformations: Theme6Transformations,
+        system: SystemHowSection,
         packages: Theme6Packages,
         faq: Theme6FAQ,
         contact: Theme6Contact,

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Oswald } from "next/font/google";
 import { Toaster } from "sonner";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { CookieBanner } from "@/components/consent/CookieBanner";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,7 +16,7 @@ const oswald = Oswald({
 });
 
 export const metadata: Metadata = {
-  title: "Coach OS - Fitness Koçları İçin White-Label Platform",
+  title: "Shred - Fitness Koçları İçin White-Label Platform",
   description:
     "Kendi markanızla profesyonel bir koçluk web sitesi oluşturun. Landing page, öğrenci yönetimi ve ödeme sistemi bir arada.",
 };
@@ -34,7 +36,9 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <body className={`${inter.variable} ${oswald.variable} font-sans antialiased`}>
+        <GoogleAnalytics />
         {children}
+        <CookieBanner />
         <Toaster
           position="top-right"
           toastOptions={{

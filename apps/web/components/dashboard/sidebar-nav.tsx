@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -8,46 +8,38 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  Dumbbell,
   Globe,
   LayoutDashboard,
   LogOut,
   Menu,
-  MessageCircle,
-  Package,
   Settings,
-  Sparkles,
   Users,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { logoutAction } from "@/app/site/[domain]/auth/logout-action";
+import { TourButton } from "./onboarding-tour";
 
 type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  badge?: boolean;
+  tourId?: string;
 };
 
 const navItems: NavItem[] = [
-  { href: "", label: "Ana Sayfa", icon: LayoutDashboard },
-  { href: "/students", label: "Öğrenciler", icon: Users },
-  { href: "/exercises", label: "Egzersizler", icon: Dumbbell },
-  { href: "/programs", label: "Programlar", icon: ClipboardList },
-  { href: "/nutrition", label: "Beslenme", icon: Apple },
-  { href: "/transformations", label: "Dönüşümler", icon: Sparkles },
-  { href: "/messages", label: "Mesajlar", icon: MessageCircle, badge: true },
-  { href: "/settings", label: "Ayarlar", icon: Settings },
+  { href: "", label: "Ana Sayfa", icon: LayoutDashboard, tourId: "sidebar-home" },
+  { href: "/students", label: "Öğrenciler", icon: Users, tourId: "sidebar-students" },
+  { href: "/programs", label: "Programlar", icon: ClipboardList, tourId: "sidebar-programs" },
+  { href: "/nutrition", label: "Beslenme", icon: Apple, tourId: "sidebar-nutrition" },
+  { href: "/settings", label: "Ayarlar", icon: Settings, tourId: "sidebar-settings" },
 ];
 
 export function SidebarNav({
   domain,
-  coachName,
+  coachName: _coachName,
   brandName,
-  unreadCount: initialUnread = 0,
   position = "left",
   collapsed = false,
   onToggle,
@@ -55,47 +47,15 @@ export function SidebarNav({
   domain: string;
   coachName: string;
   brandName: string;
+  /** @deprecated mesajlaşma kaldırıldı — geriye dönük uyum için kabul edilir, kullanılmaz */
   unreadCount?: number;
   position?: "left" | "right";
   collapsed?: boolean;
   onToggle?: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(initialUnread);
   const pathname = usePathname();
   const basePath = `/site/${domain}/dashboard`;
-
-  useEffect(() => {
-    const supabase = createClient();
-
-    const channel = supabase
-      .channel("sidebar-unread")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "Message",
-          filter: "senderRole=eq.student",
-        },
-        () => {
-          if (!pathname.includes("/messages")) {
-            setUnreadCount((previous) => previous + 1);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [pathname]);
-
-  useEffect(() => {
-    if (pathname.includes("/messages")) {
-      setUnreadCount(0);
-    }
-  }, [pathname]);
 
   const CollapseIcon = position === "right"
     ? (collapsed ? ChevronLeft : ChevronRight)
@@ -124,22 +84,6 @@ export function SidebarNav({
         >
           {brandName}
         </span>
-        <div className="ml-auto flex items-center gap-2">
-          {unreadCount > 0 && (
-            <Link href={`${basePath}/messages`} className="relative">
-              <MessageCircle className="h-4 w-4" />
-              <span
-                className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
-                style={{
-                  backgroundColor: "var(--dashboard-accent)",
-                  color: "var(--dashboard-accent-text)",
-                }}
-              >
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            </Link>
-          )}
-        </div>
       </div>
 
       {mobileOpen && (
@@ -177,11 +121,12 @@ export function SidebarNav({
               className="text-xl font-semibold"
               style={{ color: "var(--dashboard-sidebar-active-text)" }}
               title={brandName}
+              data-tour="sidebar-brand"
             >
               {brandName.charAt(0)}
             </span>
           ) : (
-            <div>
+            <div data-tour="sidebar-brand">
               <h2
                 className="text-xl font-semibold"
                 style={{ color: "var(--dashboard-sidebar-active-text)" }}
@@ -224,6 +169,7 @@ export function SidebarNav({
                 href={fullHref}
                 onClick={() => setMobileOpen(false)}
                 title={collapsed ? item.label : undefined}
+                data-tour={item.tourId}
                 className={cn(
                   "flex items-center rounded-lg text-sm transition-all duration-200 animate-fade-in",
                   collapsed ? "justify-center px-2 py-3" : "gap-3 px-4 py-3",
@@ -251,21 +197,7 @@ export function SidebarNav({
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
-                {item.badge && unreadCount > 0 && (
-                  <span
-                    className={cn(
-                      "flex items-center justify-center rounded-full text-[10px] font-bold",
-                      collapsed ? "absolute -right-0.5 -top-0.5 h-4 w-4 text-[9px]" : "ml-auto h-5 w-5"
-                    )}
-                    style={{
-                      backgroundColor: "var(--dashboard-accent)",
-                      color: "var(--dashboard-accent-text)",
-                    }}
-                  >
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-                {!collapsed && isActive && !item.badge && (
+                {!collapsed && isActive && (
                   <div
                     className="ml-auto h-1.5 w-1.5 rounded-full"
                     style={{ backgroundColor: "var(--dashboard-accent)" }}
@@ -281,8 +213,14 @@ export function SidebarNav({
           style={{ borderTop: "1px solid var(--dashboard-sidebar-border)" }}
         >
           {!collapsed && (
+            <div className="pb-1">
+              <TourButton />
+            </div>
+          )}
+          {!collapsed && (
             <Link
               href={`/site/${domain}`}
+              data-tour="sidebar-site"
               className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition"
               style={{ color: "var(--dashboard-sidebar-text)" }}
               onMouseEnter={(event) => {
@@ -300,6 +238,7 @@ export function SidebarNav({
           {collapsed && (
             <Link
               href={`/site/${domain}`}
+              data-tour="sidebar-site"
               className="flex items-center justify-center rounded-lg px-2 py-3 text-sm transition"
               style={{ color: "var(--dashboard-sidebar-text)" }}
               title="Siteyi Aç"

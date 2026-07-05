@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, MessageCircle, X, ArrowRight, Play, LineChart, Target, Utensils, Zap } from "lucide-react";
-import { useMemo, useState, useEffect, useRef } from "react";
-import { formatCount, formatPackagePrice, withFallbackFeatures } from "../helpers";
+import { MessageCircle, ArrowRight, Play, LineChart, Target, Utensils, Zap } from "lucide-react";
+import { useMemo, useState, useEffect, useRef, useId } from "react";
+import { UnifiedNavbar } from "../shared/UnifiedNavbar";
+import { SystemHowSection } from "../shared/SystemHowSection";
+import { resolveNavbarVariant } from "../config";
+import { formatCount, formatPackagePrice, withFallbackFeatures, buildPackageInquiryUrl } from "../helpers";
 import { TransformationCarousel } from "../TransformationCarousel";
 import type { LandingThemeComponentProps, LandingPackage, LandingThemeContent } from "../types";
+import { getTextEffectStyle } from "../types";
 import type { SectionRendererProps, ThemeLayout } from "../section-types";
 import { FadeInScroll } from "../FadeInScroll";
 import { FAQAccordion } from "../FAQSection";
 import { SocialIcons } from "../SocialIcons";
-import { HeroDesktopImage, HeroMobileImage, hasHeroImage } from "../HeroBackground";
+import { HeroFullscreenImage, hasHeroImage } from "../HeroBackground";
 
 /* ─── Theme 4 – "Warm Minimal V2 (Product Tour)" ─── */
 
@@ -57,104 +61,107 @@ function Theme4Background() {
 
 /* ─── Navbar ─── */
 export function Theme4Navbar({ content }: { content: LandingThemeContent }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  return (
-    <>
-      {/* Desktop header */}
-      <div className="fixed top-6 left-0 right-0 w-full z-50 px-6 pointer-events-none transition-all duration-300 hidden md:block">
-        <header className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6 bg-white/80 backdrop-blur-xl border border-[#EAE4D9] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] pointer-events-auto">
-          <span className="text-lg font-bold tracking-tight text-[#4A3C31]" style={{ fontFamily: "var(--font-playfair), serif" }}>
-            {content.brandName}
-          </span>
-
-          <nav className="flex items-center gap-8 bg-[#FBF9F6]/50 px-6 py-2 rounded-full border border-[#EAE4D9]/50">
-            <a href="#hakkimizda" className="text-[13px] font-medium text-[#7C726A] hover:text-[#2C2A29] transition-colors">Yazılım</a>
-            {content.transformations.length > 0 && <a href="#donusumler" className="text-[13px] font-medium text-[#7C726A] hover:text-[#2C2A29] transition-colors">Kanıt</a>}
-            <a href="#paketler" className="text-[13px] font-medium text-[#7C726A] hover:text-[#2C2A29] transition-colors">Lisans</a>
-          </nav>
-
-          <div className="flex items-center gap-4">
-            <Link href={content.authUrl} className="text-[13px] font-medium text-[#7C726A] hover:text-[#2C2A29] transition-colors">
-              Giriş
-            </Link>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center rounded-xl bg-[#2C2A29] px-5 text-[13px] font-medium text-white transition-all hover:bg-[#4A3C31] shadow-md hover:shadow-xl hover:-translate-y-0.5">
-              Başla
-            </a>
-          </div>
-        </header>
-      </div>
-
-      {/* Mobile floating hamburger */}
-      <button type="button" onClick={() => setMenuOpen(true)} className="fixed top-4 right-4 z-50 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/80 backdrop-blur-md border border-[#EAE4D9] text-[#2C2A29] md:hidden shadow-lg" aria-label="Menu">
-        <Menu size={16} />
-      </button>
-
-      {/* Mobile fullscreen menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 bg-[#FAF7F2]/95 backdrop-blur-3xl flex flex-col items-center justify-center md:hidden">
-          <button type="button" onClick={() => setMenuOpen(false)} className="absolute top-4 right-4 h-11 w-11 inline-flex items-center justify-center rounded-xl border border-[#EAE4D9] text-[#2C2A29] bg-white/80" aria-label="Kapat">
-            <X size={16} />
-          </button>
-          <span className="text-lg font-bold tracking-tight text-[#4A3C31] mb-10" style={{ fontFamily: "var(--font-playfair), serif" }}>{content.brandName}</span>
-          <div className="flex flex-col gap-5 text-sm font-medium text-[#4A3C31] text-center">
-            <a href="#hakkimizda" onClick={() => setMenuOpen(false)}>Yazılım</a>
-            {content.transformations.length > 0 && <a href="#donusumler" onClick={() => setMenuOpen(false)}>Kanıt</a>}
-            <a href="#paketler" onClick={() => setMenuOpen(false)}>Lisans</a>
-            <Link href={content.authUrl} onClick={() => setMenuOpen(false)}>Giriş</Link>
-            <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="text-white bg-[#2C2A29] py-3 px-8 text-center rounded-xl mt-2">Başla</a>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  const variant = resolveNavbarVariant(content.landingConfig?.navbarVariant, "theme-4");
+  return <UnifiedNavbar content={content} variant={variant} />;
 }
 
 /* ─── Hero Section ─── */
 export function Theme4Hero({ content, variant }: SectionRendererProps) {
   const withImage = hasHeroImage(content);
+  const texts = content.landingTexts;
+  const headlineColor = texts?.heroTextColor || undefined;
+  const subtitleColor = texts?.heroSubtitleColor || undefined;
+  const effectStyle = getTextEffectStyle(texts?.heroTextEffect, headlineColor);
+  const textAlign = texts?.heroTextAlign || "center";
+
+  const posMode = texts?.heroTextPositionMode || "flex";
+  const posX = texts?.heroTextPosX ?? 50;
+  const posY = texts?.heroTextPosY ?? 50;
+  const scale = texts?.heroTextScale ?? 1;
+  const subtitleScale = Number(texts?.heroSubtitleScale ?? 1);
+  const headlineBg = texts?.heroHeadlineBgColor || "";
+  const subtitleBg = texts?.heroSubtitleBgColor || "";
+  const weight = texts?.heroTextWeight || undefined;
+  const containerId = useId().replace(/:/g, "");
+  const containerClass = `hero-text-${containerId}`;
 
   return (
-    <section className="relative min-h-[100svh] overflow-hidden bg-[#FAF7F2]">
-      {/* Mobile background */}
-      <HeroMobileImage content={content} />
+    <section data-landing-section="hero" className="relative min-h-[100svh] overflow-hidden bg-[#FAF7F2]">
+      <style>{`
+        .${containerClass} {
+          transform: scale(${scale});
+          transform-origin: ${textAlign === "left" ? "left center" : textAlign === "right" ? "right center" : "center center"};
+        }
+        @media (min-width: 768px) {
+          .${containerClass} {
+            ${posMode === "absolute" ? `
+              position: absolute !important;
+              left: ${posX}% !important;
+              top: ${posY}% !important;
+              transform: translate(-50%, -50%) scale(${scale}) !important;
+              margin: 0 !important;
+            ` : ""}
+          }
+        }
+      `}</style>
+      {/* Fullscreen background */}
+      <HeroFullscreenImage content={content} themeBg="#FAF7F2" />
 
-      <div className={`relative z-10 mx-auto max-w-7xl px-6 pt-40 pb-24 md:pt-44 md:pb-32 min-h-[100svh] flex items-center ${withImage ? "md:grid md:grid-cols-2 md:gap-12" : "justify-center text-center"}`}>
-        {/* Left: Text */}
-        <div className={withImage ? "" : "max-w-4xl mx-auto flex flex-col items-center"}>
+      <div className={`relative z-10 mx-auto max-w-7xl px-6 pt-40 pb-24 md:pt-44 md:pb-32 min-h-[100svh] flex items-center justify-center text-center`}>
+        {/* Text */}
+        <div className={`max-w-4xl w-full ${textAlign === "center" ? "mx-auto items-center text-center" : textAlign === "left" ? "mr-auto items-start text-left" : "ml-auto items-end text-right"} flex flex-col ${containerClass}`}>
           <FadeInScroll delay={200} duration={1200} direction="up" distance={30}>
-            <h1 className="text-[10vw] md:text-6xl lg:text-7xl text-white md:text-[#2C2A29] mb-6 leading-[1.05] tracking-tight font-medium" style={{ fontFamily: "var(--font-playfair), serif" }}>
-              Koçluk deneyimini <br className="hidden md:block" />
-              <span className="italic text-[#dba882] md:text-[#8C6D53]">yeniden </span>
-              tasarladık.
-            </h1>
+            {texts?.heroHeadline ? (
+              <h1 className={`text-[10vw] md:text-6xl lg:text-7xl ${headlineColor || headlineBg ? '' : 'text-white md:text-[#2C2A29]'} mb-6 leading-[1.05] tracking-tight ${weight ? '' : 'font-medium'}`} style={{ fontFamily: "var(--font-playfair), serif", color: headlineColor || undefined, fontWeight: weight, ...effectStyle }}>
+                {headlineBg ? (
+                  <span style={{ backgroundColor: headlineBg, padding: "0.1em 0.3em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{texts.heroHeadline}</span>
+                ) : headlineColor ? (
+                  <span className="italic">{texts.heroHeadline}</span>
+                ) : (
+                  <span className="italic text-[#dba882] md:text-[#8C6D53]">{texts.heroHeadline}</span>
+                )}
+              </h1>
+            ) : (
+              <h1 className={`text-[10vw] md:text-6xl lg:text-7xl text-white md:text-[#2C2A29] mb-6 leading-[1.05] tracking-tight ${weight ? '' : 'font-medium'}`} style={{ fontFamily: "var(--font-playfair), serif", fontWeight: weight, ...effectStyle }}>
+                Koçluk deneyimini <br className="hidden md:block" />
+                <span className="italic text-[#dba882] md:text-[#8C6D53]">yeniden </span>
+                tasarladık.
+              </h1>
+            )}
           </FadeInScroll>
 
           <FadeInScroll delay={400} duration={1200} direction="up" distance={30}>
-            <p className="mt-6 max-w-xl text-lg md:text-xl leading-relaxed text-white/80 md:text-[#7C726A]">
-              {content.bio || "Fiziksel gelişiminizi sanata dönüştürüyoruz. Sadece bir program değil, tüm hedeflerinizi barındıran akıllı bir ekosistem."}
+            <p className={`mt-6 max-w-xl leading-relaxed ${subtitleColor ? '' : 'text-white/80 md:text-[#7C726A]'} ${subtitleScale === 1 ? 'text-lg md:text-xl' : ''}`} style={{ color: subtitleColor || undefined, textShadow: subtitleBg ? undefined : "0 1px 10px rgba(0,0,0,0.4)", fontSize: subtitleScale !== 1 ? `${subtitleScale * 1.25}rem` : undefined }}>
+              {subtitleBg ? (
+                <span style={{ backgroundColor: subtitleBg, padding: "0.15em 0.4em", display: "inline-block", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
+                  {texts?.heroSubtitle || content.bio || "Fiziksel gelişiminizi sanata dönüştürüyoruz. Sadece bir program değil, tüm hedeflerinizi barındıran akıllı bir ekosistem."}
+                </span>
+              ) : (
+                texts?.heroSubtitle || content.bio || "Fiziksel gelişiminizi sanata dönüştürüyoruz. Sadece bir program değil, tüm hedeflerinizi barındıran akıllı bir ekosistem."
+              )}
             </p>
           </FadeInScroll>
 
           <FadeInScroll delay={600} duration={1000} direction="up">
             <div className="mt-12 flex flex-col sm:flex-row items-start gap-4">
               <a href="#paketler" className="inline-flex h-14 w-full sm:w-auto items-center justify-center rounded-2xl bg-[#D64C31] px-8 text-sm font-medium text-white shadow-[0_8px_30px_rgba(214,76,49,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(214,76,49,0.4)] group">
-                Sistemi Keşfet
+                {texts?.ctaPrimaryText || "Sistemi Keşfet"}
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </a>
-              <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-14 w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-white border border-[#EAE4D9] px-8 text-sm font-medium text-[#2C2A29] transition-all hover:bg-[#FBF9F6] shadow-sm hover:shadow-md">
-                <Play className="w-4 h-4 fill-[#8C6D53] text-[#8C6D53]" />
-                Nasıl Çalışır?
-              </a>
+              {content.whatsappNumber ? (
+                <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex h-14 w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-white border border-[#EAE4D9] px-8 text-sm font-medium text-[#2C2A29] transition-all hover:bg-[#FBF9F6] shadow-sm hover:shadow-md">
+                  <MessageCircle className="w-4 h-4 text-[#8C6D53]" />
+                  {texts?.ctaSecondaryText || "WhatsApp ile Başla"}
+                </a>
+              ) : (
+                <Link href={content.authUrl} className="inline-flex h-14 w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-white border border-[#EAE4D9] px-8 text-sm font-medium text-[#2C2A29] transition-all hover:bg-[#FBF9F6] shadow-sm hover:shadow-md">
+                  <Play className="w-4 h-4 fill-[#8C6D53] text-[#8C6D53]" />
+                  {texts?.ctaSecondaryText || "Nasıl Çalışır?"}
+                </Link>
+              )}
             </div>
           </FadeInScroll>
         </div>
-
-        {/* Right: Hero image (desktop) */}
-        {withImage && (
-          <div className="hidden md:block relative h-[550px] lg:h-[650px]">
-            <HeroDesktopImage content={content} themeBg="#FAF7F2" accentColor="#D64C31" />
-          </div>
-        )}
       </div>
     </section>
   );
@@ -164,7 +171,7 @@ export function Theme4Hero({ content, variant }: SectionRendererProps) {
 function Theme4Tour({ content }: { content: LandingThemeContent }) {
   const { activeStep, containerRef } = useTourStep(3);
   return (
-    <section id="hakkimizda" ref={containerRef} className="relative h-[400vh] bg-[#FBF9F6] z-20">
+    <section data-landing-section="hero" id="hakkimizda" ref={containerRef} className="relative h-[400vh] bg-[#FBF9F6] z-20">
       <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col md:flex-row items-center justify-center max-w-[1400px] mx-auto px-6">
         <div className="w-full md:w-[45%] h-1/2 md:h-full flex flex-col justify-center pr-0 md:pr-12 lg:pr-24 z-10 relative mt-16 md:mt-0">
           <div className="absolute left-0 w-1 h-32 bg-[#EAE4D9] rounded-full hidden md:block" />
@@ -273,25 +280,25 @@ function Theme4Tour({ content }: { content: LandingThemeContent }) {
 /* ─── Stats Section ─── */
 export function Theme4Stats({ content, variant }: SectionRendererProps) {
   return (
-    <section className="py-20 px-6 bg-white border-y border-[#EAE4D9] z-20 relative">
+    <section data-landing-section="stats" className="py-20 px-6 bg-white border-y border-[#EAE4D9] z-20 relative">
       <div className="max-w-[1400px] mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center divide-y md:divide-y-0 md:divide-x divide-[#EAE4D9]">
           <FadeInScroll delay={100} duration={800}>
             <div className="pt-8 md:pt-0">
-              <div className="text-5xl lg:text-7xl text-[#2C2A29] font-medium tracking-tighter" style={{ fontFamily: "var(--font-playfair), serif" }}>{formatCount(content.studentCount || 1000)}+</div>
-              <div className="mt-4 text-xs font-bold text-[#D64C31] uppercase tracking-[0.2em]">Aktif Öğrenci</div>
+              <div className="text-5xl lg:text-7xl text-[#2C2A29] font-medium tracking-tighter" style={{ fontFamily: "var(--font-playfair), serif" }}>{content.landingTexts?.stat1Value || `${formatCount(content.studentCount || 1000)}+`}</div>
+              <div className="mt-4 text-xs font-bold text-[#D64C31] uppercase tracking-[0.2em]">{content.landingTexts?.stat1Label || "Aktif Öğrenci"}</div>
             </div>
           </FadeInScroll>
           <FadeInScroll delay={300} duration={800}>
             <div className="pt-8 md:pt-0">
-              <div className="text-5xl lg:text-7xl text-[#2C2A29] font-medium tracking-tighter" style={{ fontFamily: "var(--font-playfair), serif" }}>{content.transformationCount || 10}+</div>
-              <div className="mt-4 text-xs font-bold text-[#D64C31] uppercase tracking-[0.2em]">Başarılı Dönüşüm</div>
+              <div className="text-5xl lg:text-7xl text-[#2C2A29] font-medium tracking-tighter" style={{ fontFamily: "var(--font-playfair), serif" }}>{content.landingTexts?.stat2Value || `${content.transformationCount || 10}+`}</div>
+              <div className="mt-4 text-xs font-bold text-[#D64C31] uppercase tracking-[0.2em]">{content.landingTexts?.stat2Label || "Başarılı Dönüşüm"}</div>
             </div>
           </FadeInScroll>
           <FadeInScroll delay={500} duration={800}>
             <div className="pt-8 md:pt-0">
-              <div className="text-5xl lg:text-7xl text-[#2C2A29] font-medium tracking-tighter" style={{ fontFamily: "var(--font-playfair), serif" }}>5+</div>
-              <div className="mt-4 text-xs font-bold text-[#D64C31] uppercase tracking-[0.2em]">Yıl Deneyim</div>
+              <div className="text-5xl lg:text-7xl text-[#2C2A29] font-medium tracking-tighter" style={{ fontFamily: "var(--font-playfair), serif" }}>{content.landingTexts?.stat3Value || "5+"}</div>
+              <div className="mt-4 text-xs font-bold text-[#D64C31] uppercase tracking-[0.2em]">{content.landingTexts?.stat3Label || "Yıl Deneyim"}</div>
             </div>
           </FadeInScroll>
         </div>
@@ -304,11 +311,11 @@ export function Theme4Stats({ content, variant }: SectionRendererProps) {
 export function Theme4Transformations({ content, variant }: SectionRendererProps) {
   if (content.transformations.length === 0) return null;
   return (
-    <section id="donusumler" className="py-32 px-6 bg-[#FBF9F6] relative z-20">
+    <section data-landing-section="transformations" id="donusumler" className="py-32 px-6 bg-[#FBF9F6] relative z-20">
       <div className="mx-auto max-w-[1400px]">
         <FadeInScroll delay={200} duration={1200} direction="up" distance={20}>
-          <div className="mb-20 text-center max-w-2xl mx-auto">
-            <h2 className="text-4xl md:text-6xl text-[#2C2A29] mb-6 leading-tight" style={{ fontFamily: "var(--font-playfair), serif" }}>Gerçek <span className="italic text-[#8C6D53]">Eserler.</span></h2>
+          <div data-section-heading className="mb-20 text-center max-w-2xl mx-auto">
+            <h2 className="text-4xl md:text-6xl text-[#2C2A29] mb-6 leading-tight" style={{ fontFamily: "var(--font-playfair), serif" }}>{content.landingTexts?.transformationsTitle || <>Gerçek <span className="italic text-[#8C6D53]">Eserler.</span></>}</h2>
             <p className="text-[#7C726A] text-lg">Platformumuzu kullananların ulaştığı kusursuz formlar, disiplin ve bilimin buluştuğu noktadaki kanıtlar.</p>
           </div>
         </FadeInScroll>
@@ -327,12 +334,12 @@ export function Theme4Transformations({ content, variant }: SectionRendererProps
 export function Theme4Packages({ content, variant }: SectionRendererProps) {
   const packages = useMemo(() => normalizePackages(content.packages), [content.packages]);
   return (
-    <section id="paketler" className="py-32 px-6 bg-white border-t border-[#EAE4D9] relative z-20">
+    <section data-landing-section="packages" id="paketler" className="py-32 px-6 bg-white border-t border-[#EAE4D9] relative z-20">
       <div className="mx-auto max-w-[1400px]">
         <FadeInScroll delay={200} duration={1200} direction="up" distance={20}>
-          <div className="text-center mb-20 max-w-2xl mx-auto">
+          <div data-section-heading className="text-center mb-20 max-w-2xl mx-auto">
             <span className="inline-flex items-center gap-2 text-[11px] font-bold text-[#D64C31] uppercase tracking-[0.2em] mb-4">Erken Erişim</span>
-            <h2 className="text-4xl md:text-5xl text-[#2C2A29] mb-4" style={{ fontFamily: "var(--font-playfair), serif" }}>Sisteme <span className="italic text-[#8C6D53]">Dahil Ol.</span></h2>
+            <h2 className="text-4xl md:text-5xl text-[#2C2A29] mb-4" style={{ fontFamily: "var(--font-playfair), serif" }}>{content.landingTexts?.packagesTitle || <>Sisteme <span className="italic text-[#8C6D53]">Dahil Ol.</span></>}</h2>
           </div>
         </FadeInScroll>
 
@@ -371,9 +378,13 @@ export function Theme4Packages({ content, variant }: SectionRendererProps) {
                     ))}
                   </ul>
 
-                  <Link href={`${content.authUrl}?package=${pkg.id}`} className={`relative z-10 mt-auto inline-flex h-14 w-full items-center justify-center rounded-xl text-[13px] font-bold uppercase tracking-widest transition-all ${isPro ? "bg-white text-[#2C2A29] hover:bg-[#EAE4D9] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "bg-transparent border border-[#EAE4D9] text-[#2C2A29] hover:bg-[#2C2A29] hover:text-white"}`}>
-                    Planı Seç
-                  </Link>
+                  {(() => {
+                    const cta = buildPackageInquiryUrl(content.brandName, pkg.name, content.whatsappNumber, content.email, content.authUrl);
+                    const cls = `relative z-10 mt-auto inline-flex h-14 w-full items-center justify-center rounded-xl text-[13px] font-bold uppercase tracking-widest transition-all ${isPro ? "bg-white text-[#2C2A29] hover:bg-[#EAE4D9] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "bg-transparent border border-[#EAE4D9] text-[#2C2A29] hover:bg-[#2C2A29] hover:text-white"}`;
+                    return cta.external
+                      ? <a href={cta.href} target="_blank" rel="noreferrer" className={cls}>Koça Yaz</a>
+                      : <Link href={cta.href} className={cls}>Koça Yaz</Link>;
+                  })()}
                 </article>
               </FadeInScroll>
             );
@@ -385,13 +396,13 @@ export function Theme4Packages({ content, variant }: SectionRendererProps) {
 }
 
 /* ─── FAQ Section ─── */
-export function Theme4FAQ({ variant }: SectionRendererProps) {
+export function Theme4FAQ({ content, variant }: SectionRendererProps) {
   return (
-    <section className="py-24 px-6 bg-[#FBF9F6] relative z-20">
+    <section data-landing-section="faq" className="py-24 px-6 bg-[#FBF9F6] relative z-20">
       <div className="mx-auto max-w-[1400px]">
         <FadeInScroll delay={200} duration={1200} direction="up" distance={20}>
-          <div className="text-center mb-16 max-w-2xl mx-auto">
-            <h2 className="text-4xl md:text-5xl text-[#2C2A29] mb-4" style={{ fontFamily: "var(--font-playfair), serif" }}>Sık Sorulan <span className="italic text-[#8C6D53]">Sorular</span></h2>
+          <div data-section-heading className="text-center mb-16 max-w-2xl mx-auto">
+            <h2 className="text-4xl md:text-5xl text-[#2C2A29] mb-4" style={{ fontFamily: "var(--font-playfair), serif" }}>{content.landingTexts?.faqTitle || <>Sık Sorulan <span className="italic text-[#8C6D53]">Sorular</span></>}</h2>
           </div>
         </FadeInScroll>
         <FAQAccordion
@@ -410,18 +421,18 @@ export function Theme4FAQ({ variant }: SectionRendererProps) {
 /* ─── Contact / Footer Section ─── */
 export function Theme4Contact({ content, variant }: SectionRendererProps) {
   return (
-    <footer id="iletisim" className="mt-auto border-t border-[#EAE4D9] bg-[#FBF9F6] pt-20 pb-10 px-6 relative z-20">
+    <footer data-landing-section="contact" id="iletisim" className="mt-auto border-t border-[#EAE4D9] bg-[#FBF9F6] pt-20 pb-10 px-6 relative z-20">
       <div className="mx-auto max-w-[1400px] flex flex-col md:flex-row justify-between items-end gap-10">
         <div>
           <div className="text-4xl text-[#2C2A29] mb-4" style={{ fontFamily: "var(--font-playfair), serif" }}>
             {content.brandName}
           </div>
-          <p className="text-[#7C726A] text-sm max-w-xs">Geleceğin koçluk mimarisi üzerine inşa edildi.</p>
+          <p className="text-[#7C726A] text-sm max-w-xs">{content.landingTexts?.footerTagline || "Geleceğin koçluk mimarisi üzerine inşa edildi."}</p>
         </div>
 
         <div className="flex flex-col md:text-right gap-4 text-xs font-bold tracking-[0.2em] uppercase text-[#7C726A]">
           <a href={`mailto:${content.email}`} className="hover:text-[#2C2A29] transition-colors">Bize Ulaşın</a>
-          <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-[#2C2A29] transition-colors">Canlı Destek</a>
+          {content.whatsappNumber && <a href={content.whatsappUrl} target="_blank" rel="noreferrer" className="hover:text-[#2C2A29] transition-colors">Canlı Destek</a>}
           <Link href={content.authUrl} className="hover:text-[#D64C31] transition-colors mt-4">Uygulamaya Giriş</Link>
         </div>
       </div>
@@ -449,6 +460,7 @@ export function LandingTheme4({ content }: LandingThemeComponentProps) {
         <Theme4Tour content={content} />
         <Theme4Stats content={content} variant={1} />
         <Theme4Transformations content={content} variant={1} />
+        <SystemHowSection content={content} variant={1} />
         <Theme4Packages content={content} variant={1} />
         <Theme4Contact content={content} variant={1} />
       </div>
@@ -471,6 +483,7 @@ export const theme4Layout: ThemeLayout = {
     hero: Theme4Hero,
     stats: Theme4Stats,
     transformations: Theme4Transformations,
+    system: SystemHowSection,
     packages: Theme4Packages,
     faq: Theme4FAQ,
     contact: Theme4Contact,

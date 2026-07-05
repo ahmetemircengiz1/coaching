@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useMemo, useTransition, useEffect } from "react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ExerciseFormModal from "./exercise-form-modal";
 import { deleteExercise } from "@/app/site/[domain]/dashboard/exercises/actions";
+import { ConfirmDialog, useConfirmDialog } from "@/components/dashboard/confirm-dialog";
 import { useRouter } from "next/navigation";
 
 interface Exercise {
@@ -13,7 +15,6 @@ interface Exercise {
   name: string;
   category: string;
   description: string | null;
-  videoUrl: string | null;
   imageUrl: string | null;
   isSystem: boolean;
   _count: { workoutExercises: number };
@@ -42,6 +43,7 @@ export default function ExercisesPageClient({
 
   const [showModal, setShowModal] = useState(false);
   const [editExercise, setEditExercise] = useState<Exercise | null>(null);
+  const { confirm, dialogProps } = useConfirmDialog();
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
@@ -77,14 +79,19 @@ export default function ExercisesPageClient({
 
   const handleDelete = async (ex: Exercise) => {
     if (ex.isSystem) {
-      alert("Sistem egzersizleri silinemez");
+      toast.error("Sistem egzersizleri silinemez");
       return;
     }
-    const msg = ex._count.workoutExercises > 0
-      ? `"${ex.name}" egzersizi ${ex._count.workoutExercises} antrenmanda kullanılıyor. Silmek istediğine emin misin?`
-      : `"${ex.name}" egzersizini silmek istediğine emin misin?`;
-    if (!confirm(msg))
-      return;
+    const desc = ex._count.workoutExercises > 0
+      ? `"${ex.name}" egzersizi ${ex._count.workoutExercises} antrenmanda kullaniliyor. Bu islem geri alinamaz.`
+      : `"${ex.name}" egzersizi kalici olarak silinecek.`;
+    const confirmed = await confirm({
+      title: "Egzersizi Sil",
+      description: desc,
+      confirmText: "Sil",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     // Optimistic delete
     setLocalExercises(prev => prev.filter(e => e.id !== ex.id));
@@ -92,11 +99,11 @@ export default function ExercisesPageClient({
     try {
       const result = await deleteExercise(domain, ex.id);
       if (!result.success) {
-        alert(result.error);
+        toast.error(result.error);
         setLocalExercises(exercises); // revert
       }
     } catch {
-      alert("Bir hata oluştu");
+      toast.error("Bir hata oluştu");
       setLocalExercises(exercises); // revert
     }
   };
@@ -107,7 +114,6 @@ export default function ExercisesPageClient({
       name: data.name,
       category: data.category,
       description: data.description || null,
-      videoUrl: data.videoUrl || null,
       imageUrl: data.imageUrl || null,
       isSystem: false,
       _count: { workoutExercises: isEdit && editExercise ? editExercise._count.workoutExercises : 0 }
@@ -319,14 +325,6 @@ export default function ExercisesPageClient({
 
                     {/* Bottom meta */}
                     <div className="flex items-center gap-3 mt-2 text-[11px]" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.6 }}>
-                      {ex.videoUrl && (
-                        <span className="flex items-center gap-1">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polygon points="5 3 19 12 5 21 5 3" />
-                          </svg>
-                          Video
-                        </span>
-                      )}
                       {ex._count.workoutExercises > 0 && (
                         <span>{ex._count.workoutExercises} antrenmanda</span>
                       )}
@@ -351,6 +349,7 @@ export default function ExercisesPageClient({
           onOptimisticSave={handleOptimisticSave}
         />
       )}
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }

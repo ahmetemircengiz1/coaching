@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,10 @@ import type { WeekCheckIn } from "@/components/dashboard/checkin-week-view";
 import { StudentNotes } from "@/components/dashboard/student-notes";
 import { ExportCSVButton } from "@/components/dashboard/export-csv-button";
 import { WeightChart, MeasurementsChart } from "@/components/dashboard/progress-chart";
+import { MealLogCoachView } from "@/components/dashboard/meal-log-coach-view";
+import { getStudentMealLogForCoach } from "../meal-log-actions";
+import { signPhotoUrls } from "@/lib/supabase/signed-url";
+import { StudentSwitcherRail } from "@/components/dashboard/student-switcher-rail";
 
 const cardStyle = { backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)" };
 
@@ -61,7 +66,21 @@ export default async function StudentDetailPage({
 
   const coach = await getCoachAuth(domain);
 
-  const [student, coachPrograms, libraryNutritionPlans] = await Promise.all([
+  // Bu öğrencinin tüm görülmemiş check-in'lerini "görüldü" olarak işaretle
+  // (dashboard ana sayfasındaki "Yeni Check-in" kartlarından gizlensin)
+  await prisma.weeklyCheckIn.updateMany({
+    where: {
+      studentId,
+      student: { coachId: coach.id },
+      coachViewedAt: null,
+    },
+    data: { coachViewedAt: new Date() },
+  });
+
+  // Sadece sayfanın "çekirdeği" (header, program, beslenme, grafikler) için gereken
+  // sorgular burada bloke eder. Yemek fotoğrafları bölümü
+  // aşağıda <Suspense> ile stream edilir → sayfa kabuğu onları beklemeden açılır.
+  const [student, coachPrograms, libraryNutritionPlans, allStudents] = await Promise.all([
     prisma.student.findUnique({
       where: { id: studentId },
       include: {
@@ -146,11 +165,6 @@ export default async function StudentDetailPage({
           take: 1,
           select: { value: true, date: true },
         },
-        _count: {
-          select: {
-            messages: { where: { senderRole: "student", isRead: false } },
-          },
-        },
       },
     }),
     prisma.program.findMany({
@@ -167,6 +181,11 @@ export default async function StudentDetailPage({
         _count: { select: { meals: true } },
       },
       orderBy: { createdAt: "desc" },
+    }),
+    prisma.student.findMany({
+      where: { coachId: coach.id },
+      select: { id: true, name: true, status: true },
+      orderBy: [{ status: "asc" }, { name: "asc" }],
     }),
   ]);
 
@@ -243,13 +262,25 @@ export default async function StudentDetailPage({
     }
   }
 
-  // Check-in + fotoğraf verilerini birleştir (haftalık görünüm için)
-  const weekCheckIns: WeekCheckIn[] = student.checkIns.map((c) => {
-    const allPhotos: string[] = [];
-    if (c.frontPhoto) allPhotos.push(c.frontPhoto);
-    if (c.sidePhoto) allPhotos.push(c.sidePhoto);
-    if (c.backPhoto) allPhotos.push(c.backPhoto);
-    if (c.photos && c.photos.length > 0) allPhotos.push(...c.photos);
+  // Check-in + fotoğraf verilerini birleştir (haftalık görünüm için).
+  // Private bucket — foto referanslarını topla + tek batch'te signed URL'e çevir.
+  const rawPhotosByCheckIn = student.checkIns.map((c) => {
+    const arr: string[] = [];
+    if (c.frontPhoto) arr.push(c.frontPhoto);
+    if (c.sidePhoto) arr.push(c.sidePhoto);
+    if (c.backPhoto) arr.push(c.backPhoto);
+    if (c.photos && c.photos.length > 0) arr.push(...c.photos);
+    return arr;
+  });
+  const signedPhotoFlat = await signPhotoUrls(rawPhotosByCheckIn.flat());
+  let photoCursor = 0;
+
+  const weekCheckIns: WeekCheckIn[] = student.checkIns.map((c, ci) => {
+    const count = rawPhotosByCheckIn[ci].length;
+    const photos = signedPhotoFlat
+      .slice(photoCursor, photoCursor + count)
+      .filter((u): u is string => !!u);
+    photoCursor += count;
     return {
       id: c.id,
       weekNumber: c.weekNumber,
@@ -267,7 +298,7 @@ export default async function StudentDetailPage({
       notes: c.notes,
       compliance: c.compliance,
       coachFeedback: c.coachFeedback,
-      photos: allPhotos,
+      photos,
     };
   });
 
@@ -284,7 +315,10 @@ export default async function StudentDetailPage({
   }));
 
   return (
-    <div className="space-y-4 py-6">
+    <div className="flex gap-4 lg:gap-6 pb-6">
+      <StudentSwitcherRail domain={domain} students={allStudents} currentId={studentId} />
+
+      <div className="flex-1 min-w-0 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -304,16 +338,8 @@ export default async function StudentDetailPage({
             <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>{student.email}</p>
           </div>
           <Badge variant={student.status === "active" ? "default" : "secondary"}>
-            {student.status === "active" ? "Aktif" : student.status === "pending" ? "Davetli" : "Pasif"}
+            {student.status === "active" ? "Aktif" : "Pasif"}
           </Badge>
-          {student._count.messages > 0 && (
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
-            >
-              {student._count.messages}
-            </div>
-          )}
           <div className="ml-auto">
             <ExportCSVButton
               studentName={student.name}
@@ -537,9 +563,14 @@ export default async function StudentDetailPage({
         </div>
       </AccordionSection>
 
-      {/* Check-in & Fotoğraflar (haftalık görünüm) */}
+      {/* Yemek Fotoğrafları — stream edilir */}
+      <Suspense fallback={<SectionSkeleton title="Yemek Fotoğrafları" />}>
+        <MealPhotosSection domain={domain} studentId={studentId} />
+      </Suspense>
+
+      {/* Check-in & Fotoğraflar (haftalık görünüm) — #10: aktiviteyle birlikte default açık */}
       {weekCheckIns.length > 0 && (
-        <AccordionSection title="Check-in & Fotoğraflar" count={weekCheckIns.length}>
+        <AccordionSection title="Check-in & Fotoğraflar" count={weekCheckIns.length} defaultOpen>
           <CheckInWeekView domain={domain} weeks={weekCheckIns} />
         </AccordionSection>
       )}
@@ -628,6 +659,37 @@ export default async function StudentDetailPage({
           <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>Henüz paket atanmamış</p>
         )}
       </AccordionSection>
+      </div>
     </div>
+  );
+}
+
+/* ───────────────────────── Stream edilen bölümler ─────────────────────────
+ * Aşağıdaki async server component'ler kendi verilerini çeker ve <Suspense>
+ * ile sarılıdır. Böylece ağır olmayan sayfa kabuğu (header, program, beslenme,
+ * grafikler) bu sorguları beklemeden anında render edilir; bu bölümler hazır
+ * oldukça akarak yerleşir. */
+
+function SectionSkeleton({ title, defaultOpen = false }: { title: string; defaultOpen?: boolean }) {
+  return (
+    <AccordionSection title={title} defaultOpen={defaultOpen}>
+      <div className="space-y-3 animate-pulse">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-12 rounded-lg" style={{ backgroundColor: "var(--dashboard-card-border)", opacity: 0.4 }} />
+        ))}
+      </div>
+    </AccordionSection>
+  );
+}
+
+async function MealPhotosSection({ domain, studentId }: { domain: string; studentId: string }) {
+  const mealLogWindow = await getStudentMealLogForCoach(domain, studentId, 30);
+  return (
+    <AccordionSection
+      title="Yemek Fotoğrafları"
+      count={mealLogWindow.days.reduce((acc, d) => acc + d.entries.length, 0)}
+    >
+      <MealLogCoachView window={mealLogWindow} />
+    </AccordionSection>
   );
 }

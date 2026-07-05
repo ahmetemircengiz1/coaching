@@ -27,7 +27,8 @@ export default function StudentCheckInPage() {
     notes: "",
   });
 
-  const [photos, setPhotos] = useState<string[]>([]);
+  // stored: DB'ye yazılacak kalıcı referans · preview: anlık gösterim (imzalı)
+  const [photos, setPhotos] = useState<{ stored: string; preview: string }[]>([]);
 
   const updateField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -46,7 +47,7 @@ export default function StudentCheckInPage() {
       arms: formData.arms ? parseFloat(formData.arms) : undefined,
       thighs: formData.thighs ? parseFloat(formData.thighs) : undefined,
       notes: formData.notes || undefined,
-      photos: photos.length > 0 ? photos : undefined,
+      photos: photos.length > 0 ? photos.map((p) => p.stored) : undefined,
     });
 
     if (result.success) {
@@ -145,10 +146,10 @@ export default function StudentCheckInPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
-              {photos.map((url, idx) => (
+              {photos.map((p, idx) => (
                 <div key={idx} className="relative aspect-[3/4] rounded-lg overflow-hidden"
                   style={{ border: "1px solid var(--dashboard-card-border)" }}>
-                  <img src={url} alt={`Fotoğraf ${idx + 1}`} className="w-full h-full object-cover" />
+                  <img src={p.preview} alt={`Fotoğraf ${idx + 1}`} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => setPhotos(photos.filter((_, i) => i !== idx))}
@@ -162,7 +163,9 @@ export default function StudentCheckInPage() {
             </div>
             <FileUpload
               bucket="checkins"
-              onUploaded={(url) => setPhotos((prev) => [...prev, url])}
+              onUploaded={(url, display) =>
+                setPhotos((prev) => [...prev, { stored: url, preview: display ?? url }])
+              }
               label={photos.length > 0 ? "Daha Fazla Ekle" : "Fotoğraf Yükle"}
               aspectRatio="h-28 w-full"
               isMulti={true}

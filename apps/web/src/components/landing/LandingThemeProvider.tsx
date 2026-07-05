@@ -10,12 +10,14 @@ export function LandingThemeProvider({
   className,
   headingFont,
   bodyFont,
+  extraFontIds,
 }: {
   themeId: string;
   children: React.ReactNode;
   className?: string;
   headingFont?: string | null;
   bodyFont?: string | null;
+  extraFontIds?: Array<string | null | undefined>;
 }) {
   const theme = getLandingTheme(themeId);
   const themeStyle = applyLandingTheme(theme);
@@ -35,7 +37,7 @@ export function LandingThemeProvider({
       className={cn("min-h-screen", className)}
       style={{ ...themeStyle, ...fontStyle }}
     >
-      <GoogleFontsLoader headingFont={headingFont} bodyFont={bodyFont} />
+      <GoogleFontsLoader headingFont={headingFont} bodyFont={bodyFont} extraFontIds={extraFontIds} />
       {children}
     </div>
   );

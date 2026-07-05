@@ -1,0 +1,97 @@
+/* Hero için sade kozmik arka plan: kayan yıldızlar + parlayan ufuk eğrisi */
+.cosmic-hero {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    #070b18 0%,
+    #060a16 28%,
+    #04060f 52%,
+    #010205 78%,
+    #000000 100%
+  );
+}
+
+/* --- Yıldız katmanları (parallax) --- */
+.cosmic-hero .stars,
+.cosmic-hero .stars2,
+.cosmic-hero .stars3 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: transparent;
+  border-radius: 50%;
+}
+
+.cosmic-hero .stars {
+  width: 1px;
+  height: 1px;
+  animation: cosmicStar 140s linear infinite;
+}
+.cosmic-hero .stars2 {
+  width: 2px;
+  height: 2px;
+  animation: cosmicStar 200s linear infinite;
+}
+.cosmic-hero .stars3 {
+  width: 3px;
+  height: 3px;
+  animation: cosmicStar 280s linear infinite;
+}
+
+/* Kesintisiz döngü için aynı deseni 2000px altta tekrarla */
+.cosmic-hero .stars::after,
+.cosmic-hero .stars2::after,
+.cosmic-hero .stars3::after {
+  content: "";
+  position: absolute;
+  top: 2000px;
+  width: inherit;
+  height: inherit;
+  border-radius: 50%;
+  box-shadow: inherit;
+}
+
+@keyframes cosmicStar {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-2000px);
+  }
+}
+
+/* --- Ufuk eğrisi / gezegen --- */
+.cosmic-hero .earth {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: 300vw;
+  height: 300vw;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #01030a;
+  box-shadow:
+    0 0 3px 1px rgba(225, 238, 255, 0.95),
+    0 0 60px 8px rgba(130, 180, 255, 0.5),
+    0 0 220px 60px rgba(60, 120, 235, 0.28);
+}
+
+/* Mobilde eğriyi biraz daha aşağı al */
+@media (max-width: 640px) {
+  .cosmic-hero .earth {
+    top: 62%;
+    width: 420vw;
+    height: 420vw;
+  }
+}
+
+/* Hareket azaltma tercihinde yıldızlar sabit */
+@media (prefers-reduced-motion: reduce) {
+  .cosmic-hero .stars,
+  .cosmic-hero .stars2,
+  .cosmic-hero .stars3 {
+    animation: none;
+  }
+}

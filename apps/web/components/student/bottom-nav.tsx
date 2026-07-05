@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "", label: "Ana Sayfa", icon: "🏠" },
@@ -12,58 +10,20 @@ const navItems = [
   { href: "/nutrition", label: "Beslenme", icon: "🥗" },
   { href: "/checkin", label: "Check-in", icon: "📸" },
   { href: "/progress", label: "İlerleme", icon: "📈" },
-  { href: "/messages", label: "Mesajlar", icon: "💬", badge: true },
   { href: "/settings", label: "Ayarlar", icon: "⚙️" },
 ];
 
 export function BottomNav({
   domain,
-  unreadMessages: initialUnread,
-  studentId,
 }: {
   domain: string;
-  unreadMessages: number;
+  /** @deprecated mesajlaşma kaldırıldı — geriye dönük uyum için kabul edilir, kullanılmaz */
+  unreadMessages?: number;
+  /** @deprecated mesajlaşma kaldırıldı — realtime kanal artık dinlenmiyor */
   studentId?: string;
 }) {
-  const [unreadCount, setUnreadCount] = useState(initialUnread);
   const pathname = usePathname();
   const basePath = `/site/${domain}/student`;
-
-  // Realtime: coach mesajlarını dinle
-  useEffect(() => {
-    if (!studentId) return;
-
-    const supabase = createClient();
-    const channel = supabase
-      .channel("student-unread")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "Message",
-          filter: `studentId=eq.${studentId}`,
-        },
-        (payload) => {
-          const msg = payload.new as Record<string, unknown>;
-          if (msg.senderRole === "coach" && !pathname.includes("/messages")) {
-            setUnreadCount((prev) => prev + 1);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [studentId, pathname]);
-
-  // Mesajlar sayfasına girince sıfırla
-  useEffect(() => {
-    if (pathname.includes("/messages")) {
-      setUnreadCount(0);
-    }
-  }, [pathname]);
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg z-50">
@@ -109,17 +69,6 @@ export function BottomNav({
                     className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full shadow-[0_0_10px_var(--dashboard-accent)]"
                     style={{ backgroundColor: "var(--dashboard-accent)" }}
                   />
-                )}
-                {item.badge && unreadCount > 0 && (
-                  <span
-                    className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] flex items-center justify-center font-bold animate-pulse-glow shadow-lg"
-                    style={{
-                      backgroundColor: "var(--dashboard-accent)",
-                      color: "var(--dashboard-accent-text)",
-                    }}
-                  >
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
                 )}
               </Link>
             );

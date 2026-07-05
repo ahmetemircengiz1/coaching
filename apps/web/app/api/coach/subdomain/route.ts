@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSubdomainAvailable } from "@/lib/tenant";
+import { checkRateLimitAsync, rateLimitResponse, getClientKey, PUBLIC_LIMIT } from "@/lib/rate-limit";
 
 // Subdomain kullanılabilirliğini kontrol et
 export async function GET(request: NextRequest) {
+  // Rate limit — public endpoint, 30 req/min per IP
+  const rl = await checkRateLimitAsync(getClientKey(request), PUBLIC_LIMIT);
+  const blocked = rateLimitResponse(rl);
+  if (blocked) return blocked;
+
   const { searchParams } = new URL(request.url);
   const subdomain = searchParams.get("subdomain");
 

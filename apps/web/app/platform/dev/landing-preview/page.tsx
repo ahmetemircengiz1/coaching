@@ -93,6 +93,7 @@ const SAMPLE_CONTENT: LandingThemeContent = {
       description: "Kas kutlesi artisi",
     },
   ],
+  testimonials: [],
 };
 
 function renderTheme(themeId: LandingThemeId) {

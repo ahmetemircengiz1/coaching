@@ -9,16 +9,12 @@ export function StudentSidebarLayoutWrapper({
   domain,
   brandName,
   studentName,
-  unreadCount,
-  studentId,
   position,
   children,
 }: {
   domain: string;
   brandName: string;
   studentName: string;
-  unreadCount: number;
-  studentId: string;
   position: "left" | "right";
   children: React.ReactNode;
 }) {
@@ -61,8 +57,6 @@ export function StudentSidebarLayoutWrapper({
         domain={domain}
         brandName={brandName}
         studentName={studentName}
-        unreadCount={unreadCount}
-        studentId={studentId}
         position={position}
         collapsed={isCollapsed}
         onToggle={toggle}

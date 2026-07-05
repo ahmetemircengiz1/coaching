@@ -1,23 +1,5 @@
 import { notFound } from "next/navigation";
-import prisma from "@coach-os/database";
-
-async function getCoachByDomain(domain: string) {
-  // Önce subdomain olarak ara
-  let coach = await prisma.coach.findUnique({
-    where: { subdomain: domain },
-    include: { package: true },
-  });
-
-  // Bulunamadıysa custom domain olarak ara
-  if (!coach) {
-    coach = await prisma.coach.findUnique({
-      where: { customDomain: domain },
-      include: { package: true },
-    });
-  }
-
-  return coach;
-}
+import { getCachedCoachByDomain } from "@/lib/coach-cache";
 
 export async function generateMetadata({
   params,
@@ -25,7 +7,7 @@ export async function generateMetadata({
   params: Promise<{ domain: string }>;
 }) {
   const { domain } = await params;
-  const coach = await getCoachByDomain(domain);
+  const coach = await getCachedCoachByDomain(domain);
 
   if (!coach) {
     return { title: "Sayfa Bulunamadı" };
@@ -60,7 +42,7 @@ export default async function CoachSiteLayout({
   params: Promise<{ domain: string }>;
 }) {
   const { domain } = await params;
-  const coach = await getCoachByDomain(domain);
+  const coach = await getCachedCoachByDomain(domain);
 
   if (!coach || coach.subscriptionStatus !== "active") {
     notFound();
