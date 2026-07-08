@@ -29,12 +29,15 @@ function ColumnHeading({ children }: { children: React.ReactNode }) {
 }
 
 export function PlatformFooter() {
-  const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "destek@reppanel.com";
+  const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "destek@shred.com.tr";
   const supportPhone = process.env.NEXT_PUBLIC_SUPPORT_PHONE || "";
   const businessAddress = process.env.NEXT_PUBLIC_BUSINESS_ADDRESS || "";
 
   return (
-    <footer className="relative overflow-hidden border-t border-white/10 bg-[#050505]/60 text-white/60 backdrop-blur-md">
+    <footer
+      id="iletisim"
+      className="relative scroll-mt-24 overflow-hidden border-t border-white/10 bg-[#050505]/60 text-white/60 backdrop-blur-md"
+    >
       {/* Üstte yumuşak çizgi + lime parıltı (gövdeyle dikişsiz geçiş) */}
       <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
       <div

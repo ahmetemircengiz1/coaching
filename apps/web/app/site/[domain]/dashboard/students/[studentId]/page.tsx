@@ -335,7 +335,9 @@ export default async function StudentDetailPage({
           </div>
           <div>
             <h1 className="font-heading text-xl font-bold">{student.name}</h1>
-            <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>{student.email}</p>
+            <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>
+              {student.coachPackage?.name || "Paket atanmamış"}
+            </p>
           </div>
           <Badge variant={student.status === "active" ? "default" : "secondary"}>
             {student.status === "active" ? "Aktif" : "Pasif"}

@@ -13,7 +13,6 @@ import { StudentCodesSection, type CodeItem, type PackageOption } from "./studen
 type StudentItem = {
   id: string;
   name: string;
-  email: string;
   phone: string | null;
   status: string;
   packageName: string;
@@ -58,7 +57,6 @@ export function StudentsPageClient({
       result = result.filter(
         (s) =>
           s.name.toLowerCase().includes(q) ||
-          s.email.toLowerCase().includes(q) ||
           (s.phone && s.phone.includes(q))
       );
     }
@@ -171,7 +169,7 @@ export function StudentsPageClient({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="İsim, email veya telefon ile ara..."
+              placeholder="İsim veya telefon ile ara..."
               className="pl-10"
               style={{
                 backgroundColor: "var(--dashboard-card-bg)",
@@ -308,7 +306,7 @@ export function StudentsPageClient({
                     </div>
                     <div>
                       <p className="font-semibold" style={{ color: "var(--dashboard-main-text)" }}>{student.name}</p>
-                      <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>{student.email}</p>
+                      <p className="text-sm xl:hidden" style={{ color: "var(--dashboard-main-text-muted)" }}>{student.packageName}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">

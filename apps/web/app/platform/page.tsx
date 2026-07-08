@@ -14,7 +14,6 @@ import {
   Smartphone,
   MessageCircle,
   Palette,
-  Mail,
   Wallet,
   Zap,
   ShieldCheck,
@@ -23,7 +22,6 @@ import {
   Maximize2,
 } from "lucide-react";
 import { PlatformFooter } from "@/src/components/platform/PlatformFooter";
-import { MediaSlot } from "@/src/components/platform/MediaSlot";
 import { CosmicHeroBackground } from "@/src/components/platform/CosmicHeroBackground";
 import { StarfieldJourney } from "@/src/components/platform/StarfieldJourney";
 import {
@@ -32,11 +30,11 @@ import {
   useReducedMotion,
   useScroll,
   useTransform,
+  useMotionValueEvent,
   type MotionValue,
 } from "framer-motion";
 
 const SIGNUP_HREF = "/platform/auth?mode=signup&tier=3";
-const SUPPORT_EMAIL = "destek@reppanel.com";
 const ACCENT = "#3d6fd1";
 
 // Premium birincil buton: dikey gradyan + iç ışık halkası + yumuşak mavi glow
@@ -278,31 +276,56 @@ function FeatureRow({
 }
 
 /** Tek görsel — hafif eğik (çapraz) kart; hover'da düzelir, tıklayınca büyür (lightbox). */
-function ShowcaseImage({
-  src,
-  alt,
-  tilt,
-  onZoom,
-}: {
-  src: string;
-  alt: string;
-  tilt: string;
-  onZoom: (src: string, alt: string) => void;
-}) {
+/** Öğrenci mobil deneyimi — telefon ekranları. */
+const PHONE_SCREENS = [
+  { src: "/marketing/mobil-anasayfa.png", alt: "Öğrenci mobil ana sayfası — günün programı ve öğünler" },
+  { src: "/marketing/mobil-antrenman.png", alt: "Öğrenci antrenman programı ekranı" },
+  { src: "/marketing/mobil-beslenme.png", alt: "Öğrenci beslenme programı ekranı — makrolar ve öğünler" },
+  { src: "/marketing/mobil-checkin.png", alt: "Öğrenci haftalık check-in ekranı — ölçümler" },
+];
+
+/** Telefon ekranları çapraz üst üste — arkadakine dokununca öne gelir, öndekine dokununca büyür. */
+function PhoneStack({ onZoom }: { onZoom: (src: string, alt: string) => void }) {
+  const [front, setFront] = useState(0);
   return (
-    <button
-      type="button"
-      onClick={() => onZoom(src, alt)}
-      aria-label={`${alt} — büyüt`}
-      className={`group relative block w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0c0c0c] shadow-[0_30px_70px_-25px_rgba(0,0,0,0.85)] transition-transform duration-500 hover:rotate-0 hover:scale-[1.02] ${tilt}`}
-      style={{ aspectRatio: "16/9" }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={alt} loading="lazy" className="h-full w-full object-cover object-top" />
-      <span className="pointer-events-none absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white/85 opacity-0 backdrop-blur-md transition-opacity duration-300 group-hover:opacity-100">
-        <Maximize2 className="h-4 w-4" />
-      </span>
-    </button>
+    <div className="flex flex-col items-center gap-8">
+      <div className="relative w-[200px] sm:w-[230px]" style={{ aspectRatio: "9/19" }}>
+        {PHONE_SCREENS.map((img, i) => {
+          const isFront = i === front;
+          // Arkadaki telefonları merkez etrafına sağlı sollu yelpaze gibi diz
+          const spread = i - (PHONE_SCREENS.length - 1) / 2;
+          const backRotate = spread === 0 ? 8 : spread * 7;
+          const backX = `${spread * 20}%`;
+          const backZ = 20 - Math.round(Math.abs(spread) * 4);
+          return (
+            <motion.button
+              key={img.src}
+              type="button"
+              onClick={() => (isFront ? onZoom(img.src, img.alt) : setFront(i))}
+              aria-label={isFront ? `${img.alt} — büyüt` : `${img.alt} — öne getir`}
+              initial={false}
+              animate={
+                isFront
+                  ? { rotate: -1.5, scale: 1, x: "0%", y: "0%", opacity: 1, zIndex: 30 }
+                  : { rotate: backRotate, scale: 0.9, x: backX, y: "5%", opacity: 0.75, zIndex: backZ }
+              }
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="group absolute inset-0 overflow-hidden rounded-[2rem] border-[5px] border-[#1a1a1a] bg-[#f7f7f7] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8)]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={img.src} alt={img.alt} loading="lazy" className="h-full w-full object-cover object-top" />
+              {isFront ? (
+                <span className="pointer-events-none absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white/85 opacity-0 backdrop-blur-md transition-opacity duration-300 group-hover:opacity-100">
+                  <Maximize2 className="h-4 w-4" />
+                </span>
+              ) : (
+                <span className="absolute inset-0 bg-black/35 transition-colors group-hover:bg-black/15" aria-hidden />
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -319,8 +342,10 @@ function StackedLandings({
     <div className="relative mx-auto aspect-[16/9] w-full">
       {images.map((img, i) => {
         const isFront = i === front;
-        const backRotate = i === 0 ? -8 : 8;
-        const backX = i === 0 ? "-6%" : "6%";
+        // Arkadaki kartları merkez etrafına yelpaze gibi diz (2 veya 3 kart)
+        const spread = i - (images.length - 1) / 2;
+        const backRotate = spread === 0 ? 10 : spread * 8;
+        const backX = spread === 0 ? "0%" : `${spread * 6}%`;
         return (
           <motion.button
             key={img.src}
@@ -348,9 +373,6 @@ function StackedLandings({
           </motion.button>
         );
       })}
-      <span className="pointer-events-none absolute -bottom-8 left-0 right-0 text-center text-xs text-white/40">
-        Kartlara dokun — öne getir &amp; büyüt
-      </span>
     </div>
   );
 }
@@ -485,6 +507,18 @@ const MARQUEE_ITEMS = [
   "Kod gerekmez",
 ];
 
+/* "Nasıl çalışır" — yatay serpantin S rotası (viewBox 1000×420, 3 şerit) */
+const FLOW_PATH =
+  "M 40 40 L 820 40 C 960 40, 960 200, 820 200 L 180 200 C 40 200, 40 340, 180 340 L 760 340";
+/* Adımların rota üzerindeki konumları (%) + ışığın adıma varış anına göre gecikmeler (sn) */
+const FLOW_ANCHORS = [
+  { x: 16, y: 9.5, delay: 0.4 },
+  { x: 58, y: 9.5, delay: 1.4 },
+  { x: 40, y: 47.6, delay: 2.9 },
+  { x: 64, y: 81, delay: 4.4 },
+];
+const FLOW_DRAW_SECONDS = 5;
+
 export default function PlatformHomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<number | null>(null);
@@ -497,6 +531,14 @@ export default function PlatformHomePage() {
   const { scrollYProgress: journeyProgress } = useScroll({
     target: journeyRef,
     offset: ["start start", "end end"],
+  });
+
+  // "Nasıl çalışır" S-çizgisi: sahne odağa yaklaşınca ışık baştan sona yavaşça akar.
+  // Hero'ya geri dönülürse sıfırlanır (tekrar gelişte yeniden oynar).
+  const [flowStarted, setFlowStarted] = useState(false);
+  useMotionValueEvent(journeyProgress, "change", (v) => {
+    if (v > 0.2) setFlowStarted(true);
+    else if (v < 0.08) setFlowStarted(false);
   });
 
   // Yumuşak kaydırma + menü açıkken body kilidi & Escape
@@ -549,7 +591,7 @@ export default function PlatformHomePage() {
   );
 
   const sceneFlow = (
-    <div className="mx-auto max-w-5xl px-6 text-center">
+    <div className="mx-auto w-full max-w-5xl px-6 text-center">
       <Eyebrow>Nasıl çalışır</Eyebrow>
       <h2 className="mt-4 text-4xl font-extrabold tracking-tight text-white md:text-6xl">
         Kayıttan takibe, tek akış.
@@ -557,16 +599,50 @@ export default function PlatformHomePage() {
       <p className="mx-auto mt-5 max-w-xl text-lg text-white/55">
         Bir online koçun günlük işi baştan sona burada. Her adım birbirine bağlı, hepsi tek panelde.
       </p>
-      <div className="relative mt-16">
-        {/* sıralı akışı bağlayan yatay çizgi */}
-        <div
-          className="absolute left-[12%] right-[12%] top-8 hidden h-px md:block"
-          style={{ background: `linear-gradient(90deg, transparent, ${ACCENT}66 18%, ${ACCENT}66 82%, transparent)` }}
-          aria-hidden
-        />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
-          {JOURNEY_STEPS.map((s, i) => (
-            <div key={s.title} className="relative flex flex-col items-center px-2 text-center">
+
+      {/* md+: yatay geniş S-rota — sahne görününce ışık baştan sona yavaşça akar, adımlar sırayla belirir */}
+      <div className="relative mx-auto mt-12 hidden w-full md:block" style={{ aspectRatio: "1000/420" }}>
+        <svg viewBox="0 0 1000 420" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
+          {/* soluk rota (hedef yol) */}
+          <path
+            d={FLOW_PATH}
+            fill="none"
+            stroke="rgba(255,255,255,0.09)"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+          {/* baştan sona yavaşça akan ışık */}
+          <motion.path
+            d={FLOW_PATH}
+            fill="none"
+            stroke={ACCENT}
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            initial={false}
+            animate={{ pathLength: flowStarted || reduce ? 1 : 0 }}
+            transition={
+              flowStarted && !reduce
+                ? { duration: FLOW_DRAW_SECONDS, ease: "easeInOut" }
+                : { duration: 0 }
+            }
+            style={{ filter: `drop-shadow(0 0 6px ${ACCENT}66)` }}
+          />
+        </svg>
+        {JOURNEY_STEPS.map((s, i) => (
+          <motion.div
+            key={s.title}
+            className="absolute w-44 -translate-x-1/2"
+            style={{ left: `${FLOW_ANCHORS[i].x}%`, top: `${FLOW_ANCHORS[i].y}%` }}
+            initial={false}
+            animate={{ opacity: flowStarted || reduce ? 1 : 0 }}
+            transition={
+              flowStarted && !reduce
+                ? { duration: 0.6, delay: FLOW_ANCHORS[i].delay, ease: "easeOut" }
+                : { duration: 0 }
+            }
+          >
+            <div className="flex -translate-y-8 flex-col items-center">
               <div
                 className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full border bg-[#0a0a0a] shadow-[0_8px_24px_-8px_rgba(61,111,209,0.5)]"
                 style={{ borderColor: `${ACCENT}55`, color: ACCENT }}
@@ -579,11 +655,33 @@ export default function PlatformHomePage() {
                   {i + 1}
                 </span>
               </div>
-              <h3 className="mt-4 text-base font-bold tracking-tight text-white">{s.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/55">{s.desc}</p>
+              <h3 className="mt-3 whitespace-nowrap text-base font-bold tracking-tight text-white">{s.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-white/55">{s.desc}</p>
             </div>
-          ))}
-        </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* mobil: kompakt grid (S-rota dar ekrana sığmaz) */}
+      <div className="mt-14 grid grid-cols-2 gap-x-6 gap-y-10 md:hidden">
+        {JOURNEY_STEPS.map((s, i) => (
+          <div key={s.title} className="relative flex flex-col items-center px-2 text-center">
+            <div
+              className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full border bg-[#0a0a0a] shadow-[0_8px_24px_-8px_rgba(61,111,209,0.5)]"
+              style={{ borderColor: `${ACCENT}55`, color: ACCENT }}
+            >
+              <s.icon className="h-6 w-6" />
+              <span
+                className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                style={{ backgroundColor: ACCENT }}
+              >
+                {i + 1}
+              </span>
+            </div>
+            <h3 className="mt-4 text-base font-bold tracking-tight text-white">{s.title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-white/55">{s.desc}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -935,6 +1033,7 @@ export default function PlatformHomePage() {
                 onZoom={openZoom}
                 images={[
                   { src: "/marketing/brand-landing.png", alt: "Koç markası landing tasarımı — Güç" },
+                  { src: "/marketing/panel-site-builder.png", alt: "Section Builder — siteni bölüm bölüm özelleştir" },
                   { src: "/marketing/brand-landing-2.png", alt: "Koç markası landing tasarımı — Unbreakable" },
                 ]}
               />
@@ -942,39 +1041,22 @@ export default function PlatformHomePage() {
           />
           <FeatureRow
             reverse
-            eyebrow="Program & beslenme"
-            title="Antrenman ve beslenmeyi tek yerden kur."
-            desc="Geniş egzersiz kütüphanesi ve makro hesaplı öğün planlarıyla saniyeler içinde program hazırla, tek tıkla öğrencilerine ata."
+            eyebrow="Program, beslenme & takip"
+            title="Antrenman, beslenme ve takibi tek yerden yönet."
+            desc="Geniş egzersiz kütüphanesi ve makro hesaplı öğün planlarıyla saniyeler içinde program hazırla, tek tıkla ata; check-in'ler, ölçüler ve fotoğraflar otomatik grafiklere dönüşsün."
             bullets={[
               "Yüzlerce hazır egzersiz ve besin",
-              "Sürükle-bırak program oluşturucu",
               "Tek tıkla öğrenciye atama",
+              "Check-in ve fotoğraflarla otomatik ilerleme takibi",
             ]}
             slot={
               <StackedLandings
                 onZoom={openZoom}
                 images={[
                   { src: "/marketing/panel-programlar.png", alt: "Antrenman programı paneli" },
+                  { src: "/marketing/panel-ogrenci-detay.png", alt: "Öğrenci detayı — check-in, ölçüm ve fotoğraf takibi tek ekranda" },
                   { src: "/marketing/panel-beslenme.png", alt: "Beslenme planı paneli" },
                 ]}
-              />
-            }
-          />
-          <FeatureRow
-            eyebrow="Otomatik takip"
-            title="İlerlemeyi sen yormadan takip et."
-            desc="Haftalık check-in'ler, fotoğraflar ve ölçüler otomatik grafiklere dönüşür. Hangi öğrencinin ilgiye ihtiyacı olduğunu bir bakışta gör."
-            bullets={[
-              "Otomatik gelişim grafikleri",
-              "Check-in ve fotoğraf takibi",
-              "Tüm öğrenciler tek panelde",
-            ]}
-            slot={
-              <ShowcaseImage
-                onZoom={openZoom}
-                src="/marketing/panel-ogrenciler.png"
-                alt="Tüm öğrencilerin tek panelde takip edildiği ekran"
-                tilt="rotate-2"
               />
             }
           />
@@ -1011,7 +1093,7 @@ export default function PlatformHomePage() {
                 className="pointer-events-none absolute -inset-8 -z-10 rounded-full opacity-25 blur-3xl"
                 style={{ background: `radial-gradient(circle, ${ACCENT}, transparent 70%)` }}
               />
-              <MediaSlot frame="phone" label="Öğrenci mobil ekranı" hint="Telefon görüntüsü buraya" />
+              <PhoneStack onZoom={openZoom} />
             </div>
           </Reveal>
         </div>
@@ -1052,74 +1134,73 @@ export default function PlatformHomePage() {
         </div>
       </section>
 
-      {/* ============ KAPANIŞ CTA ============ */}
-      <section className="px-4 pb-20 pt-10 md:px-6">
-        <div className="container mx-auto max-w-6xl">
-          <Reveal>
-            <div className="relative overflow-hidden rounded-[3rem] border border-white/10 bg-[#0a0a0a] px-6 py-24 text-center shadow-2xl md:px-12 md:py-32">
-              <div
-                className="absolute inset-0 opacity-50 mix-blend-screen"
-                style={{ background: `radial-gradient(circle at 50% 0%, ${ACCENT}33 0%, transparent 60%)` }}
-              />
-              <div
-                className="absolute bottom-0 left-1/2 h-px w-3/4 -translate-x-1/2 opacity-50"
-                style={{ background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)` }}
-              />
-              <div className="relative z-10 flex flex-col items-center">
-                <div className="mb-8 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-1.5 backdrop-blur-sm">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-white/80">
-                    Sınırları kaldır
-                  </span>
-                </div>
-                <h2 className="mx-auto max-w-3xl text-4xl font-extrabold tracking-tighter text-white md:text-6xl lg:text-7xl">
-                  Koçluğunu bir sonraki
-                  <br />
-                  <span className="text-white">seviyeye taşı.</span>
-                </h2>
-                <p className="mx-auto mt-6 max-w-xl text-lg text-white/50 md:text-xl">
-                  Birkaç dakika içinde markan yayında, öğrencilerin tek panelde. Kurulum ücretsiz.
-                </p>
-                <div className="mt-12 w-full max-w-md">
-                  <Link href={SIGNUP_HREF} className="block">
-                    <Button
-                      className={`group h-14 w-full rounded-xl px-8 text-base font-semibold text-white ${PRIMARY_BTN}`}
-                      style={PRIMARY_STYLE}
-                    >
-                      <span className="flex items-center justify-center">
-                        Hemen Başla
-                        <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                      </span>
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </Reveal>
+      {/* ============ KAPANIŞ CTA — ufuk sahnesi ============ */}
+      {/* Hero'nun kardeşi ama kopyası değil: sayfaya özel, statik ve sade bir ufuk.
+          Üstte ince yıldız tozu, ufkun ardından yükselen mavi ışık, tepe çizgisi
+          aydınlanan dev bir gezegen yayı — içerik yayın üzerinde durur. */}
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          {/* İnce yıldız tozu — yalnızca ufkun üstünde, kenarlara doğru söner */}
+          <div
+            className="absolute inset-x-0 top-0 h-[420px] opacity-70"
+            style={{
+              backgroundImage: `radial-gradient(1px 1px at 12% 32%, rgba(255,255,255,0.9), transparent 55%),
+                radial-gradient(1px 1px at 28% 68%, rgba(255,255,255,0.7), transparent 55%),
+                radial-gradient(1.5px 1.5px at 44% 22%, rgba(210,228,255,0.9), transparent 55%),
+                radial-gradient(1px 1px at 58% 55%, rgba(255,255,255,0.65), transparent 55%),
+                radial-gradient(1.5px 1.5px at 71% 30%, rgba(255,255,255,0.85), transparent 55%),
+                radial-gradient(1px 1px at 84% 62%, rgba(210,228,255,0.7), transparent 55%),
+                radial-gradient(1px 1px at 93% 25%, rgba(255,255,255,0.8), transparent 55%),
+                radial-gradient(1.5px 1.5px at 6% 74%, rgba(255,255,255,0.6), transparent 55%),
+                radial-gradient(1px 1px at 37% 84%, rgba(255,255,255,0.55), transparent 55%),
+                radial-gradient(1px 1px at 66% 78%, rgba(210,228,255,0.6), transparent 55%)`,
+              maskImage: "linear-gradient(180deg, transparent 0%, black 25%, black 70%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(180deg, transparent 0%, black 25%, black 70%, transparent 100%)",
+            }}
+          />
+          {/* Ufkun ardından yükselen ışık */}
+          <div
+            className="absolute left-1/2 top-[130px] h-[340px] w-[900px] max-w-none -translate-x-1/2 blur-3xl"
+            style={{
+              background: `radial-gradient(ellipse at 50% 100%, ${ACCENT}40 0%, rgba(190,215,255,0.1) 45%, transparent 72%)`,
+            }}
+          />
+          {/* Gezegen yayı — tepe çizgisi ışıklı dev elips */}
+          <div
+            className="absolute left-1/2 top-[240px] h-[2000px] w-[300vw] -translate-x-1/2 rounded-[50%] sm:w-[240vw]"
+            style={{
+              background: "linear-gradient(180deg, #0a101f 0%, #070a13 20%, #050505 60%)",
+              border: "1px solid rgba(190,215,255,0.28)",
+              boxShadow: `0 -8px 28px -6px rgba(190,215,255,0.3), 0 -30px 90px -12px ${ACCENT}4d, 0 -90px 220px -20px ${ACCENT}26`,
+            }}
+          />
+          {/* Tepe merkezinde güçlenen rim ışığı */}
+          <div
+            className="absolute left-1/2 top-[229px] h-[24px] w-[520px] -translate-x-1/2 rounded-full blur-xl"
+            style={{
+              background: `radial-gradient(ellipse, rgba(222,236,255,0.55) 0%, ${ACCENT}38 55%, transparent 78%)`,
+            }}
+          />
         </div>
-      </section>
-
-      {/* ============ İLETİŞİM ============ */}
-      <section id="iletisim" className="scroll-mt-24 px-6 pb-32">
-        <div className="container mx-auto max-w-4xl">
-          <Reveal>
-            <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0a0a0a] p-10 text-center transition-all hover:border-white/20 md:p-16">
-              <div
-                className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-3xl border border-white/10 bg-[#111] text-white transition-transform duration-500 group-hover:-rotate-3 group-hover:scale-110"
-              >
-                <Mail className="h-8 w-8" />
-              </div>
-              <h2 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">
-                Soruların mı var?
-              </h2>
-              <p className="mx-auto mt-4 max-w-md text-lg text-white/50">
-                Ekibimiz sana yardımcı olmak için hazır. Çekinmeden bize yazabilirsin.
-              </p>
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="mt-8 inline-flex items-center gap-2 text-xl font-bold text-white transition-colors hover:text-white/80"
-              >
-                {SUPPORT_EMAIL}
-              </a>
+        <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-6 pb-32 pt-[340px] text-center md:pb-40">
+          <Reveal className="flex flex-col items-center">
+            <h2 className="mx-auto max-w-3xl text-4xl font-extrabold tracking-tighter text-white md:text-6xl lg:text-7xl">
+              Koçluk senin işin.
+              <br />
+              Gerisi bizde.
+            </h2>
+            <div className="mt-12 w-full max-w-xs">
+              <Link href={SIGNUP_HREF} className="block">
+                <Button
+                  className={`group h-14 w-full rounded-xl px-8 text-base font-semibold text-white ${PRIMARY_BTN}`}
+                  style={PRIMARY_STYLE}
+                >
+                  <span className="flex items-center justify-center">
+                    Hemen Başla
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </Button>
+              </Link>
             </div>
           </Reveal>
         </div>

@@ -196,7 +196,6 @@ export async function getStudentsList(domain: string) {
     students: students.map((s) => ({
       id: s.id,
       name: s.name,
-      email: s.email,
       phone: s.phone,
       status: s.status,
       packageName: s.coachPackage?.name || "Paket atanmamış",
