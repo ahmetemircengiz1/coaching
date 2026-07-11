@@ -97,9 +97,13 @@ function DepthReveal({ children, className }: { children: ReactNode; className?:
  * Z-yolculuk sahnesi — scroll'a göre derinlikten (küçük+bulanık) merkeze gelir,
  * sonra büyüyüp yanından akar. Sayfa dikey kaymaz; kamera ileri ilerler.
  */
-// Sahnenin scroll içindeki odak merkezi ve segment genişliği
-const Z_DWELL = 0.26; // |u| <= bu: sahne net, sabit — her sahnede belirgin bir inceleme platosu
+// Sahnenin scroll içindeki odak merkezi ve segment genişliği.
+// Duraklamayı artık "tek savuruş = tek sahne" kuralı sağlıyor; bu yüzden dwell minik —
+// geçiş tüm mesafeye yayılır, ortada sıkışıp "hop" hissi vermez.
+const Z_DWELL = 0.05; // |u| <= bu: sahne odakta net, sabit
 const Z_TRANS = 0.5; // eski sahne tam kaybolurken yenisi belirmeye başlar — arada boş yıldız alanı yok
+// Uçlarda sıfır hız (smoothstep): geçişler yumuşak başlar, yumuşak biter — atlama hissi yok
+const zEase = (t: number) => t * t * (3 - 2 * t);
 // Sahne başına scroll mesafesi (vh) — tek kaydırışta geçilecek kadar kısa,
 // sahneler uçuşup gitmeyecek kadar uzun
 const SCENE_VH = 100;
@@ -123,14 +127,14 @@ function ZScene({
     const x = u(p);
     const ax = Math.abs(x);
     if (ax <= Z_DWELL) return 1;
-    const t = Math.min((ax - Z_DWELL) / (Z_TRANS - Z_DWELL), 1);
-    return x < 0 ? 1 - 0.45 * t : 1 + 1.1 * t; // uzakta küçük, yanından geçerken büyür
+    const t = zEase(Math.min((ax - Z_DWELL) / (Z_TRANS - Z_DWELL), 1));
+    return x < 0 ? 1 - 0.3 * t : 1 + 0.7 * t; // uzakta küçük, yanından geçerken büyür (ölçülü)
   });
   const opacity = useTransform(progress, (p) => {
     const ax = Math.abs(u(p));
     if (ax <= Z_DWELL) return 1;
     if (ax >= Z_TRANS) return 0;
-    return 1 - (ax - Z_DWELL) / (Z_TRANS - Z_DWELL);
+    return 1 - zEase((ax - Z_DWELL) / (Z_TRANS - Z_DWELL));
   });
   const pointerEvents = useTransform(opacity, (o) => (o > 0.85 ? "auto" : "none"));
   // Görünmez sahne hiç boyanmasın (hero'nun yıldız katmanları dahil) — büyük performans kazancı.
@@ -575,18 +579,18 @@ export default function PlatformHomePage() {
     let lastT = 0;
     let rafId = 0;
 
-    const easeInOutCubic = (t: number) =>
-      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    // Sine: tepe hızı düşük, kalkış/varış nazik — "düşme" hissi vermez
+    const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
 
     const animateTo = (targetY: number) => {
       animating = true;
       const startY = window.scrollY;
       const dist = targetY - startY;
-      const dur = 700;
+      const dur = 950;
       const t0 = performance.now();
       const step = (now: number) => {
         const t = Math.min((now - t0) / dur, 1);
-        window.scrollTo({ top: startY + dist * easeInOutCubic(t), behavior: "instant" });
+        window.scrollTo({ top: startY + dist * easeInOutSine(t), behavior: "instant" });
         if (t < 1) {
           rafId = requestAnimationFrame(step);
         } else {
