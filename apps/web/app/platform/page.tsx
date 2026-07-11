@@ -608,6 +608,24 @@ export default function PlatformHomePage() {
       const y = window.scrollY - secTop;
       if (y < -1 || y > range + 1) return; // yolculuk dışında: doğal scroll
 
+      let delta = e.deltaY;
+      if (e.deltaMode === 1) delta *= 33;
+      else if (e.deltaMode === 2) delta *= window.innerHeight;
+      const dir = Math.sign(delta);
+
+      // YUKARI: tamamen serbest — duraklama yok, hiçbir girdi yutulmaz.
+      // Devam eden bir sahne animasyonu bile anında iptal edilir ki kaydırış takılmasın.
+      if (dir <= 0) {
+        if (animating) {
+          cancelAnimationFrame(rafId);
+          animating = false;
+        }
+        eatMomentum = false;
+        acc = 0;
+        return;
+      }
+
+      // AŞAĞI: tek savuruş = tek sahne
       const now = performance.now();
       const gap = now - lastT;
       lastT = now;
@@ -624,22 +642,16 @@ export default function PlatformHomePage() {
         eatMomentum = false; // yeni, bilinçli bir kaydırma
       }
 
-      let delta = e.deltaY;
-      if (e.deltaMode === 1) delta *= 33;
-      else if (e.deltaMode === 2) delta *= window.innerHeight;
-      const dir = Math.sign(delta);
-      if (dir === 0) return;
-
-      // Hedef sahne: ilk sahnede yukarı / son sahnede aşağı ise doğal scroll'a bırak
+      // Son sahnedeyse doğal scroll'a bırak (yolculuktan çıkış)
       const seg = range / (SCENES.length - 1);
       const f = y / seg;
-      const target = dir > 0 ? Math.ceil(f + 0.02) : Math.floor(f - 0.02);
-      if (target < 0 || target > SCENES.length - 1) return;
+      const target = Math.ceil(f + 0.02);
+      if (target > SCENES.length - 1) return;
 
-      e.preventDefault(); // yolculuk içinde kaydırmayı tamamen biz yönetiyoruz
+      e.preventDefault(); // aşağı yönde kaydırmayı biz yönetiyoruz
       if (gap > 300) acc = 0;
       acc += delta;
-      if (Math.abs(acc) >= 40) {
+      if (acc >= 40) {
         acc = 0;
         animateTo(secTop + target * seg);
       }
