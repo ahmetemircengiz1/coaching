@@ -98,10 +98,11 @@ function DepthReveal({ children, className }: { children: ReactNode; className?:
  * sonra büyüyüp yanından akar. Sayfa dikey kaymaz; kamera ileri ilerler.
  */
 // Sahnenin scroll içindeki odak merkezi ve segment genişliği
-const Z_DWELL = 0.14; // |u| <= bu: sahne net, sabit (duraksama)
+const Z_DWELL = 0.26; // |u| <= bu: sahne net, sabit — her sahnede belirgin bir inceleme platosu
 const Z_TRANS = 0.5; // eski sahne tam kaybolurken yenisi belirmeye başlar — arada boş yıldız alanı yok
-// Sahne başına scroll mesafesi (vh) — kısa tutulur ki tek kaydırışta sonraki sahne gelsin
-const SCENE_VH = 70;
+// Sahne başına scroll mesafesi (vh) — tek kaydırışta geçilecek kadar kısa,
+// sahneler uçuşup gitmeyecek kadar uzun
+const SCENE_VH = 100;
 
 function ZScene({
   progress,
@@ -1030,7 +1031,9 @@ export default function PlatformHomePage() {
           className="relative"
           style={{ height: `${SCENES.length * SCENE_VH}vh` }}
         >
-          {/* Sahne odak noktaları: kaydırma bırakılınca sayfa en yakın sahneye yumuşakça oturur */}
+          {/* Sahne odak noktaları: kaydırma bırakılınca sayfa en yakın sahneye yumuşakça oturur.
+              snapStop "always": hızlı bir savuruş sahnelerin üzerinden uçamaz — her sahnede durur,
+              kullanıcı inceleyip bir sonraki kaydırışla devam eder. */}
           {SCENES.map((_, i) => (
             <div
               key={`snap-${i}`}
@@ -1039,6 +1042,7 @@ export default function PlatformHomePage() {
               style={{
                 top: `calc(${i} * ((${SCENES.length * SCENE_VH}vh - 100svh) / ${SCENES.length - 1}))`,
                 scrollSnapAlign: "start",
+                scrollSnapStop: "always",
               }}
             />
           ))}
