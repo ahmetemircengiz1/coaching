@@ -564,10 +564,13 @@ export default function PlatformHomePage() {
     };
   }, []);
 
-  // TEK SAVURUŞ = TEK SAHNE: yolculuk içinde tekerlek/touchpad girdisini devral.
-  // Bir savuruş bir sonraki sahneye ~700ms'lik animasyonla götürür; animasyon
-  // süresince ve savuruşun momentum kuyruğu sönene dek gelen girdiler yutulur.
-  // CSS snap-stop bunun garantisini veremiyor (proximity'de fling üzerinden uçabiliyor).
+  // YOLCULUK KAYDIRMA MOTORU (masaüstü tekerlek/touchpad):
+  // - Aşağı: tek savuruş = tek sahne (~950ms animasyon). Varıştan sonra savuruşun
+  //   momentum kuyruğu yutulur; yeni bir bilinçli itiş (artan delta veya kısa bir es)
+  //   anında kabul edilir — touchpad'de "kaydırıyorum ama gitmiyor" hissi bırakmaz.
+  // - Yukarı: duraklamasız ama TİTREMESİZ — girdi hedefe yazılır, sayfa rAF ile
+  //   kare-kare yumuşak süzülür (event zamanlamasından bağımsız; touchpad'in
+  //   düzensiz event akışı görüntüye yansımaz).
   useEffect(() => {
     if (reduce) return;
     const sec = journeyRef.current;
@@ -575,14 +578,42 @@ export default function PlatformHomePage() {
 
     let animating = false;
     let eatMomentum = false; // varıştan sonra aynı savuruşun kuyruğunu yut
+    let lastEaten = Infinity; // yutulan son delta büyüklüğü (sönüm/yeni-itiş ayrımı)
     let acc = 0;
     let lastT = 0;
-    let rafId = 0;
+    let sceneRaf = 0;
+    let glideTarget: number | null = null; // yukarı süzülme hedefi
+    let glideRaf = 0;
 
     // Sine: tepe hızı düşük, kalkış/varış nazik — "düşme" hissi vermez
     const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
 
+    const stopGlide = () => {
+      if (glideRaf) cancelAnimationFrame(glideRaf);
+      glideRaf = 0;
+      glideTarget = null;
+    };
+
+    const glideStep = () => {
+      if (glideTarget === null) {
+        glideRaf = 0;
+        return;
+      }
+      const cur = window.scrollY;
+      const diff = glideTarget - cur;
+      if (Math.abs(diff) < 0.75) {
+        window.scrollTo({ top: glideTarget, behavior: "instant" });
+        glideRaf = 0;
+        glideTarget = null;
+        return;
+      }
+      // Üstel yaklaşım: her karede kalan mesafenin %14'ü — pürüzsüz sönümlenme
+      window.scrollTo({ top: cur + diff * 0.14, behavior: "instant" });
+      glideRaf = requestAnimationFrame(glideStep);
+    };
+
     const animateTo = (targetY: number) => {
+      stopGlide();
       animating = true;
       const startY = window.scrollY;
       const dist = targetY - startY;
@@ -592,19 +623,22 @@ export default function PlatformHomePage() {
         const t = Math.min((now - t0) / dur, 1);
         window.scrollTo({ top: startY + dist * easeInOutSine(t), behavior: "instant" });
         if (t < 1) {
-          rafId = requestAnimationFrame(step);
+          sceneRaf = requestAnimationFrame(step);
         } else {
           animating = false;
           eatMomentum = true;
+          lastEaten = Infinity;
           acc = 0;
         }
       };
-      rafId = requestAnimationFrame(step);
+      sceneRaf = requestAnimationFrame(step);
     };
 
     const onWheel = (e: WheelEvent) => {
       // Menü/modal/lightbox açıkken karışma (içerideki scroll çalışsın)
       if (document.body.style.overflow === "hidden") return;
+      // Touchpad pinch-zoom (ctrl+wheel) bizim işimiz değil
+      if (e.ctrlKey) return;
 
       const range = sec.offsetHeight - window.innerHeight;
       if (range <= 0) return;
@@ -616,34 +650,43 @@ export default function PlatformHomePage() {
       if (e.deltaMode === 1) delta *= 33;
       else if (e.deltaMode === 2) delta *= window.innerHeight;
       const dir = Math.sign(delta);
+      if (dir === 0) return;
 
-      // YUKARI: tamamen serbest — duraklama yok, hiçbir girdi yutulmaz.
-      // Devam eden bir sahne animasyonu bile anında iptal edilir ki kaydırış takılmasın.
-      if (dir <= 0) {
+      // ===== YUKARI: duraklamasız, rAF ile yumuşatılmış süzülme =====
+      if (dir < 0) {
         if (animating) {
-          cancelAnimationFrame(rafId);
+          cancelAnimationFrame(sceneRaf);
           animating = false;
         }
         eatMomentum = false;
         acc = 0;
+        e.preventDefault();
+        const base = glideTarget ?? window.scrollY;
+        glideTarget = Math.max(base + delta, 0);
+        if (!glideRaf) glideRaf = requestAnimationFrame(glideStep);
         return;
       }
 
-      // AŞAĞI: tek savuruş = tek sahne
+      // ===== AŞAĞI: tek savuruş = tek sahne =====
       const now = performance.now();
       const gap = now - lastT;
       lastT = now;
+      stopGlide();
 
       if (animating) {
         e.preventDefault();
         return;
       }
       if (eatMomentum) {
-        if (gap < 300) {
+        const a = Math.abs(delta);
+        // Yeni itiş: kısa bir es verildi VEYA delta sönmek yerine belirgin arttı
+        const freshGesture = gap > 150 || (a > 15 && a > lastEaten * 1.5);
+        if (!freshGesture) {
+          lastEaten = Math.max(a, 1);
           e.preventDefault();
           return; // aynı savuruşun sönmekte olan kuyruğu
         }
-        eatMomentum = false; // yeni, bilinçli bir kaydırma
+        eatMomentum = false;
       }
 
       // Son sahnedeyse doğal scroll'a bırak (yolculuktan çıkış)
@@ -655,7 +698,7 @@ export default function PlatformHomePage() {
       e.preventDefault(); // aşağı yönde kaydırmayı biz yönetiyoruz
       if (gap > 300) acc = 0;
       acc += delta;
-      if (acc >= 40) {
+      if (acc >= 30) {
         acc = 0;
         animateTo(secTop + target * seg);
       }
@@ -664,7 +707,8 @@ export default function PlatformHomePage() {
     window.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       window.removeEventListener("wheel", onWheel);
-      if (rafId) cancelAnimationFrame(rafId);
+      if (sceneRaf) cancelAnimationFrame(sceneRaf);
+      if (glideRaf) cancelAnimationFrame(glideRaf);
     };
     // SCENES.length sabit; journeyRef non-reduce dalında bağlı
   }, [reduce]);
