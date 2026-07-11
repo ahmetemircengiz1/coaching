@@ -26,9 +26,11 @@ export function CosmicHeroBackground() {
   const [large, setLarge] = useState("");
 
   useEffect(() => {
-    setSmall(genStars(700));
-    setMedium(genStars(200));
-    setLarge(genStars(100));
+    // Sayılar bilinçli olarak ölçülü: her yıldız bir box-shadow ve katmanlar
+    // sürekli animasyonda — fazlası zayıf GPU'larda kaydırmayı kastırıyor.
+    setSmall(genStars(320));
+    setMedium(genStars(120));
+    setLarge(genStars(60));
   }, []);
 
   return (

@@ -1,4 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "next build"
+  "buildCommand": "next build",
+  "regions": ["fra1"],
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-meal-photos",
+      "schedule": "0 3 * * 0"
+    }
+  ]
 }

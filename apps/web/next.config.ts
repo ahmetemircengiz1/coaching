@@ -56,6 +56,12 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // Ziyaret edilen dinamik sayfaları client router cache'inde 30 sn tut:
+    // dashboard'da geri/ileri ve menüden tekrar ziyaret sunucuya gitmeden anında açılır.
+    // Mutasyonlar revalidatePath ile cache'i düşürdüğü için bayat veri riski yok.
+    staleTimes: { dynamic: 30 },
+  },
   transpilePackages: ["@coach-os/database", "@coach-os/shared"],
   serverExternalPackages: ["@imgly/background-removal-node", "sharp"],
   images: {

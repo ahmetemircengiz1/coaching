@@ -98,8 +98,10 @@ function DepthReveal({ children, className }: { children: ReactNode; className?:
  * sonra büyüyüp yanından akar. Sayfa dikey kaymaz; kamera ileri ilerler.
  */
 // Sahnenin scroll içindeki odak merkezi ve segment genişliği
-const Z_DWELL = 0.16; // |u| <= bu: sahne net, sabit (duraksama)
-const Z_TRANS = 0.34; // bu noktada sahne tamamen kaybolur; [TRANS, segment] arası saf yıldız boşluğu
+const Z_DWELL = 0.14; // |u| <= bu: sahne net, sabit (duraksama)
+const Z_TRANS = 0.5; // eski sahne tam kaybolurken yenisi belirmeye başlar — arada boş yıldız alanı yok
+// Sahne başına scroll mesafesi (vh) — kısa tutulur ki tek kaydırışta sonraki sahne gelsin
+const SCENE_VH = 70;
 
 function ZScene({
   progress,
@@ -129,18 +131,22 @@ function ZScene({
     if (ax >= Z_TRANS) return 0;
     return 1 - (ax - Z_DWELL) / (Z_TRANS - Z_DWELL);
   });
-  const filter = useTransform(progress, (p) => {
-    const ax = Math.abs(u(p));
-    if (ax <= Z_DWELL) return "blur(0px)";
-    const t = Math.min((ax - Z_DWELL) / (Z_TRANS - Z_DWELL), 1);
-    return `blur(${(t * 7).toFixed(2)}px)`;
-  });
   const pointerEvents = useTransform(opacity, (o) => (o > 0.85 ? "auto" : "none"));
+  // Görünmez sahne hiç boyanmasın (hero'nun yıldız katmanları dahil) — büyük performans kazancı.
+  // Not: blur() animasyonu bilinçli olarak yok; scale+opacity GPU'da ucuz, filter her karede repaint demek.
+  const visibility = useTransform(opacity, (o) => (o < 0.005 ? "hidden" : "visible"));
 
   return (
     <motion.div
       className="absolute inset-0 flex items-center justify-center"
-      style={{ scale, opacity, filter, pointerEvents, zIndex: count - index }}
+      style={{
+        scale,
+        opacity,
+        pointerEvents,
+        visibility,
+        zIndex: count - index,
+        willChange: "transform, opacity",
+      }}
     >
       {children}
     </motion.div>
@@ -541,11 +547,13 @@ export default function PlatformHomePage() {
     else if (v < 0.08) setFlowStarted(false);
   });
 
-  // Yumuşak kaydırma + menü açıkken body kilidi & Escape
+  // Yumuşak kaydırma + sahne odaklarına yaklaşınca hafif snap (proximity: zorlamaz, sadece oturtur)
   useEffect(() => {
     document.documentElement.style.scrollBehavior = "smooth";
+    document.documentElement.style.scrollSnapType = "y proximity";
     return () => {
       document.documentElement.style.scrollBehavior = "";
+      document.documentElement.style.scrollSnapType = "";
     };
   }, []);
 
@@ -611,6 +619,23 @@ export default function PlatformHomePage() {
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
+          {/* parıltı: geniş, yarı saydam ikiz çizgi (drop-shadow filtresinden çok daha ucuz) */}
+          <motion.path
+            d={FLOW_PATH}
+            fill="none"
+            stroke={ACCENT}
+            strokeWidth={8}
+            strokeLinecap="round"
+            opacity={0.25}
+            vectorEffect="non-scaling-stroke"
+            initial={false}
+            animate={{ pathLength: flowStarted || reduce ? 1 : 0 }}
+            transition={
+              flowStarted && !reduce
+                ? { duration: FLOW_DRAW_SECONDS, ease: "easeInOut" }
+                : { duration: 0 }
+            }
+          />
           {/* baştan sona yavaşça akan ışık */}
           <motion.path
             d={FLOW_PATH}
@@ -626,7 +651,6 @@ export default function PlatformHomePage() {
                 ? { duration: FLOW_DRAW_SECONDS, ease: "easeInOut" }
                 : { duration: 0 }
             }
-            style={{ filter: `drop-shadow(0 0 6px ${ACCENT}66)` }}
           />
         </svg>
         {JOURNEY_STEPS.map((s, i) => (
@@ -1004,8 +1028,20 @@ export default function PlatformHomePage() {
           id="nasilcalisir"
           ref={journeyRef}
           className="relative"
-          style={{ height: `${SCENES.length * 135}vh` }}
+          style={{ height: `${SCENES.length * SCENE_VH}vh` }}
         >
+          {/* Sahne odak noktaları: kaydırma bırakılınca sayfa en yakın sahneye yumuşakça oturur */}
+          {SCENES.map((_, i) => (
+            <div
+              key={`snap-${i}`}
+              aria-hidden
+              className="absolute left-0 h-px w-px"
+              style={{
+                top: `calc(${i} * ((${SCENES.length * SCENE_VH}vh - 100svh) / ${SCENES.length - 1}))`,
+                scrollSnapAlign: "start",
+              }}
+            />
+          ))}
           <div className="sticky top-0 h-[100svh] overflow-hidden">
             {SCENES.map((node, i) => (
               <ZScene key={i} progress={journeyProgress} index={i} count={SCENES.length}>
@@ -1032,9 +1068,9 @@ export default function PlatformHomePage() {
               <StackedLandings
                 onZoom={openZoom}
                 images={[
-                  { src: "/marketing/brand-landing.png", alt: "Koç markası landing tasarımı — Güç" },
-                  { src: "/marketing/panel-site-builder.png", alt: "Section Builder — siteni bölüm bölüm özelleştir" },
-                  { src: "/marketing/brand-landing-2.png", alt: "Koç markası landing tasarımı — Unbreakable" },
+                  { src: "/marketing/brand-landing.webp", alt: "Koç markası landing tasarımı — Güç" },
+                  { src: "/marketing/panel-site-builder.webp", alt: "Section Builder — siteni bölüm bölüm özelleştir" },
+                  { src: "/marketing/brand-landing-2.webp", alt: "Koç markası landing tasarımı — Unbreakable" },
                 ]}
               />
             }
