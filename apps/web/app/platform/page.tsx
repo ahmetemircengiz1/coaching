@@ -548,15 +548,110 @@ export default function PlatformHomePage() {
     else if (v < 0.08) setFlowStarted(false);
   });
 
-  // Yumuşak kaydırma + sahne odaklarına yaklaşınca hafif snap (proximity: zorlamaz, sadece oturtur)
+  // Yumuşak kaydırma. CSS snap yalnızca dokunmatik cihazlarda: masaüstünde kaydırmayı
+  // aşağıdaki wheel devralma yönetir; CSS snap programatik animasyonla çakışırdı.
   useEffect(() => {
     document.documentElement.style.scrollBehavior = "smooth";
-    document.documentElement.style.scrollSnapType = "y proximity";
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    if (coarse) document.documentElement.style.scrollSnapType = "y proximity";
     return () => {
       document.documentElement.style.scrollBehavior = "";
       document.documentElement.style.scrollSnapType = "";
     };
   }, []);
+
+  // TEK SAVURUŞ = TEK SAHNE: yolculuk içinde tekerlek/touchpad girdisini devral.
+  // Bir savuruş bir sonraki sahneye ~700ms'lik animasyonla götürür; animasyon
+  // süresince ve savuruşun momentum kuyruğu sönene dek gelen girdiler yutulur.
+  // CSS snap-stop bunun garantisini veremiyor (proximity'de fling üzerinden uçabiliyor).
+  useEffect(() => {
+    if (reduce) return;
+    const sec = journeyRef.current;
+    if (!sec) return;
+
+    let animating = false;
+    let eatMomentum = false; // varıştan sonra aynı savuruşun kuyruğunu yut
+    let acc = 0;
+    let lastT = 0;
+    let rafId = 0;
+
+    const easeInOutCubic = (t: number) =>
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    const animateTo = (targetY: number) => {
+      animating = true;
+      const startY = window.scrollY;
+      const dist = targetY - startY;
+      const dur = 700;
+      const t0 = performance.now();
+      const step = (now: number) => {
+        const t = Math.min((now - t0) / dur, 1);
+        window.scrollTo({ top: startY + dist * easeInOutCubic(t), behavior: "instant" });
+        if (t < 1) {
+          rafId = requestAnimationFrame(step);
+        } else {
+          animating = false;
+          eatMomentum = true;
+          acc = 0;
+        }
+      };
+      rafId = requestAnimationFrame(step);
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      // Menü/modal/lightbox açıkken karışma (içerideki scroll çalışsın)
+      if (document.body.style.overflow === "hidden") return;
+
+      const range = sec.offsetHeight - window.innerHeight;
+      if (range <= 0) return;
+      const secTop = window.scrollY + sec.getBoundingClientRect().top;
+      const y = window.scrollY - secTop;
+      if (y < -1 || y > range + 1) return; // yolculuk dışında: doğal scroll
+
+      const now = performance.now();
+      const gap = now - lastT;
+      lastT = now;
+
+      if (animating) {
+        e.preventDefault();
+        return;
+      }
+      if (eatMomentum) {
+        if (gap < 300) {
+          e.preventDefault();
+          return; // aynı savuruşun sönmekte olan kuyruğu
+        }
+        eatMomentum = false; // yeni, bilinçli bir kaydırma
+      }
+
+      let delta = e.deltaY;
+      if (e.deltaMode === 1) delta *= 33;
+      else if (e.deltaMode === 2) delta *= window.innerHeight;
+      const dir = Math.sign(delta);
+      if (dir === 0) return;
+
+      // Hedef sahne: ilk sahnede yukarı / son sahnede aşağı ise doğal scroll'a bırak
+      const seg = range / (SCENES.length - 1);
+      const f = y / seg;
+      const target = dir > 0 ? Math.ceil(f + 0.02) : Math.floor(f - 0.02);
+      if (target < 0 || target > SCENES.length - 1) return;
+
+      e.preventDefault(); // yolculuk içinde kaydırmayı tamamen biz yönetiyoruz
+      if (gap > 300) acc = 0;
+      acc += delta;
+      if (Math.abs(acc) >= 40) {
+        acc = 0;
+        animateTo(secTop + target * seg);
+      }
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+    // SCENES.length sabit; journeyRef non-reduce dalında bağlı
+  }, [reduce]);
 
   useEffect(() => {
     const lock = menuOpen || selectedFeature !== null || zoomImg !== null;
