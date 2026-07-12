@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createCoachSite, checkSubdomain } from "./actions";
+import { createClient } from "@/lib/supabase/client";
 import {
   LANDING_THEME_LIST,
   type LandingThemeId,
@@ -79,6 +80,18 @@ function OnboardingPageContent() {
   }>({ checked: false, available: false });
 
   const router = useRouter();
+
+  // Onboarding yalnız doğrulanmış oturumla açılır; oturum yoksa kayıt sayfasına dön.
+  // (E-posta doğrulama açıkken doğrulanmamış kullanıcıya Supabase session vermez;
+  // createCoachSite ayrıca sunucuda email_confirmed_at kontrolü yapar.)
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) {
+        router.replace(`/platform/auth?mode=signup&tier=${tierKey}`);
+      }
+    });
+  }, [router, tierKey]);
 
   useEffect(() => {
     if (!availableLanding.has(selectedLandingTheme)) {

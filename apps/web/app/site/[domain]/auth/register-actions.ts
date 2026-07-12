@@ -2,6 +2,7 @@
 
 import prisma from "@coach-os/database";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { checkRateLimitAsync, AUTH_LIMIT, getClientIp } from "@/lib/rate-limit";
 import { studentSignupSchema } from "@/lib/validation/schemas";
@@ -15,10 +16,20 @@ type SignupInput = {
   code: string;
 };
 
+function getBaseUrl(hdrs: Headers): string {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl) return envUrl.replace(/\/$/, "");
+  const host = hdrs.get("host") || "localhost:3002";
+  const proto = hdrs.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
 export async function signUpStudentWithCode(
   domain: string,
   input: SignupInput
-): Promise<{ success: true; email: string } | { error: string }> {
+): Promise<
+  { success: true; email: string; needsConfirmation: boolean } | { error: string }
+> {
   // Rate limit (per IP)
   const hdrs = await headers();
   const ip = getClientIp(hdrs);
@@ -79,33 +90,133 @@ export async function signUpStudentWithCode(
     return { error: "Bu e-posta bu koçta zaten kayıtlı. Giriş yapmayı deneyin." };
   }
 
-  // Supabase auth kullanıcısı oluştur (admin ile - email doğrulama atlanır)
-  const admin = createAdminClient();
-  const { data: userData, error: createErr } = await admin.auth.admin.createUser({
+  // Supabase auth kullanıcısı oluştur (anon signUp → e-posta doğrulama zorunlu).
+  // Student satırı ve kodun tüketilmesi doğrulama SONRASINA (/auth/complete →
+  // finalizeStudentSignup) ertelenir; kayıt bilgileri user_metadata'da taşınır.
+  const supabase = await createClient();
+  const baseUrl = getBaseUrl(hdrs);
+
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email: emailLower,
     password: data.password,
-    email_confirm: true,
-    user_metadata: {
-      name: data.name,
-      role: "student",
-      coach_domain: coach.subdomain,
+    options: {
+      data: {
+        name: data.name,
+        role: "student",
+        coach_domain: coach.subdomain,
+        phone: data.phone || null,
+        pending_reg_code: data.code,
+      },
+      emailRedirectTo: `${baseUrl}/site/${domain}/auth/callback?next=/site/${domain}/auth/complete`,
     },
   });
 
-  if (createErr || !userData.user) {
-    // Email zaten Supabase'te var olabilir
-    const message = createErr?.message || "";
-    if (message.toLowerCase().includes("already") || message.toLowerCase().includes("registered")) {
+  if (signUpError) {
+    const msg = signUpError.message.toLowerCase();
+    if (msg.includes("already") || msg.includes("registered")) {
       return { error: "Bu e-posta zaten kayıtlı. Giriş yapmayı veya şifre sıfırlamayı deneyin." };
     }
+    console.error("[signUpStudentWithCode] signUp error:", signUpError.message);
     return { error: "Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin." };
   }
 
-  const authUserId = userData.user.id;
+  // Email confirmation açıkken kayıtlı e-postayla signUp hata döndürmez;
+  // identities'i boş sahte bir user döner (enumeration koruması). Bunu yakala.
+  if (signUpData.user && !signUpData.session && (signUpData.user.identities?.length ?? 0) === 0) {
+    return { error: "Bu e-posta zaten kayıtlı. Giriş yapmayı veya şifre sıfırlamayı deneyin." };
+  }
 
-  // Transaction: Student oluştur + Kodu kullanıldı işaretle
+  // Doğrulama açık → session dönmez; öğrenci e-postasındaki linke tıklayınca
+  // callback → /auth/complete → finalizeStudentSignup zinciri kaydı tamamlar.
+  if (!signUpData.session) {
+    console.log(JSON.stringify({
+      type: "STUDENT_SIGNUP_PENDING",
+      coachId: coach.id,
+      codeId: codeRow.id,
+    }));
+    return { success: true, email: emailLower, needsConfirmation: true };
+  }
+
+  // Doğrulama kapalıysa (autoconfirm) session hemen döner — kaydı şimdi tamamla.
+  const finalized = await finalizeStudentSignup(domain);
+  if ("error" in finalized) {
+    return finalized;
+  }
+  return { success: true, email: emailLower, needsConfirmation: false };
+}
+
+// ─── E-posta doğrulaması sonrası (veya autoconfirm açıkken hemen) çağrılır ───
+// Oturumdaki kullanıcının metadata'sındaki koç koduna göre Student satırını
+// oluşturur ve kodu kullanıldı işaretler. Tekrar çağrılırsa idempotenttir.
+export async function finalizeStudentSignup(
+  domain: string
+): Promise<{ success: true; studentId: string } | { error: string }> {
+  const user = await getAuthUser();
+  if (!user) {
+    return { error: "Oturum doğrulanamadı. Lütfen giriş yapmayı deneyin." };
+  }
+
+  const coach = await prisma.coach.findFirst({
+    where: { OR: [{ subdomain: domain }, { customDomain: domain }] },
+    select: { id: true },
+  });
+  if (!coach) {
+    return { error: "Koç sitesi bulunamadı." };
+  }
+
+  // Idempotent: kullanıcı zaten öğrenciyse başarı say
+  const existing = await prisma.student.findUnique({
+    where: { userId: user.id },
+    select: { id: true, coachId: true },
+  });
+  if (existing) {
+    if (existing.coachId === coach.id) {
+      return { success: true, studentId: existing.id };
+    }
+    return { error: "Bu hesap başka bir koçun öğrencisi olarak kayıtlı." };
+  }
+
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  if (meta.role !== "student") {
+    return { error: "Bu hesap bir öğrenci kaydı değil." };
+  }
+  const code = typeof meta.pending_reg_code === "string" ? meta.pending_reg_code : "";
+  if (!code) {
+    return { error: "Kayıt kodu bulunamadı. Lütfen koçunuzla iletişime geçin." };
+  }
+
+  const now = new Date();
+  const codeRow = await prisma.coachRegistrationCode.findUnique({
+    where: { code },
+    select: {
+      id: true,
+      coachId: true,
+      usedAt: true,
+      revokedAt: true,
+      expiresAt: true,
+      coachPackageId: true,
+    },
+  });
+
+  if (!codeRow || codeRow.coachId !== coach.id) {
+    return { error: "Koç kodu geçersiz. Koçunuzdan yeni bir kod isteyin." };
+  }
+  if (codeRow.usedAt) {
+    return { error: "Bu kod bu arada başka biri tarafından kullanılmış. Koçunuzdan yeni bir kod isteyin." };
+  }
+  if (codeRow.revokedAt) {
+    return { error: "Bu kod iptal edilmiş. Koçunuzdan yeni bir kod isteyin." };
+  }
+  if (codeRow.expiresAt && codeRow.expiresAt < now) {
+    return { error: "Bu kodun süresi dolmuş. Koçunuzdan yeni bir kod isteyin." };
+  }
+
+  const name =
+    typeof meta.name === "string" && meta.name.trim() ? meta.name.trim() : user.email || "Öğrenci";
+  const phone = typeof meta.phone === "string" && meta.phone.trim() ? meta.phone.trim() : null;
+
   try {
-    await prisma.$transaction(async (tx) => {
+    const student = await prisma.$transaction(async (tx) => {
       // Kodu tekrar verify et (race condition)
       const fresh = await tx.coachRegistrationCode.findUnique({
         where: { id: codeRow.id },
@@ -115,12 +226,12 @@ export async function signUpStudentWithCode(
         throw new Error("code_race");
       }
 
-      const student = await tx.student.create({
+      const created = await tx.student.create({
         data: {
-          userId: authUserId,
-          email: emailLower,
-          name: data.name,
-          phone: data.phone || null,
+          userId: user.id,
+          email: (user.email || "").toLowerCase(),
+          name,
+          phone,
           coachId: coach.id,
           coachPackageId: codeRow.coachPackageId || null,
           status: "active",
@@ -132,27 +243,61 @@ export async function signUpStudentWithCode(
         where: { id: codeRow.id },
         data: {
           usedAt: new Date(),
-          usedByStudentId: student.id,
+          usedByStudentId: created.id,
         },
       });
+
+      return created;
     });
+
+    console.log(JSON.stringify({
+      type: "STUDENT_SIGNUP",
+      coachId: coach.id,
+      codeId: codeRow.id,
+      userId: user.id,
+    }));
+
+    return { success: true, studentId: student.id };
   } catch (err) {
-    // Rollback: auth kullanıcısını sil
-    await admin.auth.admin.deleteUser(authUserId).catch(() => undefined);
     if (err instanceof Error && err.message === "code_race") {
       return { error: "Kod az önce başka biri tarafından kullanıldı. Koçunuzdan yeni bir kod isteyin." };
     }
+    console.error("[finalizeStudentSignup] Unexpected error:", err);
     return { error: "Hesap oluşturulamadı. Lütfen tekrar deneyin." };
   }
+}
 
-  console.log(JSON.stringify({
-    type: "STUDENT_SIGNUP",
-    coachId: coach.id,
-    codeId: codeRow.id,
-    userId: authUserId,
-  }));
+// ─── Onay e-postasını tekrar gönder ───
+export async function resendStudentConfirmation(
+  domain: string,
+  email: string
+): Promise<{ success: true } | { error: string }> {
+  const hdrs = await headers();
+  const ip = getClientIp(hdrs);
+  const rl = await checkRateLimitAsync(`regcode:resend:${ip}`, AUTH_LIMIT);
+  if (!rl.success) {
+    return { error: "Çok fazla istek. Lütfen birkaç dakika sonra tekrar deneyin." };
+  }
 
-  return { success: true, email: emailLower };
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255) {
+    return { error: "Geçerli bir e-posta girin." };
+  }
+
+  const supabase = await createClient();
+  const baseUrl = getBaseUrl(hdrs);
+
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: email.toLowerCase(),
+    options: {
+      emailRedirectTo: `${baseUrl}/site/${domain}/auth/callback?next=/site/${domain}/auth/complete`,
+    },
+  });
+
+  if (error) {
+    return { error: "Onay e-postası gönderilemedi. Lütfen tekrar deneyin." };
+  }
+  return { success: true };
 }
 
 export async function requestPasswordReset(

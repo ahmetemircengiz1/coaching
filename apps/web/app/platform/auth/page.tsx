@@ -48,7 +48,12 @@ function AuthPageContent() {
     setIsPending(true);
     try {
       const result = await signIn(formData);
-      if (result && "error" in result) {
+      if (result && "unconfirmedEmail" in result && result.unconfirmedEmail) {
+        // Doğrulanmamış hesapla giriş denemesi → doğrulama ekranını aç
+        setEmailSentTo(result.unconfirmedEmail);
+        setNotice("Hesabın henüz doğrulanmamış. Gerekirse aşağıdan onay e-postasını tekrar gönderebilirsin.");
+        setIsPending(false);
+      } else if (result && "error" in result) {
         setError(result.error || "Bir hata oluştu.");
         setIsPending(false);
       }
@@ -64,6 +69,10 @@ function AuthPageContent() {
     if (isPending) return;
     setError("");
     setNotice("");
+    if (formData.get("password") !== formData.get("confirmPassword")) {
+      setError("Şifreler eşleşmiyor.");
+      return;
+    }
     // Lansman döneminde herkes tüm özelliklere açık (tier 3) kaydolur.
     formData.set("tier", tier || "3");
     setIsPending(true);
@@ -135,8 +144,11 @@ function AuthPageContent() {
           </div>
           <h2 className="font-heading text-3xl font-bold tracking-tight">E-postanı kontrol et</h2>
           <p className="text-white/60 text-sm leading-relaxed max-w-sm mx-auto">
-            <span className="text-white font-semibold">{emailSentTo}</span> adresine onay linki gönderdik.
-            Kayıt işlemini tamamlamak için linke tıkla.
+            <span className="text-white font-semibold">{emailSentTo}</span> adresine bir doğrulama linki gönderdik.
+            Hesabını doğrulamak ve site kurulumuna geçmek için e-postandaki linke tıkla.
+          </p>
+          <p className="text-white/35 text-xs max-w-sm mx-auto">
+            E-posta birkaç dakika içinde gelmezse spam / gereksiz klasörünü kontrol et.
           </p>
           {notice && (
             <div className="p-3.5 rounded-2xl bg-[#3d6fd1]/5 border border-[#3d6fd1]/20 text-[#3d6fd1] text-sm font-medium">
@@ -280,7 +292,8 @@ function AuthPageContent() {
           >
             <Field label="Ad Soyad" name="name" type="text" placeholder="Örn: Caner Yılmaz" required minLength={2} maxLength={100} icon={User} />
             <Field label="E-posta Adresi" name="email" type="email" placeholder="ornek@email.com" required icon={Mail} />
-            <Field label="Şifre" name="password" type="password" placeholder="En az 8 karakter" required minLength={8} icon={KeyRound} />
+            <Field label="Şifre" name="password" type="password" placeholder="En az 8 karakter" required minLength={8} icon={KeyRound} autoComplete="new-password" />
+            <Field label="Şifre (Tekrar)" name="confirmPassword" type="password" placeholder="Şifreni tekrar gir" required minLength={8} icon={KeyRound} autoComplete="new-password" />
             <SubmitButton pending={isPending} label="Ücretsiz Hesabını Oluştur" pendingLabel="Hesap oluşturuluyor..." />
             <ModeSwitch
               text="Zaten bir hesabınız var mı?"
@@ -409,10 +422,11 @@ function AuthShell({ tier, children }: { tier: string | null; children: React.Re
   );
 }
 
-function Field({ label, name, type, placeholder, required, minLength, maxLength, icon: Icon }: {
+function Field({ label, name, type, placeholder, required, minLength, maxLength, icon: Icon, autoComplete }: {
   label: string; name: string; type: string; placeholder: string;
   required?: boolean; minLength?: number; maxLength?: number;
   icon?: React.ComponentType<{ className?: string }>;
+  autoComplete?: string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -430,7 +444,7 @@ function Field({ label, name, type, placeholder, required, minLength, maxLength,
           required={required}
           minLength={minLength}
           maxLength={maxLength}
-          autoComplete={type === "password" ? (name === "password" ? "current-password" : "new-password") : type === "email" ? "email" : undefined}
+          autoComplete={autoComplete ?? (type === "password" ? (name === "password" ? "current-password" : "new-password") : type === "email" ? "email" : undefined)}
           className={`bg-white/[0.02] border-white/10 text-white placeholder:text-white/20 rounded-xl h-12 pr-4 focus:ring-1 focus:ring-[#3d6fd1] focus:border-[#3d6fd1] focus:bg-[#050505] hover:border-white/20 transition-all shadow-inner ${Icon ? 'pl-11' : 'pl-4'}`}
         />
       </div>

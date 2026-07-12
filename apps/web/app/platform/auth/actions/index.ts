@@ -34,6 +34,7 @@ export async function signUp(formData: FormData) {
   const parsed = signUpSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
     name: formData.get("name"),
   });
 
@@ -59,6 +60,12 @@ export async function signUp(formData: FormData) {
       return { error: "Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin." };
     }
     return { error: "Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin." };
+  }
+
+  // Email confirmation açıkken kayıtlı bir e-postayla signUp hata DÖNDÜRMEZ;
+  // identities'i boş sahte bir user döner (enumeration koruması). Bunu yakala.
+  if (data.user && !data.session && (data.user.identities?.length ?? 0) === 0) {
+    return { error: "Bu e-posta zaten kayıtlı. Giriş yapmayı veya şifre sıfırlamayı deneyin." };
   }
 
   // Supabase email confirmation açıkken session dönmez
@@ -173,7 +180,11 @@ export async function signIn(formData: FormData) {
       return { error: "E-posta veya şifre hatalı." };
     }
     if (error.message === "Email not confirmed") {
-      return { error: "E-postanız henüz doğrulanmadı. Lütfen e-postanızı kontrol edin." };
+      // Sayfa bu alanla doğrulama ekranını açar (tekrar gönder butonuyla)
+      return {
+        error: "E-postanız henüz doğrulanmadı. Lütfen e-postanızı kontrol edin.",
+        unconfirmedEmail: parsed.data.email,
+      };
     }
     return { error: "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin." };
   }

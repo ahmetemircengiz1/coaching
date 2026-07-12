@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { determineUserRole } from "../dashboard/students/actions";
 import { getPublicCoachPackages } from "./actions";
-import { signUpStudentWithCode } from "./register-actions";
+import { signUpStudentWithCode, resendStudentConfirmation, finalizeStudentSignup } from "./register-actions";
 
 type Tab = "coach" | "student";
 type StudentMode = "login" | "register";
@@ -136,6 +136,8 @@ export default function CoachSiteAuthPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [resendNotice, setResendNotice] = useState("");
   const [coachBrand, setCoachBrand] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [themeId, setThemeId] = useState(1);
@@ -243,7 +245,13 @@ export default function CoachSiteAuthPage() {
         setLoading(false);
         return;
       }
-      // Kayıt başarılı → otomatik giriş
+      if (result.needsConfirmation) {
+        // E-posta doğrulama açık → linke tıklanana kadar hesap askıda
+        setPendingEmail(result.email);
+        setLoading(false);
+        return;
+      }
+      // Doğrulama kapalıysa (autoconfirm) eski davranış: otomatik giriş
       const supabase = createClient();
       const { error: signInErr } = await supabase.auth.signInWithPassword({
         email: result.email,
@@ -267,12 +275,16 @@ export default function CoachSiteAuthPage() {
     });
 
     if (authError) {
+      if (authError.message === "Email not confirmed") {
+        // Doğrulanmamış hesap → doğrulama panelini aç (tekrar gönder butonuyla)
+        setPendingEmail(email.trim().toLowerCase());
+        setLoading(false);
+        return;
+      }
       setError(
         authError.message === "Invalid login credentials"
           ? "E-posta veya şifre hatalı."
-          : authError.message === "Email not confirmed"
-            ? "E-postanız henüz doğrulanmadı. Lütfen e-postanızı kontrol edin."
-            : "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin."
+          : "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin."
       );
       setLoading(false);
       return;
@@ -289,6 +301,13 @@ export default function CoachSiteAuthPage() {
       setError("Bu bir koç hesabı. Lütfen 'Koç Girişi' sekmesini kullanın.");
       await supabase.auth.signOut();
       setLoading(false);
+      return;
+    }
+
+    // Doğrulanmış ama Student satırı oluşmamış (finalize yarım kalmış) olabilir — tamamla
+    const finalized = await finalizeStudentSignup(domain);
+    if ("success" in finalized) {
+      router.push(`/site/${domain}/student`);
       return;
     }
 
@@ -404,8 +423,68 @@ export default function CoachSiteAuthPage() {
           </Card>
         )}
 
+        {/* ===== ÖĞRENCİ: E-POSTA DOĞRULAMA BEKLENİYOR ===== */}
+        {tab === "student" && pendingEmail && (
+          <Card style={{ backgroundColor: t.cardBg, borderColor: t.cardBorder }}>
+            <CardContent className="pt-6 text-center space-y-4">
+              <div
+                className="mx-auto w-14 h-14 rounded-full flex items-center justify-center border"
+                style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder }}
+              >
+                <svg className="w-7 h-7" style={{ color: t.accent }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold" style={{ color: t.text }}>E-postanı kontrol et</h2>
+              <p className="text-sm leading-relaxed" style={{ color: t.muted }}>
+                <strong style={{ color: t.text }}>{pendingEmail}</strong> adresine bir doğrulama
+                linki gönderdik. Kaydını tamamlamak için e-postandaki linke tıkla.
+              </p>
+              <p className="text-xs" style={{ color: t.muted, opacity: 0.7 }}>
+                E-posta birkaç dakika içinde gelmezse spam / gereksiz klasörünü kontrol et.
+              </p>
+              {resendNotice && (
+                <div className="p-3 rounded-lg text-sm border" style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.accent }}>
+                  {resendNotice}
+                </div>
+              )}
+              {error && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
+              <Button
+                type="button"
+                disabled={loading}
+                onClick={async () => {
+                  if (!pendingEmail || loading) return;
+                  setLoading(true);
+                  setError("");
+                  setResendNotice("");
+                  const r = await resendStudentConfirmation(domain, pendingEmail);
+                  if ("error" in r) setError(r.error);
+                  else setResendNotice("Doğrulama e-postası tekrar gönderildi.");
+                  setLoading(false);
+                }}
+                className="w-full h-11 font-semibold transition hover:opacity-90"
+                style={{ backgroundColor: t.accent, color: t.accentText }}
+              >
+                {loading ? "Gönderiliyor..." : "E-postayı tekrar gönder"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => { setPendingEmail(null); setResendNotice(""); resetForm(); setStudentMode("login"); }}
+                className="text-xs hover:underline"
+                style={{ color: t.muted }}
+              >
+                Farklı bir hesapla devam et
+              </button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* ===== ÖĞRENCİ GİRİŞİ / KAYIT ===== */}
-        {tab === "student" && (
+        {tab === "student" && !pendingEmail && (
           <>
             <Card style={{ backgroundColor: t.cardBg, borderColor: t.cardBorder }}>
               <CardContent className="pt-6">

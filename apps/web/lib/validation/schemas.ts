@@ -6,11 +6,17 @@ const domain = z.string().min(1).max(63);
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Geçersiz renk kodu");
 
 // ─── Auth ───
-export const signUpSchema = z.object({
-  email: z.string().email("Geçerli bir e-posta girin").max(255),
-  password: z.string().min(8, "Şifre en az 8 karakter olmalı").max(128),
-  name: z.string().min(2, "İsim en az 2 karakter olmalı").max(100).trim(),
-});
+export const signUpSchema = z
+  .object({
+    email: z.string().email("Geçerli bir e-posta girin").max(255),
+    password: z.string().min(8, "Şifre en az 8 karakter olmalı").max(128),
+    confirmPassword: z.string().min(8, "Şifre tekrarı en az 8 karakter olmalı").max(128),
+    name: z.string().min(2, "İsim en az 2 karakter olmalı").max(100).trim(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Şifreler eşleşmiyor.",
+    path: ["confirmPassword"],
+  });
 
 export const signInSchema = z.object({
   email: z.string().email("Geçerli bir e-posta girin").max(255),
