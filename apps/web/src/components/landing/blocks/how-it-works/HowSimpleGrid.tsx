@@ -55,9 +55,11 @@ export function HowSimpleGrid({
     },
     {
       icon: TrendingUp,
-      title: "Sonuçları Gör",
-      desc: "Zamanla gelişimini izle, motive kalarak güçlü bir şekilde devam et.",
-      image: undefined,
+      title: t?.system4Title || "Sonuçları Gör",
+      desc:
+        t?.system4Description ||
+        "Zamanla gelişimini izle, motive kalarak güçlü bir şekilde devam et.",
+      image: t?.system4Image,
     },
   ];
 

@@ -501,9 +501,9 @@ const SYSTEM_TRIPLE_FIELDS: ContentField[] = [
   { key: "system3Title", label: "3. Kart başlığı", placeholder: "Aksiyon ve Takip", group: "Kart 3" },
   { key: "system3Description", label: "3. Kart açıklaması", multiline: true, placeholder: "Kısa açıklama...", group: "Kart 3" },
   { key: "system3Image", label: "3. Kart fotoğrafı (opsiyonel)", image: true, group: "Kart 3" },
-  { key: "system4Title", label: "4. Kart başlığı", placeholder: "Uzman Beslenme", group: "Kart 4", onlyForBlocks: ["feature-image-bento"] },
-  { key: "system4Description", label: "4. Kart açıklaması", multiline: true, placeholder: "Kısa açıklama...", group: "Kart 4", onlyForBlocks: ["feature-image-bento"] },
-  { key: "system4Image", label: "4. Kart fotoğrafı (opsiyonel)", image: true, group: "Kart 4", onlyForBlocks: ["feature-image-bento"] },
+  { key: "system4Title", label: "4. Kart başlığı", placeholder: "Uzman Beslenme", group: "Kart 4", onlyForBlocks: ["feature-image-bento", "how-simple-grid"] },
+  { key: "system4Description", label: "4. Kart açıklaması", multiline: true, placeholder: "Kısa açıklama...", group: "Kart 4", onlyForBlocks: ["feature-image-bento", "how-simple-grid"] },
+  { key: "system4Image", label: "4. Kart fotoğrafı (opsiyonel)", image: true, group: "Kart 4", onlyForBlocks: ["feature-image-bento", "how-simple-grid"] },
 ];
 
 const CONTENT_FIELDS_BY_CATEGORY: Record<string, ContentField[]> = {
