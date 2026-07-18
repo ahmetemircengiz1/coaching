@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Lock } from "lucide-react";
+import { Check, Lock, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,17 @@ function OnboardingPageContent() {
   const [subdomain, setSubdomain] = useState("");
   const [selectedLandingTheme, setSelectedLandingTheme] =
     useState<LandingThemeId>("theme-1");
+  const [previewTheme, setPreviewTheme] = useState<LandingThemeId | null>(null);
+
+  // Önizleme modalı ESC ile kapansın
+  useEffect(() => {
+    if (!previewTheme) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreviewTheme(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewTheme]);
 
   const [subdomainStatus, setSubdomainStatus] = useState<{
     checked: boolean;
@@ -168,12 +179,17 @@ function OnboardingPageContent() {
 
   return (
     <div className="relative min-h-screen bg-[#050505] px-6 py-12 text-white overflow-hidden selection:bg-[#3d6fd1]/30 selection:text-white">
-      {/* Arka plan: ince grid + mavi ışıltı */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.008)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.008)_1px,transparent_1px)] bg-[size:36px_36px]" />
-        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 h-[420px] w-[520px] rounded-full bg-[#3d6fd1]/[0.06] blur-[130px]" />
+      {/* Arka plan: platform ana sayfasıyla aynı ambiyans — nokta grid + mavi ışık lekeleri */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
+        <div
+          className="absolute inset-0 opacity-[0.05]"
+          style={{ backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)", backgroundSize: "42px 42px" }}
+        />
+        <div className="absolute left-[-12%] top-[28%] h-[680px] w-[680px] rounded-full bg-[#3d6fd1] opacity-[0.13] blur-[160px]" />
+        <div className="absolute right-[-14%] top-[56%] h-[720px] w-[720px] rounded-full bg-[#3d6fd1] opacity-[0.11] blur-[170px]" />
+        <div className="absolute bottom-[6%] left-[26%] h-[620px] w-[620px] rounded-full bg-[#3d6fd1] opacity-[0.10] blur-[160px]" />
       </div>
-      <div className="container relative mx-auto max-w-4xl">
+      <div className="container relative z-10 mx-auto max-w-4xl">
         <div className="mb-8 text-center">
           <Link href="/platform" className="font-heading text-3xl font-bold tracking-wider hover:scale-105 transition-transform inline-block">
             SHRED<span className="text-[#3d6fd1]">.</span>
@@ -183,25 +199,36 @@ function OnboardingPageContent() {
         </div>
 
         <div className="mb-12 flex items-center justify-center gap-4">
-          {STEPS.map((stepValue, index) => (
-            <div key={stepValue} className="flex items-center gap-2">
-              <div className="flex flex-col items-center gap-1">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                    step === stepValue
-                      ? "bg-[#3d6fd1] text-white"
-                      : index < currentStepIndex
-                      ? "bg-[#3d6fd1]/30 text-[#3d6fd1]"
-                      : "bg-white/10 text-white/40"
-                  }`}
+          {STEPS.map((stepValue, index) => {
+            // Site oluşturulduktan sonra geri dönülemez; öncesinde tamamlanan
+            // adımlara tıklayarak geri gidilebilir.
+            const canJumpBack = step !== "complete" && index < currentStepIndex;
+            return (
+              <div key={stepValue} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => canJumpBack && setStep(stepValue)}
+                  disabled={!canJumpBack}
+                  className={`flex flex-col items-center gap-1 ${canJumpBack ? "cursor-pointer" : "cursor-default"}`}
+                  aria-label={`${index + 1}. adım: ${STEP_LABELS[stepValue]}`}
                 >
-                  {index + 1}
-                </div>
-                <span className="text-xs text-white/40">{STEP_LABELS[stepValue]}</span>
+                  <span
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition ${
+                      step === stepValue
+                        ? "bg-[#3d6fd1] text-white"
+                        : index < currentStepIndex
+                        ? "bg-[#3d6fd1]/30 text-[#3d6fd1] hover:bg-[#3d6fd1]/50"
+                        : "bg-white/10 text-white/40"
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="text-xs text-white/40">{STEP_LABELS[stepValue]}</span>
+                </button>
+                {index < STEPS.length - 1 && <div className="mb-5 h-0.5 w-12 bg-white/10" />}
               </div>
-              {index < STEPS.length - 1 && <div className="mb-5 h-0.5 w-12 bg-white/10" />}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {error && (
@@ -269,7 +296,7 @@ function OnboardingPageContent() {
                   onClick={handleCheckSubdomain}
                   disabled={!subdomain || subdomain.length < 3 || loading}
                   variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
                   {loading ? "Kontrol ediliyor..." : "Müsaitlik Kontrol Et"}
                 </Button>
@@ -291,8 +318,9 @@ function OnboardingPageContent() {
             <CardHeader>
               <CardTitle className="font-heading text-xl">Landing Şablonunu Seç</CardTitle>
               <p className="text-sm text-white/40">
-                Sitenin görünümünü belirleyen şablonu seç. Panel teması ve diğer ayarları
-                daha sonra dashboard içinden değiştirebilirsin.
+                Sitenin görünümünü belirleyen şablonu seç. Her kartın köşesindeki{" "}
+                <span className="text-white/70">Önizle</span> butonuyla şablonu büyütüp
+                yakından inceleyebilirsin.
               </p>
             </CardHeader>
             <CardContent className="space-y-8">
@@ -311,19 +339,41 @@ function OnboardingPageContent() {
                     const isSelected = selectedLandingTheme === theme.id;
 
                     return (
-                      <button
-                        type="button"
+                      <div
                         key={theme.id}
+                        role="button"
+                        tabIndex={isAllowed ? 0 : -1}
+                        aria-pressed={isSelected}
+                        aria-disabled={!isAllowed}
                         onClick={() => isAllowed && setSelectedLandingTheme(theme.id)}
-                        className="relative overflow-hidden rounded-xl border text-left transition"
+                        onKeyDown={(e) => {
+                          if (isAllowed && (e.key === "Enter" || e.key === " ")) {
+                            e.preventDefault();
+                            setSelectedLandingTheme(theme.id);
+                          }
+                        }}
+                        className={`relative overflow-hidden rounded-xl border text-left transition ${
+                          isAllowed ? "cursor-pointer" : "cursor-not-allowed"
+                        }`}
                         style={{
                           borderColor: isSelected ? "#3d6fd1" : "rgba(255,255,255,0.16)",
                           opacity: isAllowed ? 1 : 0.64,
                         }}
-                        disabled={!isAllowed}
                       >
                         <div className="relative">
                           <LandingThemePreview themeId={theme.id} />
+                          {/* Büyütülmüş önizleme */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewTheme(theme.id);
+                            }}
+                            className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm transition hover:border-white/50 hover:bg-black/80"
+                          >
+                            <Maximize2 className="h-3 w-3" />
+                            Önizle
+                          </button>
                           {!isAllowed && (
                             <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/60">
                               <div className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/40 px-3 py-1 text-xs font-semibold">
@@ -342,7 +392,7 @@ function OnboardingPageContent() {
                           <p className="text-sm font-semibold">{theme.name}</p>
                           <p className="text-xs text-white/50">{theme.description}</p>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -359,9 +409,11 @@ function OnboardingPageContent() {
                 )}
               </section>
 
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs text-white/60">
-                Panel teması ve diğer görsel ayarlar dashboard içinden değiştirilebilir —
-                ilk kayıtta sade tutuyoruz.
+              <div className="rounded-lg border border-[#3d6fd1]/25 bg-[#3d6fd1]/[0.07] p-4 text-xs leading-relaxed text-white/70">
+                <span className="font-semibold text-white">Bu yalnızca bir başlangıç seçimi.</span>{" "}
+                Siten yayına aldıktan sonra panelindeki <span className="text-white">Ayarlar</span> bölümünden
+                şablonunu istediğin zaman değiştirebilir; renkleri, fotoğrafları, paketleri ve tüm içerikleri
+                düzenleyebilir, hatta siteni bölüm bölüm sıfırdan kurgulayabilirsin. Hiçbir seçim kalıcı değil.
               </div>
 
               <div className="flex gap-3">
@@ -369,7 +421,7 @@ function OnboardingPageContent() {
                   type="button"
                   variant="outline"
                   onClick={() => setStep("branding")}
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
                   Geri
                 </Button>
@@ -417,7 +469,7 @@ function OnboardingPageContent() {
                   type="button"
                   variant="outline"
                   onClick={() => setStep("themes")}
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
                   Geri
                 </Button>
@@ -455,6 +507,30 @@ function OnboardingPageContent() {
                 </p>
               </div>
 
+              <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm font-semibold text-white/70">Kurulum özeti</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-4 border-b border-white/10 pb-2">
+                    <span className="text-white/50">Marka Adı</span>
+                    <span className="font-semibold">{brandName}</span>
+                  </div>
+                  <div className="flex justify-between gap-4 border-b border-white/10 pb-2">
+                    <span className="text-white/50">Şablon</span>
+                    <span className="font-semibold">
+                      {selectedLandingMeta?.name || selectedLandingTheme}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-white/50">Erişim</span>
+                    <span className="font-semibold">Tüm özellikler açık</span>
+                  </div>
+                </div>
+                <p className="text-xs text-white/40">
+                  Şablon dahil tüm seçimleri daha sonra panelindeki Ayarlar bölümünden
+                  değiştirebilirsin.
+                </p>
+              </div>
+
               <div className="space-y-3 rounded-xl bg-white/5 p-4">
                 <p className="text-sm text-white/50">Site adresiniz</p>
                 <div className="flex items-center gap-2">
@@ -467,7 +543,7 @@ function OnboardingPageContent() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="shrink-0 border-white/20 text-white hover:bg-white/10"
+                    className="shrink-0 border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
                     onClick={() => {
                       const url =
                         typeof window !== "undefined" &&
@@ -493,7 +569,7 @@ function OnboardingPageContent() {
                 <Link href={`/site/${createdSubdomain}`} className="block">
                   <Button
                     variant="outline"
-                    className="w-full border-white/20 text-white hover:bg-white/10"
+                    className="w-full border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
                   >
                     Landing Sayfamı Gör
                   </Button>
@@ -503,6 +579,95 @@ function OnboardingPageContent() {
           </Card>
         )}
       </div>
+
+      {/* ─── Şablon büyütülmüş önizleme modalı ─── */}
+      {previewTheme && (() => {
+        const meta = LANDING_THEME_LIST.find((theme) => theme.id === previewTheme);
+        const previewAllowed = availableLanding.has(previewTheme);
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${meta?.name || "Şablon"} önizlemesi`}
+          >
+            <button
+              type="button"
+              aria-label="Önizlemeyi kapat"
+              onClick={() => setPreviewTheme(null)}
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+            />
+            <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0a0a0a] p-6 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.9)]">
+              <button
+                type="button"
+                onClick={() => setPreviewTheme(null)}
+                className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                aria-label="Kapat"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="flex flex-col items-center gap-6 md:flex-row md:items-start">
+                <div className="shrink-0">
+                  <ZoomedThemePreview themeId={previewTheme} />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-4 md:pt-2">
+                  <div>
+                    <h3 className="font-heading text-2xl font-bold">{meta?.name}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-white/60">{meta?.description}</p>
+                  </div>
+                  <p className="text-xs leading-relaxed text-white/40">
+                    Bu, şablonun renk ve yerleşim düzenini gösteren şematik bir önizlemedir.
+                    Marka adın, fotoğrafların ve paketlerin siteye otomatik yerleşir; tüm
+                    renk ve içerikleri sonradan panelinden değiştirebilirsin.
+                  </p>
+                  <div className="mt-auto flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="button"
+                      disabled={!previewAllowed}
+                      onClick={() => {
+                        setSelectedLandingTheme(previewTheme);
+                        setPreviewTheme(null);
+                      }}
+                      className="bg-[#3d6fd1] font-semibold text-white hover:bg-[#2f57b8]"
+                    >
+                      {previewAllowed ? "Bu Şablonu Seç" : "Bu Şablon Kilitli"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setPreviewTheme(null)}
+                      className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                    >
+                      Kapat
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
+  );
+}
+
+// LandingThemePreview sabit piksel ölçülü mini bir mockup olduğundan büyütmeyi
+// CSS transform ile yapıyoruz (genişletmek yalnız boşlukları büyütürdü).
+function ZoomedThemePreview({ themeId }: { themeId: LandingThemeId }) {
+  return (
+    <>
+      {/* Masaüstü: 1.5x büyütme (280x350 → 420x525) */}
+      <div className="relative hidden overflow-hidden rounded-xl border border-white/10 sm:block" style={{ width: 420, height: 525 }}>
+        <div className="absolute left-0 top-0 origin-top-left" style={{ width: 280, transform: "scale(1.5)" }}>
+          <LandingThemePreview themeId={themeId} />
+        </div>
+      </div>
+      {/* Mobil: dar ekrana sığan boyut */}
+      <div className="relative overflow-hidden rounded-xl border border-white/10 sm:hidden" style={{ width: 252, height: 315 }}>
+        <div className="absolute left-0 top-0 origin-top-left" style={{ width: 280, transform: "scale(0.9)" }}>
+          <LandingThemePreview themeId={themeId} />
+        </div>
+      </div>
+    </>
   );
 }

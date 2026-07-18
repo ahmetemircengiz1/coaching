@@ -75,6 +75,17 @@ const THEME_STYLES: Record<string, {
     cardBg: "rgba(14,19,32,0.8)",
     cardBorder: "rgba(46,200,216,0.15)",
   },
+  "theme-6": {
+    bg: "#000000",
+    navBg: "rgba(0,0,0,0.85)",
+    navBorder: "rgba(255,255,255,0.14)",
+    textColor: "#ffffff",
+    mutedColor: "rgba(255,255,255,0.55)",
+    accent: "linear-gradient(90deg, #ffffff 0%, #cfd6e4 100%)",
+    accentText: "#000000",
+    cardBg: "rgba(255,255,255,0.05)",
+    cardBorder: "rgba(255,255,255,0.14)",
+  },
 };
 
 export function LandingThemePreview({ themeId }: LandingThemePreviewProps) {
