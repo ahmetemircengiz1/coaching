@@ -6,6 +6,7 @@ import { STORAGE_BUCKETS, uploadFile } from "@/lib/supabase/storage";
 import { checkRateLimitAsync, rateLimitResponse, getClientKey, UPLOAD_LIMIT } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];

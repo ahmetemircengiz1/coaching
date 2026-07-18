@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateCoachSettings } from "../actions";
 import { notifyPreviewRefresh } from "@/src/lib/preview-bus";
+import { prepareImageForUpload } from "@/lib/client-image";
 
 interface HeroImageSettingsProps {
   domain: string;
@@ -103,8 +104,8 @@ export function HeroImageSettings({
   }, [focalX, focalY, heroMode]);
 
   const handleUpload = useCallback(async (file: File) => {
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("Dosya boyutu 15MB'dan buyuk olamaz.");
+    if (file.size > 30 * 1024 * 1024) {
+      toast.error("Dosya boyutu 30MB'dan buyuk olamaz.");
       return;
     }
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
@@ -114,8 +115,11 @@ export function HeroImageSettings({
 
     setUploading(true);
     try {
+      // Vercel 4.5MB istek limitine sığması için büyük fotoğrafları tarayıcıda
+      // 4K'ya kadar küçültüp sıkıştır — görünür kalite kaybı olmaz.
+      const prepared = await prepareImageForUpload(file);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", prepared);
       const res = await fetch("/api/upload/hero", { method: "POST", body: formData });
       if (!res.ok) {
         const data = await res.json();
@@ -152,7 +156,11 @@ export function HeroImageSettings({
       });
     } catch (err) {
       console.error("Hero upload error:", err);
-      toast.error("Yükleme sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : "Yükleme sırasında bir hata oluştu. Lütfen tekrar deneyin."
+      );
     } finally {
       setUploading(false);
     }
@@ -172,8 +180,8 @@ export function HeroImageSettings({
 
   // Custom mobile image upload
   const handleMobileUpload = useCallback(async (file: File) => {
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Mobil fotograf 10MB'dan buyuk olamaz.");
+    if (file.size > 30 * 1024 * 1024) {
+      toast.error("Mobil fotograf 30MB'dan buyuk olamaz.");
       return;
     }
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
@@ -183,8 +191,9 @@ export function HeroImageSettings({
 
     setUploadingMobile(true);
     try {
+      const prepared = await prepareImageForUpload(file);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", prepared);
       const res = await fetch("/api/upload/hero-mobile", { method: "POST", body: formData });
       if (!res.ok) {
         const data = await res.json();
@@ -204,7 +213,11 @@ export function HeroImageSettings({
       });
     } catch (err) {
       console.error("Mobile upload error:", err);
-      toast.error("Mobil yükleme sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : "Mobil yükleme sırasında bir hata oluştu. Lütfen tekrar deneyin."
+      );
     } finally {
       setUploadingMobile(false);
     }

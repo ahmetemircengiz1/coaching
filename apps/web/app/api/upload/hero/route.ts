@@ -6,8 +6,12 @@ import { STORAGE_BUCKETS, uploadFile } from "@/lib/supabase/storage";
 import { checkRateLimitAsync, rateLimitResponse, getClientKey, UPLOAD_LIMIT } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+// 4K fotoğrafın sharp ile işlenmesi varsayılan süre limitini aşabiliyor
+export const maxDuration = 60;
 
-const MAX_HERO_IMAGE_BYTES = 15 * 1024 * 1024; // 15MB — allow high-res photos
+// Vercel istek gövdesi limiti 4.5MB — istemci (prepareImageForUpload) büyük
+// fotoğrafları yüklemeden önce bu limitin altına sıkıştırır.
+const MAX_HERO_IMAGE_BYTES = 15 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function extensionFromMimeType(type: string): string {
