@@ -159,6 +159,28 @@ export default function CoachSiteAuthPage() {
 
   const t = useMemo(() => THEME_COLORS[themeId] || DEFAULT_THEME, [themeId]);
 
+  // Doğrulama linkine tıklandığında (başka sekmede bile olsa) oturum çerezleri
+  // bu tarayıcıya yazılır; burada algılayıp kaydı BU sekmede tamamlıyoruz.
+  useEffect(() => {
+    if (!pendingEmail) return;
+    const supabase = createClient();
+    const timer = setInterval(async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.email_confirmed_at) {
+        clearInterval(timer);
+        const result = await finalizeStudentSignup(domain);
+        if ("error" in result) {
+          setPendingEmail(null);
+          setError(result.error);
+          return;
+        }
+        window.location.href = `/site/${domain}/student`;
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingEmail, domain]);
+
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     if (tabParam === "coach") {
@@ -405,9 +427,8 @@ export default function CoachSiteAuthPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block px-1 flex justify-between" style={{ color: t.muted }}>
-                    <span>Şifre</span>
-                    <a href={`/site/${domain}/auth/forgot-password`} className="text-xs hover:underline" style={{ color: t.accent }}>Şifremi Unuttum</a>
+                  <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>
+                    Şifre
                   </label>
                   <Input
                     type="password"
@@ -419,6 +440,9 @@ export default function CoachSiteAuthPage() {
                     required
                     minLength={6}
                   />
+                  <div className="flex justify-end px-1 mt-1.5">
+                    <a href={`/site/${domain}/auth/forgot-password`} className="text-xs hover:underline" style={{ color: t.accent }}>Şifremi Unuttum</a>
+                  </div>
                 </div>
                 <Button
                   type="submit"
@@ -452,6 +476,9 @@ export default function CoachSiteAuthPage() {
               </p>
               <p className="text-xs" style={{ color: t.muted, opacity: 0.7 }}>
                 E-posta birkaç dakika içinde gelmezse spam / gereksiz klasörünü kontrol et.
+              </p>
+              <p className="text-xs font-medium" style={{ color: t.accent }}>
+                Linke tıkladığında bu ekran otomatik olarak paneline geçer — burada bekleyebilirsin.
               </p>
               {resendNotice && (
                 <div className="p-3 rounded-lg text-sm border" style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.accent }}>
@@ -595,17 +622,8 @@ export default function CoachSiteAuthPage() {
                   )}
 
                   <div>
-                    <label className="text-sm font-medium mb-1.5 block px-1 flex justify-between" style={{ color: t.muted }}>
-                      <span>Şifre</span>
-                      {studentMode === "login" && (
-                        <a
-                          href={`/site/${domain}/auth/forgot-password`}
-                          className="text-xs hover:underline"
-                          style={{ color: t.accent }}
-                        >
-                          Şifremi Unuttum
-                        </a>
-                      )}
+                    <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>
+                      Şifre
                     </label>
                     <Input
                       type="password"
@@ -617,6 +635,17 @@ export default function CoachSiteAuthPage() {
                       required
                       minLength={8}
                     />
+                    {studentMode === "login" && (
+                      <div className="flex justify-end px-1 mt-1.5">
+                        <a
+                          href={`/site/${domain}/auth/forgot-password`}
+                          className="text-xs hover:underline"
+                          style={{ color: t.accent }}
+                        >
+                          Şifremi Unuttum
+                        </a>
+                      </div>
+                    )}
                   </div>
 
                   {studentMode === "register" && (

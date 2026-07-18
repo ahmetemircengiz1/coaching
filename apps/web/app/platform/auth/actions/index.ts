@@ -131,9 +131,11 @@ export async function requestPasswordReset(formData: FormData) {
   const supabase = await createClient();
   const baseUrl = getBaseUrl(hdrs);
 
-  // Enumeration'ı önlemek için sonucu her durumda success döndür
+  // Enumeration'ı önlemek için sonucu her durumda success döndür.
+  // Link callback üzerinden gider: e-posta şablonu token_hash eklerse
+  // verifyOtp ile cihaz bağımsız çalışır, sonra reset sayfasına düşer.
   await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${baseUrl}/platform/auth/reset`,
+    redirectTo: `${baseUrl}/platform/auth/callback?next=/platform/auth/reset`,
   });
 
   return { success: true };

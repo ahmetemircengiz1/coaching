@@ -36,6 +36,7 @@ import { HeroVideoSettings } from "./HeroVideoSettings";
 import { LandingBuilder } from "./builder/LandingBuilder";
 import { ContactLegalSettings } from "./ContactLegalSettings";
 import { GuideSettingsCard } from "@/components/dashboard/page-guide";
+import { DeleteAccountCard } from "@/components/dashboard/delete-account-card";
 import { logoutAction } from "@/app/site/[domain]/auth/logout-action";
 import type { LandingFeatures } from "@/src/lib/plan";
 
@@ -949,6 +950,9 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Üyelik sonlandırma — tehlikeli bölge */}
+      {showSection("hesap") && <DeleteAccountCard role="coach" domain={domain} />}
 
       {/* Alan Adı grubu — Plan Bilgisi + subdomain bilgi kartı */}
       {showSection("alan-adi") && (

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DASHBOARD_THEME_LIST } from "@/src/theme/dashboardThemes";
 import { DashboardThemePreview } from "@/src/components/theme-preview/DashboardThemePreview";
 import { GuideSettingsCard } from "@/components/dashboard/page-guide";
+import { DeleteAccountCard } from "@/components/dashboard/delete-account-card";
 import { getStudentSettings, updateStudentSettings } from "../actions";
 
 const SIDEBAR_POSITIONS = [
@@ -270,6 +271,9 @@ export default function StudentSettingsPage() {
 
       {/* Rehber ayarı — açılır/kapanır */}
       <GuideSettingsCard role="student" domain={domain} />
+
+      {/* Üyelik sonlandırma — tehlikeli bölge */}
+      <DeleteAccountCard role="student" domain={domain} />
     </div>
   );
 }

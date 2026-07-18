@@ -332,7 +332,9 @@ export async function requestPasswordReset(
     return { success: true }; // enumeration-safe: sessizce başarılı dön
   }
   const proto = hdrs.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  const redirectTo = `${proto}://${host}/site/${domain}/auth/reset-password`;
+  // Link callback üzerinden gider: e-posta şablonu token_hash eklerse
+  // verifyOtp ile cihaz bağımsız çalışır, sonra reset sayfasına düşer.
+  const redirectTo = `${proto}://${host}/site/${domain}/auth/callback?next=/site/${domain}/auth/reset-password`;
 
   const admin = createAdminClient();
   // Supabase anon client tarafı yok — admin üzerinden magic link üret

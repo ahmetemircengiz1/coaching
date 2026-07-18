@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, Mail, KeyRound, User, ChevronRight } from "lucide-react";
 import { signUp, signIn, resendConfirmation, requestPasswordReset } from "./actions";
+import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Mode = "signin" | "signup" | "forgot";
@@ -49,6 +50,21 @@ function AuthPageContent() {
     const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [resendCooldown]);
+
+  // Doğrulama linkine tıklandığında (hangi sekmede olursa olsun) oturum çerezleri
+  // bu tarayıcıya yazılır; burada algılayıp kullanıcıyı BU sekmede devam ettiriyoruz.
+  useEffect(() => {
+    if (!emailSentTo) return;
+    const supabase = createClient();
+    const timer = setInterval(async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.email_confirmed_at) {
+        clearInterval(timer);
+        window.location.href = `/platform/onboarding${tier ? `?tier=${tier}` : ""}`;
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [emailSentTo, tier]);
 
   const handleSignIn = async (formData: FormData) => {
     if (isPending) return;
@@ -166,6 +182,9 @@ function AuthPageContent() {
           <p className="text-white/35 text-xs max-w-sm mx-auto">
             E-posta birkaç dakika içinde gelmezse spam / gereksiz klasörünü kontrol et.
           </p>
+          <p className="text-[#3d6fd1]/80 text-xs max-w-sm mx-auto font-medium">
+            Linke tıkladığında bu ekran otomatik olarak site kurulumuna geçer — burada bekleyebilirsin.
+          </p>
           {notice && (
             <div className="p-3.5 rounded-2xl bg-[#3d6fd1]/5 border border-[#3d6fd1]/20 text-[#3d6fd1] text-sm font-medium">
               {notice}
@@ -267,16 +286,7 @@ function AuthPageContent() {
             <input type="hidden" name="tier" value={tier || ""} />
             <Field label="E-posta Adresi" name="email" type="email" placeholder="ornek@email.com" required icon={Mail} />
             <div className="space-y-2">
-              <div className="flex justify-between px-1">
-                <label className="text-sm font-semibold text-white/70">Şifre</label>
-                <button
-                  type="button"
-                  onClick={() => { setMode("forgot"); setError(""); }}
-                  className="text-xs font-semibold text-[#3d6fd1] hover:underline"
-                >
-                  Şifremi Unuttum
-                </button>
-              </div>
+              <label className="block px-1 text-sm font-semibold text-white/70">Şifre</label>
               <div className="relative group">
                 <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/20 group-focus-within:text-[#3d6fd1] transition-colors">
                   <KeyRound className="h-4.5 w-4.5" />
@@ -289,6 +299,15 @@ function AuthPageContent() {
                   minLength={1}
                   className="bg-white/[0.02] border-white/10 text-white placeholder:text-white/20 rounded-xl h-12 pl-11 pr-4 focus:ring-1 focus:ring-[#3d6fd1] focus:border-[#3d6fd1] focus:bg-[#050505] hover:border-white/20 transition-all shadow-inner"
                 />
+              </div>
+              <div className="flex justify-end px-1">
+                <button
+                  type="button"
+                  onClick={() => { setMode("forgot"); setError(""); }}
+                  className="text-xs font-semibold text-[#3d6fd1] hover:underline"
+                >
+                  Şifremi Unuttum
+                </button>
               </div>
             </div>
             <SubmitButton pending={isPending} label="Giriş Yap" pendingLabel="Giriş yapılıyor..." />
