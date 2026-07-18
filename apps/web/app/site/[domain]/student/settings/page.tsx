@@ -6,6 +6,7 @@ import { Check, Bell } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DASHBOARD_THEME_LIST } from "@/src/theme/dashboardThemes";
 import { DashboardThemePreview } from "@/src/components/theme-preview/DashboardThemePreview";
+import { GuideSettingsCard } from "@/components/dashboard/page-guide";
 import { getStudentSettings, updateStudentSettings } from "../actions";
 
 const SIDEBAR_POSITIONS = [
@@ -266,6 +267,9 @@ export default function StudentSettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Rehber ayarı — açılır/kapanır */}
+      <GuideSettingsCard role="student" domain={domain} />
     </div>
   );
 }

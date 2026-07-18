@@ -35,6 +35,7 @@ import { LandingPreviewPanel } from "./LandingPreviewPanel";
 import { HeroVideoSettings } from "./HeroVideoSettings";
 import { LandingBuilder } from "./builder/LandingBuilder";
 import { ContactLegalSettings } from "./ContactLegalSettings";
+import { GuideSettingsCard } from "@/components/dashboard/page-guide";
 import { logoutAction } from "@/app/site/[domain]/auth/logout-action";
 import type { LandingFeatures } from "@/src/lib/plan";
 
@@ -900,6 +901,9 @@ export default function SettingsPage() {
           section="legal"
         />
       )}
+
+      {/* Rehber ayarı — açılır/kapanır */}
+      {showSection("hesap") && <GuideSettingsCard role="coach" domain={domain} />}
 
       {/* Hesap grubu */}
       {showSection("hesap") && (

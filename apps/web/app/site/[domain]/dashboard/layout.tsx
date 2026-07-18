@@ -1,5 +1,6 @@
 import { CoachSidebarLayoutWrapper } from "@/components/dashboard/sidebar-layout-wrapper";
 import { CoachBottomNav } from "@/components/dashboard/coach-bottom-nav";
+import { PageGuide } from "@/components/dashboard/page-guide";
 import { DashboardThemeProvider } from "@/src/components/DashboardThemeProvider";
 import { BottomNavTourWrapper, BottomNavTourButton } from "@/components/dashboard/bottom-nav-tour-wrapper";
 import {
@@ -96,7 +97,10 @@ export default async function DashboardLayout({
             </div>
           </header>
           <main className="pt-14 pb-20 px-4 max-w-4xl mx-auto">
-            <div className="p-0 pt-4 lg:pt-6 animate-fade-in">{children}</div>
+            <div className="p-0 pt-4 lg:pt-6 animate-fade-in">
+              <PageGuide role="coach" domain={domain} />
+              {children}
+            </div>
           </main>
           <CoachBottomNav domain={domain} />
         </div>
@@ -122,7 +126,10 @@ export default async function DashboardLayout({
             brandName={coach.brandName}
             position="right"
           >
-            <SidebarContent>{children}</SidebarContent>
+            <SidebarContent>
+              <PageGuide role="coach" domain={domain} />
+              {children}
+            </SidebarContent>
           </CoachSidebarLayoutWrapper>
         </div>
       </DashboardThemeProvider>
@@ -145,7 +152,10 @@ export default async function DashboardLayout({
           brandName={coach.brandName}
           position="left"
         >
-          <SidebarContent>{children}</SidebarContent>
+          <SidebarContent>
+            <PageGuide role="coach" domain={domain} />
+            {children}
+          </SidebarContent>
         </CoachSidebarLayoutWrapper>
       </div>
     </DashboardThemeProvider>

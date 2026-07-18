@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/supabase/server";
 import prisma from "@coach-os/database";
 import { BottomNav } from "@/components/student/bottom-nav";
+import { PageGuide } from "@/components/dashboard/page-guide";
 import { StudentSidebarLayoutWrapper } from "@/components/student/student-sidebar-layout-wrapper";
 import { LogoutButton } from "@/components/student/logout-button";
 import { WhatsAppFab } from "@/components/student/whatsapp-fab";
@@ -92,7 +93,10 @@ export default async function StudentLayout({
             studentName={student.name}
             position={navPosition as "left" | "right"}
           >
-            <SidebarContent>{children}</SidebarContent>
+            <SidebarContent>
+              <PageGuide role="student" domain={domain} />
+              {children}
+            </SidebarContent>
           </StudentSidebarLayoutWrapper>
           <WhatsAppFab whatsappNumber={student.coach.whatsappNumber} brandName={student.coach.brandName} />
         </div>
@@ -126,6 +130,7 @@ export default async function StudentLayout({
         </header>
 
         <main className="pt-14 pb-20 px-4 max-w-2xl mx-auto">
+          <PageGuide role="student" domain={domain} />
           {children}
         </main>
 

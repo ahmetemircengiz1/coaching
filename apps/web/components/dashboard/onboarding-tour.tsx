@@ -91,13 +91,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const completed = localStorage.getItem(STORAGE_KEY);
-    if (!completed) {
-      setHasCompletedTour(false);
-      // Auto-start tour for first-time users after a short delay
-      const timer = setTimeout(() => setIsActive(true), 1500);
-      return () => clearTimeout(timer);
-    }
-    setHasCompletedTour(true);
+    // Otomatik başlatma kaldırıldı: ilk giriş onboarding'ini artık sayfa
+    // rehberi (PageGuide) üstlenir; bu spotlight tur butonla manuel açılır.
+    setHasCompletedTour(Boolean(completed));
   }, []);
 
   const startTour = useCallback(() => {

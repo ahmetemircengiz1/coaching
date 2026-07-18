@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Oswald } from "next/font/google";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { CookieBanner } from "@/components/consent/CookieBanner";
 import "./globals.css";
@@ -37,6 +38,7 @@ export default function RootLayout({
     <html lang="tr" suppressHydrationWarning>
       <body className={`${inter.variable} ${oswald.variable} font-sans antialiased`}>
         <GoogleAnalytics />
+        <Analytics />
         {children}
         <CookieBanner />
         <Toaster
