@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { checkRateLimitAsync, AUTH_LIMIT, getClientIp } from "@/lib/rate-limit";
 import { studentSignupSchema } from "@/lib/validation/schemas";
 import { mapResendEmailError } from "@/lib/auth-email-errors";
+import { checkEmailDomain } from "@/lib/email-check";
 
 type SignupInput = {
   email: string;
@@ -44,6 +45,12 @@ export async function signUpStudentWithCode(
     return { error: parsed.error.errors[0]?.message || "Geçersiz veri." };
   }
   const data = parsed.data;
+
+  // E-posta alan adı gerçekten posta alabiliyor mu? (typo/temp-mail/MX kontrolü)
+  const emailCheck = await checkEmailDomain(data.email);
+  if (!emailCheck.ok) {
+    return { error: emailCheck.error };
+  }
 
   // Koçu bul
   const coach = await prisma.coach.findFirst({

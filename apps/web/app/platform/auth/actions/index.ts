@@ -12,6 +12,7 @@ import {
   updatePasswordSchema,
 } from "@/lib/validation/schemas";
 import { mapResendEmailError } from "@/lib/auth-email-errors";
+import { checkEmailDomain } from "@/lib/email-check";
 
 function getBaseUrl(hdrs: Headers): string {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -41,6 +42,12 @@ export async function signUp(formData: FormData) {
 
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message || "Geçersiz giriş bilgileri." };
+  }
+
+  // E-posta alan adı gerçekten posta alabiliyor mu? (typo/temp-mail/MX kontrolü)
+  const emailCheck = await checkEmailDomain(parsed.data.email);
+  if (!emailCheck.ok) {
+    return { error: emailCheck.error };
   }
 
   const supabase = await createClient();
