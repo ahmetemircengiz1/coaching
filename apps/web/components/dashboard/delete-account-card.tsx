@@ -57,7 +57,7 @@ export function DeleteAccountCard({
 
   return (
     <>
-      <div className="rounded-xl border border-red-500/30 bg-red-500/[0.04]">
+      <div className="rounded-xl border border-red-500/30 bg-red-500/[0.04]" data-guide="delete-account-card">
         <div className="p-4">
           <div className="flex items-center gap-2.5">
             <AlertTriangle size={17} className="text-red-400" />

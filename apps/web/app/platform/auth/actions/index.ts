@@ -59,7 +59,9 @@ export async function signUp(formData: FormData) {
     password,
     options: {
       data: { name, role: "coach" },
-      emailRedirectTo: `${baseUrl}/platform/auth/callback?next=/platform/onboarding?tier=${tier}`,
+      // Doğrulama sekmesi kuruluma girmez; "doğrulandı, bu sekmeyi kapat" sayfasına
+      // düşer — asıl akış kaydın başladığı sekmede (polling) devam eder.
+      emailRedirectTo: `${baseUrl}/platform/auth/callback?next=/platform/auth/verified?tier=${tier}`,
     },
   });
 
@@ -105,7 +107,7 @@ export async function resendConfirmation(formData: FormData) {
     type: "signup",
     email: parsed.data.email,
     options: {
-      emailRedirectTo: `${baseUrl}/platform/auth/callback?next=/platform/onboarding`,
+      emailRedirectTo: `${baseUrl}/platform/auth/callback?next=/platform/auth/verified`,
     },
   });
 

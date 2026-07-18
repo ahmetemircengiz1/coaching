@@ -624,6 +624,7 @@ export default function NutritionPageClient({
           </Button>
           <Button
             onClick={() => { setShowCreate(!showCreate); if (showCreate) resetForm(); }}
+            data-guide="nutrition-create"
             style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
             className="font-semibold hover:opacity-90"
           >

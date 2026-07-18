@@ -19,7 +19,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/app/site/[domain]/auth/logout-action";
-import { TourButton } from "./onboarding-tour";
 
 type NavItem = {
   href: string;
@@ -212,11 +211,6 @@ export function SidebarNav({
           className={cn("space-y-1", collapsed ? "p-2" : "p-4")}
           style={{ borderTop: "1px solid var(--dashboard-sidebar-border)" }}
         >
-          {!collapsed && (
-            <div className="pb-1">
-              <TourButton />
-            </div>
-          )}
           {!collapsed && (
             <Link
               href={`/site/${domain}`}

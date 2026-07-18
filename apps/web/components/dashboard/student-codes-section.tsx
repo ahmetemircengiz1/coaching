@@ -111,7 +111,7 @@ export function StudentCodesSection({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-guide="students-codes">
       {/* ── Başlık + tek tık üret ── */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">

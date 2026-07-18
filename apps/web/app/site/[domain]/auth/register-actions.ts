@@ -115,7 +115,7 @@ export async function signUpStudentWithCode(
         phone: data.phone || null,
         pending_reg_code: data.code,
       },
-      emailRedirectTo: `${baseUrl}/site/${domain}/auth/callback?next=/site/${domain}/auth/complete`,
+      emailRedirectTo: `${baseUrl}/site/${domain}/auth/callback?next=/site/${domain}/auth/verified`,
     },
   });
 
@@ -298,7 +298,7 @@ export async function resendStudentConfirmation(
     type: "signup",
     email: email.toLowerCase(),
     options: {
-      emailRedirectTo: `${baseUrl}/site/${domain}/auth/callback?next=/site/${domain}/auth/complete`,
+      emailRedirectTo: `${baseUrl}/site/${domain}/auth/callback?next=/site/${domain}/auth/verified`,
     },
   });
 

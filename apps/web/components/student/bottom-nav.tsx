@@ -46,6 +46,7 @@ export function BottomNav({
               <Link
                 key={item.href}
                 href={fullHref}
+                data-guide={`student-nav${item.href.replace(/\//g, "-") || "-home"}`}
                 className={cn(
                   "flex flex-col items-center gap-1 px-1 py-1.5 rounded-xl text-[10px] transition-all duration-300 relative min-w-[50px] flex-1 hover:bg-white/5",
                   !isActive && "active:scale-95",

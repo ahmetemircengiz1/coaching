@@ -114,6 +114,7 @@ export default function ProgramsPageClient({
           </button>
           <Button
             onClick={() => setShowWizard(true)}
+            data-guide="programs-create"
             style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
             className="font-semibold hover:opacity-90"
           >

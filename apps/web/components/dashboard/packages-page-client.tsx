@@ -168,6 +168,7 @@ export default function PackagesPageClient({
         </div>
         {!isEditing && (
           <Button onClick={startCreate}
+            data-guide="packages-create"
             style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
             className="font-semibold hover:opacity-90">
             + Yeni Paket

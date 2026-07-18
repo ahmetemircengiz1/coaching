@@ -1,19 +1,22 @@
 "use client";
 
 /**
- * Sayfa rehberi sistemi.
+ * Sayfa rehberi sistemi — GÖSTEREREK anlatan spotlight turu.
  *
- * - PageGuide: her panel sayfasının üstünde duran ince rehber barı + o sayfanın
- *   detaylarını anlatan panel. Sayfalar arası gezen "tur" modu vardır: panel
- *   içindeki Önceki/Sonraki butonları dashboard'u da o sayfaya götürür ve panel
- *   yeni sayfada otomatik açık kalır. İlk girişte tur kendiliğinden başlar.
- * - GuideSettingsCard: Ayarlar'da yaşayan açılır/kapanır rehber ayarı — bar
+ * - PageGuide: her panel sayfasının üstünde ince rehber barı + o sayfayı adım
+ *   adım gezdiren spotlight turu. Her adım sayfadaki gerçek öğeyi (menü, buton,
+ *   bölüm) vurgular ve kısa açıklamayı yanına koyar; hedefi olmayan adımlar
+ *   ekran ortasında küçük bir kart olarak görünür. Sayfanın adımları bitince
+ *   İleri butonu dashboard'u da bir sonraki sayfaya taşır ve tur orada sürer.
+ *   İlk girişte tur kendiliğinden başlar.
+ * - GuideSettingsCard: Ayarlar'da açılır/kapanır rehber ayarı — bar
  *   kapatılabilir (tüm sayfalarda kalkar) ve tur yeniden başlatılabilir.
  *
  * Tercihler localStorage'da tutulur (cihaz bazlı).
  */
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
@@ -26,6 +29,7 @@ import {
   COACH_GUIDE_PAGES,
   STUDENT_GUIDE_PAGES,
   type GuidePageContent,
+  type GuideStep,
 } from "./page-guide-content";
 
 type GuideRole = "coach" | "student";
@@ -64,7 +68,7 @@ function findPageIndex(
   return best;
 }
 
-// ─── Sayfa üstü bar + rehber paneli ───
+// ─── Sayfa üstü bar + spotlight turu ───
 
 export function PageGuide({ role, domain }: { role: GuideRole; domain: string }) {
   const pathname = usePathname();
@@ -78,6 +82,7 @@ export function PageGuide({ role, domain }: { role: GuideRole; domain: string })
   const [barVisible, setBarVisible] = useState(true);
   const [open, setOpen] = useState(false);
   const [touring, setTouring] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -91,9 +96,10 @@ export function PageGuide({ role, domain }: { role: GuideRole; domain: string })
     };
   }, []);
 
-  // Tur devam ediyorsa yeni sayfada paneli otomatik aç; ilk girişte turu başlat.
+  // Tur devam ediyorsa yeni sayfada otomatik aç; ilk girişte turu başlat.
   useEffect(() => {
     if (!page) return;
+    setStepIndex(0);
     if (localStorage.getItem(tourKey(role)) === "1") {
       setTouring(true);
       setOpen(true);
@@ -108,17 +114,6 @@ export function PageGuide({ role, domain }: { role: GuideRole; domain: string })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, role]);
 
-  // ESC ile kapat
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closePanel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, touring]);
-
   if (!mounted || !page) return null;
 
   const endTour = () => {
@@ -126,23 +121,47 @@ export function PageGuide({ role, domain }: { role: GuideRole; domain: string })
     setTouring(false);
   };
 
-  const closePanel = () => {
-    // Panel kapatılınca tur da biter — yoksa her sayfa geçişinde yeniden açılırdı.
+  const closeGuide = () => {
+    // Kapatınca tur da biter — yoksa her sayfa geçişinde yeniden açılırdı.
     endTour();
     setOpen(false);
   };
 
-  const goTo = (index: number) => {
+  const goToPage = (index: number) => {
     const target = pages[index];
     if (!target) return;
-    // Tur modunu aç ki hedef sayfada panel otomatik açılsın.
     localStorage.setItem(tourKey(role), "1");
     setTouring(true);
     router.push(base + target.href);
   };
 
-  const prev = pageIndex > 0 ? pages[pageIndex - 1] : null;
-  const next = pageIndex < pages.length - 1 ? pages[pageIndex + 1] : null;
+  const step = page.steps[Math.min(stepIndex, page.steps.length - 1)];
+  const isLastStep = stepIndex >= page.steps.length - 1;
+  const isFirstStep = stepIndex === 0;
+  const nextPage = pageIndex < pages.length - 1 ? pages[pageIndex + 1] : null;
+  const prevPage = pageIndex > 0 ? pages[pageIndex - 1] : null;
+
+  const handleNext = () => {
+    if (!isLastStep) {
+      setStepIndex((s) => s + 1);
+      return;
+    }
+    if (touring && nextPage) {
+      goToPage(pageIndex + 1);
+      return;
+    }
+    closeGuide();
+  };
+
+  const handlePrev = () => {
+    if (!isFirstStep) {
+      setStepIndex((s) => s - 1);
+      return;
+    }
+    if (touring && prevPage) {
+      goToPage(pageIndex - 1);
+    }
+  };
 
   return (
     <>
@@ -159,134 +178,263 @@ export function PageGuide({ role, domain }: { role: GuideRole; domain: string })
             <span className="font-semibold" style={{ color: "var(--dashboard-main-text)" }}>
               Rehber
             </span>{" "}
-            — {page.label}: bu sayfada neler yapabileceğini öğren.
+            — {page.label}: bu sayfayı adım adım gezdireyim mi?
           </p>
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => { setStepIndex(0); setOpen(true); }}
             className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition hover:opacity-85"
             style={{
               backgroundColor: "var(--dashboard-accent)",
               color: "var(--dashboard-accent-text)",
             }}
           >
-            Rehberi Aç
+            Göster
           </button>
         </div>
       )}
 
-      {open && (
-        <div className="fixed inset-0 z-[9000] flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label="Rehberi kapat"
-            onClick={closePanel}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          />
-          <div
-            className="relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border shadow-2xl"
-            style={{
-              backgroundColor: "var(--dashboard-card-bg)",
-              borderColor: "var(--dashboard-card-border)",
-              color: "var(--dashboard-main-text)",
-            }}
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${page.label} rehberi`}
-          >
-            {/* Başlık */}
-            <div
-              className="flex items-start justify-between gap-4 border-b p-5"
-              style={{ borderColor: "var(--dashboard-card-border)" }}
-            >
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dashboard-accent)" }}>
-                  Rehber {touring && `· ${pageIndex + 1}/${pages.length}`}
-                </p>
-                <h2 className="mt-1 text-lg font-bold">{page.label}</h2>
-              </div>
-              <button
-                type="button"
-                onClick={closePanel}
-                className="rounded-lg p-1.5 transition hover:opacity-70"
-                style={{ color: "var(--dashboard-main-text-muted)" }}
-                aria-label="Kapat"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* İçerik */}
-            <div className="flex-1 space-y-5 overflow-y-auto p-5">
-              <p className="text-sm leading-relaxed" style={{ color: "var(--dashboard-main-text-muted)" }}>
-                {page.intro}
-              </p>
-              {page.sections.map((section) => (
-                <div key={section.title}>
-                  <h3 className="mb-2 text-sm font-semibold">{section.title}</h3>
-                  <ul className="space-y-1.5">
-                    {section.items.map((item, i) => (
-                      <li key={i} className="flex gap-2 text-sm leading-relaxed" style={{ color: "var(--dashboard-main-text-muted)" }}>
-                        <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "var(--dashboard-accent)" }} />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-
-            {/* Alt gezinme */}
-            <div
-              className="flex items-center justify-between gap-2 border-t p-4"
-              style={{ borderColor: "var(--dashboard-card-border)" }}
-            >
-              {prev ? (
-                <button
-                  type="button"
-                  onClick={() => goTo(pageIndex - 1)}
-                  className="flex min-w-0 items-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium transition hover:opacity-80"
-                  style={{ borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text)" }}
-                >
-                  <ChevronLeft size={14} className="shrink-0" />
-                  <span className="truncate">{prev.label}</span>
-                </button>
-              ) : (
-                <span />
-              )}
-              <button
-                type="button"
-                onClick={closePanel}
-                className="shrink-0 text-xs transition hover:opacity-70"
-                style={{ color: "var(--dashboard-main-text-muted)" }}
-              >
-                {touring ? "Turu bitir" : "Kapat"}
-              </button>
-              {next ? (
-                <button
-                  type="button"
-                  onClick={() => goTo(pageIndex + 1)}
-                  className="flex min-w-0 items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold transition hover:opacity-85"
-                  style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
-                >
-                  <span className="truncate">{next.label}</span>
-                  <ChevronRight size={14} className="shrink-0" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={closePanel}
-                  className="shrink-0 rounded-lg px-4 py-2 text-xs font-semibold transition hover:opacity-85"
-                  style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
-                >
-                  Bitir
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+      {open && step && (
+        <SpotlightStep
+          key={`${pageIndex}-${stepIndex}`}
+          step={step}
+          pageLabel={page.label}
+          pagePos={touring ? `${pageIndex + 1}/${pages.length}` : null}
+          stepPos={`${Math.min(stepIndex, page.steps.length - 1) + 1}/${page.steps.length}`}
+          canPrev={!isFirstStep || (touring && !!prevPage)}
+          prevLabel={!isFirstStep ? "Geri" : prevPage ? prevPage.label : "Geri"}
+          nextLabel={
+            !isLastStep
+              ? "İleri"
+              : touring && nextPage
+                ? `Sıradaki: ${nextPage.label}`
+                : "Bitir"
+          }
+          onPrev={handlePrev}
+          onNext={handleNext}
+          onClose={closeGuide}
+          touring={touring}
+        />
       )}
     </>
+  );
+}
+
+// ─── Tek adımın spotlight + balon görünümü ───
+
+function SpotlightStep({
+  step,
+  pageLabel,
+  pagePos,
+  stepPos,
+  canPrev,
+  prevLabel,
+  nextLabel,
+  onPrev,
+  onNext,
+  onClose,
+  touring,
+}: {
+  step: GuideStep;
+  pageLabel: string;
+  pagePos: string | null;
+  stepPos: string;
+  canPrev: boolean;
+  prevLabel: string;
+  nextLabel: string;
+  onPrev: () => void;
+  onNext: () => void;
+  onClose: () => void;
+  touring: boolean;
+}) {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const [ready, setReady] = useState(false);
+
+  // Hedef öğeyi bul, gerekiyorsa tıklayıp aç, görünür yap ve konumunu izle
+  useEffect(() => {
+    let cancelled = false;
+
+    // Adım bir grup/akordiyon açacaksa önce tıkla (zaten açıksa dokunma)
+    const clickSel = step.clickTarget || (step.click ? step.target : null);
+    if (clickSel) {
+      const clickEl = document.querySelector(clickSel) as HTMLElement | null;
+      if (clickEl && clickEl.getAttribute("aria-expanded") !== "true") {
+        clickEl.click();
+      }
+    }
+
+    // Tıklamanın açtığı içeriğin render olması için ufak gecikmeyle ölç
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      const el = step.target ? document.querySelector(step.target) : null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => {
+          if (!cancelled) {
+            setRect(el.getBoundingClientRect());
+            setReady(true);
+          }
+        }, 350);
+      } else {
+        // Hedefsiz adım: sayfanın başı görünür olsun (bar + içerik)
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setRect(null);
+        setReady(true);
+      }
+    }, clickSel ? 250 : 0);
+
+    const update = () => {
+      const current = step.target ? document.querySelector(step.target) : null;
+      if (current) setRect(current.getBoundingClientRect());
+    };
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [step.target, step.click, step.clickTarget]);
+
+  // Klavye: ESC kapat, ok/Enter ilerle
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight" || e.key === "Enter") onNext();
+      if (e.key === "ArrowLeft") onPrev();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, onNext, onPrev]);
+
+  if (!ready) return null;
+
+  const pad = 6;
+  const hasTarget = !!rect;
+
+  // Balon konumu: hedef varsa altına (sığmazsa üstüne), yatayda ekrana kıstır
+  const CARD_W = 340;
+  const cardStyle: React.CSSProperties = { position: "fixed", zIndex: 10002, width: CARD_W, maxWidth: "calc(100vw - 24px)" };
+  if (hasTarget && rect) {
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const left = Math.min(Math.max(12, rect.left), Math.max(12, window.innerWidth - CARD_W - 12));
+    cardStyle.left = left;
+    if (spaceBelow > 240) {
+      cardStyle.top = rect.bottom + pad + 14;
+    } else {
+      cardStyle.bottom = window.innerHeight - rect.top + pad + 14;
+    }
+  } else {
+    cardStyle.left = "50%";
+    cardStyle.top = "50%";
+    cardStyle.transform = "translate(-50%, -50%)";
+  }
+
+  return createPortal(
+    <>
+      {/* Karartma */}
+      <div
+        className="fixed inset-0 z-[10000] transition-opacity duration-300"
+        style={{ backgroundColor: "rgba(0,0,0,0.62)" }}
+        onClick={onClose}
+      />
+
+      {/* Spotlight halkası */}
+      {hasTarget && rect && (
+        <div
+          className="pointer-events-none fixed z-[10001] rounded-xl transition-all duration-300"
+          style={{
+            top: rect.top - pad,
+            left: rect.left - pad,
+            width: rect.width + pad * 2,
+            height: rect.height + pad * 2,
+            boxShadow:
+              "0 0 0 3px var(--dashboard-accent, #ccff00), 0 0 0 9999px rgba(0,0,0,0.62), 0 0 28px rgba(0,0,0,0.4)",
+          }}
+        />
+      )}
+
+      {/* Açıklama balonu */}
+      <div
+        className="animate-fade-in rounded-2xl border p-5 shadow-2xl"
+        style={{
+          ...cardStyle,
+          backgroundColor: "var(--dashboard-card-bg, #1a1a2e)",
+          borderColor: "var(--dashboard-card-border, rgba(255,255,255,0.1))",
+          color: "var(--dashboard-main-text, #fff)",
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${pageLabel} rehberi`}
+      >
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dashboard-accent)" }}>
+            {pageLabel}
+            {pagePos && <span className="ml-1.5 opacity-70">· Sayfa {pagePos}</span>}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 transition hover:opacity-70"
+            style={{ color: "var(--dashboard-main-text-muted)" }}
+            aria-label="Kapat"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        <h3 className="text-base font-bold">{step.title}</h3>
+        <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--dashboard-main-text-muted)" }}>
+          {step.text}
+        </p>
+
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <span className="shrink-0 text-[11px]" style={{ color: "var(--dashboard-main-text-muted)" }}>
+            {stepPos}
+          </span>
+          <div className="flex min-w-0 items-center gap-2">
+            {touring && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="shrink-0 text-[11px] transition hover:opacity-70"
+                style={{ color: "var(--dashboard-main-text-muted)" }}
+              >
+                Turu bitir
+              </button>
+            )}
+            {canPrev && (
+              <button
+                type="button"
+                onClick={onPrev}
+                className="flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition hover:opacity-80"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--dashboard-main-text) 10%, transparent)",
+                  color: "var(--dashboard-main-text)",
+                }}
+              >
+                <ChevronLeft size={13} />
+                {prevLabel}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onNext}
+              className="flex min-w-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold transition hover:opacity-85"
+              style={{
+                backgroundColor: "var(--dashboard-accent, #ccff00)",
+                color: "var(--dashboard-accent-text, #000)",
+              }}
+            >
+              <span className="truncate">{nextLabel}</span>
+              <ChevronRight size={13} className="shrink-0" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </>,
+    document.body
   );
 }
 
@@ -316,6 +464,7 @@ export function GuideSettingsCard({ role, domain }: { role: GuideRole; domain: s
   return (
     <div
       className="rounded-xl border"
+      data-guide="guide-settings-card"
       style={{
         backgroundColor: "var(--dashboard-card-bg)",
         borderColor: "var(--dashboard-card-border)",
@@ -345,7 +494,7 @@ export function GuideSettingsCard({ role, domain }: { role: GuideRole; domain: s
             <div>
               <p className="text-sm font-medium">Sayfa üstü rehber barı</p>
               <p className="mt-0.5 text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>
-                Açıkken her sayfanın üstünde o sayfanın rehberine açılan bar görünür.
+                Açıkken her sayfanın üstünde o sayfanın rehberini başlatan bar görünür.
                 Kapatınca tüm sayfalardan kalkar.
               </p>
             </div>

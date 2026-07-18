@@ -687,7 +687,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Masaüstü: dikey nav (lg+) */}
-        <nav className="hidden lg:block rounded-xl border p-1 space-y-0.5 lg:sticky lg:top-4" style={{ borderColor: "var(--dashboard-card-border)", backgroundColor: "var(--dashboard-card-bg)" }}>
+        <nav data-guide="settings-groups" className="hidden lg:block rounded-xl border p-1 space-y-0.5 lg:sticky lg:top-4" style={{ borderColor: "var(--dashboard-card-border)", backgroundColor: "var(--dashboard-card-bg)" }}>
           {SETTINGS_GROUPS.map(({ id, label, Icon }) => {
             const active = activeGroup === id;
             return (
@@ -695,6 +695,7 @@ export default function SettingsPage() {
                 key={id}
                 type="button"
                 onClick={() => setActiveGroup(id)}
+                data-guide={`settings-group-${id}`}
                 className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition text-left"
                 style={{
                   backgroundColor: active ? "var(--dashboard-accent)" : "transparent",

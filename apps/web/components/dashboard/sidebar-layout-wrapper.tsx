@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SidebarNav } from "./sidebar-nav";
-import { TourProvider } from "./onboarding-tour";
 
 const STORAGE_KEY = "sidebar-collapsed";
 
@@ -53,7 +52,7 @@ export function CoachSidebarLayoutWrapper({
       : "pl-0 lg:pl-0 pr-2 lg:pr-4";
 
   return (
-    <TourProvider>
+    <>
       <SidebarNav
         domain={domain}
         coachName={coachName}
@@ -67,6 +66,6 @@ export function CoachSidebarLayoutWrapper({
       >
         {children}
       </div>
-    </TourProvider>
+    </>
   );
 }

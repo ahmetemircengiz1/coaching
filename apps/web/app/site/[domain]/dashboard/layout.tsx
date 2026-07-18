@@ -2,7 +2,6 @@ import { CoachSidebarLayoutWrapper } from "@/components/dashboard/sidebar-layout
 import { CoachBottomNav } from "@/components/dashboard/coach-bottom-nav";
 import { PageGuide } from "@/components/dashboard/page-guide";
 import { DashboardThemeProvider } from "@/src/components/DashboardThemeProvider";
-import { BottomNavTourWrapper, BottomNavTourButton } from "@/components/dashboard/bottom-nav-tour-wrapper";
 import {
   getDashboardTheme,
   resolveDashboardThemeId,
@@ -47,7 +46,6 @@ export default async function DashboardLayout({
   if (navPosition === "bottom") {
     return (
       <DashboardThemeProvider theme={selectedTheme}>
-        <BottomNavTourWrapper>
         <div
           className="min-h-screen"
           style={{
@@ -66,7 +64,6 @@ export default async function DashboardLayout({
               {coach.brandName}
             </span>
             <div className="flex items-center gap-2">
-              <BottomNavTourButton />
               <a
                 href={`/site/${domain}`}
                 target="_blank"
@@ -104,7 +101,6 @@ export default async function DashboardLayout({
           </main>
           <CoachBottomNav domain={domain} />
         </div>
-        </BottomNavTourWrapper>
       </DashboardThemeProvider>
     );
   }

@@ -143,6 +143,7 @@ export default function ExercisesPageClient({
             setEditExercise(null);
             setShowModal(true);
           }}
+          data-guide="exercises-create"
           style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
           className="font-semibold hover:opacity-90"
         >
