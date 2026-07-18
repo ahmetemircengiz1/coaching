@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { prepareImageForUpload } from "@/lib/client-image";
 
 interface FileUploadProps {
   bucket: "logos" | "hero-images" | "transformations" | "checkins" | "avatars";
@@ -39,9 +40,9 @@ export default function FileUpload({
         return;
       }
 
-      // Boyut kontrolü (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError("Maks. 5MB");
+      // Boyut kontrolü — büyükler tarayıcıda sıkıştırılır, uç durumları reddet
+      if (file.size > 30 * 1024 * 1024) {
+        setError("Maks. 30MB");
         return;
       }
 
@@ -50,11 +51,13 @@ export default function FileUpload({
       reader.onload = (e) => setPreview(e.target?.result as string);
       reader.readAsDataURL(file);
 
-      // Yükleme
+      // Yükleme — Vercel 4.5MB istek limitine sığması için büyük fotoğraflar
+      // önce tarayıcıda küçültülüp sıkıştırılır (görünür kalite kaybı olmaz)
       setUploading(true);
       try {
+        const prepared = await prepareImageForUpload(file);
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", prepared);
         formData.append("bucket", bucket);
 
         const res = await fetch("/api/upload", {
@@ -151,7 +154,7 @@ export default function FileUpload({
             </svg>
             <span className="text-xs font-semibold">{uploading ? "Yükleniyor..." : label}</span>
             <span className="text-[10px] sm:text-xs mt-1 opacity-70">
-              JPEG, PNG, WebP (maks. 5MB)
+              JPEG, PNG, WebP (maks. 30MB)
             </span>
           </div>
         )}

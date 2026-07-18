@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateCoachSettings } from "../actions";
 import { notifyPreviewRefresh } from "@/src/lib/preview-bus";
+import { createClient } from "@/lib/supabase/client";
 
 interface HeroVideoSettingsProps {
   domain: string;
@@ -46,18 +47,28 @@ export function HeroVideoSettings({ domain, initialHeroVideoUrl }: HeroVideoSett
       }
       setUploading(true);
       try {
-        const formData = new FormData();
-        formData.append("file", file);
+        // 1) Sunucudan imzalı yükleme adresi al (dosya Vercel'e gitmez —
+        //    4.5MB istek limitine takılmadan doğrudan Supabase'e yüklenir)
         const res = await fetch("/api/upload/hero-video", {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contentType: file.type, size: file.size }),
         });
-        if (!res.ok) {
-          const data = await res.json();
+        const data = await res.json();
+        if (!res.ok || !data.path || !data.token) {
           throw new Error(data.error || "Yükleme başarısız");
         }
-        const data = await res.json();
-        const next = data.heroVideoUrl || "";
+
+        // 2) Videoyu doğrudan Supabase Storage'a yükle
+        const supabase = createClient();
+        const { error: uploadError } = await supabase.storage
+          .from("hero-videos")
+          .uploadToSignedUrl(data.path, data.token, file, { contentType: file.type });
+        if (uploadError) {
+          throw new Error("Video yüklenemedi. Lütfen tekrar deneyin.");
+        }
+
+        const next = data.publicUrl || "";
         setVideoUrl(next);
         const ok = await persist(next || null);
         if (ok) toast.success("Video yüklendi!");

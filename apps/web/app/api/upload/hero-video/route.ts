@@ -1,11 +1,8 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import {
-  STORAGE_BUCKETS,
-  ensureBucket,
-  uploadFile,
-} from "@/lib/supabase/storage";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { STORAGE_BUCKETS, ensureBucket } from "@/lib/supabase/storage";
 import {
   checkRateLimitAsync,
   rateLimitResponse,
@@ -15,6 +12,9 @@ import {
 
 export const runtime = "nodejs";
 
+// Vercel'in 4.5MB istek limiti yüzünden video DOSYASI buraya gelmez:
+// bu uç yalnızca imzalı yükleme adresi üretir, istemci videoyu doğrudan
+// Supabase Storage'a yükler (limitten etkilenmez).
 const MAX_HERO_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB
 const ALLOWED_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 
@@ -39,21 +39,20 @@ export async function POST(request: NextRequest) {
     const blocked = rateLimitResponse(rl);
     if (blocked) return blocked;
 
-    const formData = await request.formData();
-    const file = formData.get("file");
+    const body = (await request.json().catch(() => null)) as
+      | { contentType?: string; size?: number }
+      | null;
+    const contentType = body?.contentType || "";
+    const size = Number(body?.size) || 0;
 
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Dosya gerekli" }, { status: 400 });
-    }
-
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!ALLOWED_TYPES.includes(contentType)) {
       return NextResponse.json(
         { error: "Sadece MP4, WebM veya MOV video yüklenebilir" },
         { status: 400 }
       );
     }
 
-    if (file.size > MAX_HERO_VIDEO_BYTES) {
+    if (size <= 0 || size > MAX_HERO_VIDEO_BYTES) {
       return NextResponse.json(
         { error: "Video boyutu 50MB'dan büyük olamaz" },
         { status: 400 }
@@ -65,17 +64,31 @@ export async function POST(request: NextRequest) {
       allowedMimeTypes: ALLOWED_TYPES,
     });
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const ext = extensionFromMimeType(file.type);
+    const ext = extensionFromMimeType(contentType);
     const path = `${user.id}/hero/${randomUUID()}.${ext}`;
-    const url = await uploadFile(
-      STORAGE_BUCKETS.heroVideos,
-      path,
-      buffer,
-      file.type
-    );
 
-    return NextResponse.json({ url, heroVideoUrl: url });
+    const admin = createAdminClient();
+    const { data, error } = await admin.storage
+      .from(STORAGE_BUCKETS.heroVideos)
+      .createSignedUploadUrl(path);
+
+    if (error || !data) {
+      console.error("Hero video sign error:", error);
+      return NextResponse.json(
+        { error: "Yükleme adresi oluşturulamadı. Lütfen tekrar deneyin." },
+        { status: 500 }
+      );
+    }
+
+    const { data: pub } = admin.storage
+      .from(STORAGE_BUCKETS.heroVideos)
+      .getPublicUrl(path);
+
+    return NextResponse.json({
+      path,
+      token: data.token,
+      publicUrl: pub.publicUrl,
+    });
   } catch (err) {
     console.error("Hero video upload error:", err);
     return NextResponse.json(
