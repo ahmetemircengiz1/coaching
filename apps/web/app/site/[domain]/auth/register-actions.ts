@@ -6,6 +6,7 @@ import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { checkRateLimitAsync, AUTH_LIMIT, getClientIp } from "@/lib/rate-limit";
 import { studentSignupSchema } from "@/lib/validation/schemas";
+import { mapResendEmailError } from "@/lib/auth-email-errors";
 
 type SignupInput = {
   email: string;
@@ -271,7 +272,7 @@ export async function finalizeStudentSignup(
 export async function resendStudentConfirmation(
   domain: string,
   email: string
-): Promise<{ success: true } | { error: string }> {
+): Promise<{ success: true } | { error: string; retryAfter?: number }> {
   const hdrs = await headers();
   const ip = getClientIp(hdrs);
   const rl = await checkRateLimitAsync(`regcode:resend:${ip}`, AUTH_LIMIT);
@@ -295,7 +296,7 @@ export async function resendStudentConfirmation(
   });
 
   if (error) {
-    return { error: "Onay e-postası gönderilemedi. Lütfen tekrar deneyin." };
+    return mapResendEmailError(error);
   }
   return { success: true };
 }

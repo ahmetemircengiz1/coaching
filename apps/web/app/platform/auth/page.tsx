@@ -40,6 +40,15 @@ function AuthPageContent() {
   const [emailSentTo, setEmailSentTo] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  // Supabase aynı adrese ~60 sn'de bir e-posta gönderilmesine izin verir;
+  // butonu geri sayımla kilitleyip kullanıcının boşa denemesini önlüyoruz.
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   const handleSignIn = async (formData: FormData) => {
     if (isPending) return;
@@ -83,6 +92,7 @@ function AuthPageContent() {
         setIsPending(false);
       } else if (result && "emailSent" in result && result.emailSent) {
         setEmailSentTo(result.email || null);
+        setResendCooldown(60); // az önce bir e-posta gönderildi
         setIsPending(false);
       }
     } catch (err) {
@@ -93,7 +103,9 @@ function AuthPageContent() {
   };
 
   const handleResend = async () => {
-    if (!emailSentTo || isPending) return;
+    if (!emailSentTo || isPending || resendCooldown > 0) return;
+    setError("");
+    setNotice("");
     setIsPending(true);
     try {
       const fd = new FormData();
@@ -101,8 +113,12 @@ function AuthPageContent() {
       const result = await resendConfirmation(fd);
       if (result && "error" in result) {
         setError(result.error || "Bir hata oluştu.");
+        if ("retryAfter" in result && typeof result.retryAfter === "number") {
+          setResendCooldown(result.retryAfter);
+        }
       } else {
-        setNotice("Onay e-postası tekrar gönderildi.");
+        setNotice("Onay e-postası tekrar gönderildi. Gelen kutunu (ve spam klasörünü) kontrol et.");
+        setResendCooldown(60);
       }
     } catch (err) {
       console.error("[handleResend]", err);
@@ -164,10 +180,14 @@ function AuthPageContent() {
             <button
               type="button"
               onClick={handleResend}
-              disabled={isPending}
+              disabled={isPending || resendCooldown > 0}
               className="w-full h-12 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-sm text-[#3d6fd1] font-semibold transition-all hover:bg-white/[0.08] disabled:opacity-50"
             >
-              {isPending ? "Gönderiliyor..." : "E-postayı tekrar gönder"}
+              {isPending
+                ? "Gönderiliyor..."
+                : resendCooldown > 0
+                  ? `Tekrar gönderebilmek için ${resendCooldown} sn`
+                  : "E-postayı tekrar gönder"}
             </button>
             <div>
               <button

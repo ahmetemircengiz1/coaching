@@ -11,6 +11,7 @@ import {
   resetPasswordSchema,
   updatePasswordSchema,
 } from "@/lib/validation/schemas";
+import { mapResendEmailError } from "@/lib/auth-email-errors";
 
 function getBaseUrl(hdrs: Headers): string {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -102,7 +103,7 @@ export async function resendConfirmation(formData: FormData) {
   });
 
   if (error) {
-    return { error: "Onay e-postası gönderilemedi. Lütfen tekrar deneyin." };
+    return mapResendEmailError(error);
   }
   return { success: true };
 }

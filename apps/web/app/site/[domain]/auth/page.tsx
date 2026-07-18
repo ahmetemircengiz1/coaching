@@ -138,6 +138,15 @@ export default function CoachSiteAuthPage() {
   const [error, setError] = useState("");
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [resendNotice, setResendNotice] = useState("");
+  // Supabase aynı adrese ~60 sn'de bir e-posta gönderilmesine izin verir;
+  // butonu geri sayımla kilitleyip boşa denemeyi önlüyoruz.
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
   const [coachBrand, setCoachBrand] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [themeId, setThemeId] = useState(1);
@@ -248,6 +257,7 @@ export default function CoachSiteAuthPage() {
       if (result.needsConfirmation) {
         // E-posta doğrulama açık → linke tıklanana kadar hesap askıda
         setPendingEmail(result.email);
+        setResendCooldown(60); // az önce bir e-posta gönderildi
         setLoading(false);
         return;
       }
@@ -455,21 +465,30 @@ export default function CoachSiteAuthPage() {
               )}
               <Button
                 type="button"
-                disabled={loading}
+                disabled={loading || resendCooldown > 0}
                 onClick={async () => {
-                  if (!pendingEmail || loading) return;
+                  if (!pendingEmail || loading || resendCooldown > 0) return;
                   setLoading(true);
                   setError("");
                   setResendNotice("");
                   const r = await resendStudentConfirmation(domain, pendingEmail);
-                  if ("error" in r) setError(r.error);
-                  else setResendNotice("Doğrulama e-postası tekrar gönderildi.");
+                  if ("error" in r) {
+                    setError(r.error);
+                    if (typeof r.retryAfter === "number") setResendCooldown(r.retryAfter);
+                  } else {
+                    setResendNotice("Doğrulama e-postası tekrar gönderildi. Gelen kutunu (ve spam klasörünü) kontrol et.");
+                    setResendCooldown(60);
+                  }
                   setLoading(false);
                 }}
                 className="w-full h-11 font-semibold transition hover:opacity-90"
                 style={{ backgroundColor: t.accent, color: t.accentText }}
               >
-                {loading ? "Gönderiliyor..." : "E-postayı tekrar gönder"}
+                {loading
+                  ? "Gönderiliyor..."
+                  : resendCooldown > 0
+                    ? `Tekrar gönderebilmek için ${resendCooldown} sn`
+                    : "E-postayı tekrar gönder"}
               </Button>
               <button
                 type="button"
