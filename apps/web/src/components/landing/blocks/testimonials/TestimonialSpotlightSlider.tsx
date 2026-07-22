@@ -39,7 +39,8 @@ export function TestimonialSpotlightSlider({ content, config }: Props) {
 
   return (
     <section className="px-6 py-24 sm:py-32" style={{ backgroundColor: bg }}>
-      <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2 md:gap-16">
+      {/* Sol metin dar, kart geniş — yorum metnine ferah alan bırakır */}
+      <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-[0.8fr_1.2fr] md:gap-14">
         {/* Sol: sabit metin + oklar */}
         <div>
           <span
@@ -97,7 +98,7 @@ export function TestimonialSpotlightSlider({ content, config }: Props) {
           className="overflow-hidden rounded-3xl border"
           style={{ background: card, borderColor: border }}
         >
-          <div className="grid sm:grid-cols-[0.85fr_1fr]">
+          <div className="grid sm:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
             {/* Fotoğraf */}
             <div
               className="relative"
@@ -120,9 +121,9 @@ export function TestimonialSpotlightSlider({ content, config }: Props) {
               )}
             </div>
             {/* Metin */}
-            <div className="flex flex-col p-7">
+            <div className="flex flex-col p-7 sm:p-9">
               <p
-                className="text-lg leading-relaxed"
+                className="text-base leading-relaxed sm:text-lg"
                 style={{ color: `${text}cc` }}
               >
                 &ldquo;{t.quote}&rdquo;

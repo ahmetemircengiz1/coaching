@@ -5,6 +5,7 @@ import { Plus, Quote, ArrowUpRight } from "lucide-react";
 import type { LandingThemeContent } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
 import { scrollToContactSection } from "../navbar/nav-helpers";
+import { resolveAboutStats } from "./about-helpers";
 
 interface EliteProps {
   content: LandingThemeContent;
@@ -34,20 +35,11 @@ export function AboutProgrex({ content, config: _config }: EliteProps) {
   const quote =
     texts?.aboutBio1 ||
     "Bireylere güç kazandırmaya, vücut kompozisyonlarını iyileştirmeye ve net, yapılandırılmış bir yaklaşımla istikrarlı kalmalarına yardımcı oluyorum. Koçluğum; gerçek, sürdürülebilir sonuç isteyenler için tasarlandı.";
-  const stats = [
-    {
-      v: texts?.aboutStat1Value || "120+",
-      l: texts?.aboutStat1Label || "Eğittiğim Danışan",
-    },
-    {
-      v: texts?.aboutStat2Value || "5+",
-      l: texts?.aboutStat2Label || "Yıl Tecrübe",
-    },
-    {
-      v: texts?.aboutStat3Value || "250+",
-      l: texts?.aboutStat3Label || "Teslim Edilen Program",
-    },
-  ];
+  const stats = resolveAboutStats(texts, [
+    { v: "120+", l: "Eğittiğim Danışan" },
+    { v: "5+", l: "Yıl Tecrübe" },
+    { v: "250+", l: "Teslim Edilen Program" },
+  ]);
 
   return (
     <section
@@ -104,14 +96,19 @@ export function AboutProgrex({ content, config: _config }: EliteProps) {
         </div>
 
         {/* İstatistik kartları */}
-        <div className="mt-6 grid gap-6 sm:grid-cols-3">
-          {stats.map((s, i) => (
-            <div key={i} className="rounded-xl bg-white p-7 sm:p-9">
-              <div className="text-4xl font-bold sm:text-5xl">{s.v}</div>
-              <div className="mt-2 text-sm text-black/55">{s.l}</div>
-            </div>
-          ))}
-        </div>
+        {stats.length > 0 && (
+          <div
+            className="mt-6 grid gap-6"
+            style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 3)}, minmax(0, 1fr))` }}
+          >
+            {stats.map((s, i) => (
+              <div key={i} className="rounded-xl bg-white p-7 sm:p-9">
+                <div className="text-4xl font-bold sm:text-5xl">{s.v}</div>
+                <div className="mt-2 text-sm text-black/55">{s.l}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

@@ -66,6 +66,14 @@ export interface LandingTexts {
   heroHeadlineBgColor?: string;
   heroSubtitleBgColor?: string;
   heroTextWeight?: string;
+  /** Hero CTA hedefleri — "auth" | "packages" | "about" | "contact" (boş = blok varsayılanı) */
+  ctaPrimaryTarget?: string;
+  ctaSecondaryTarget?: string;
+  /** Hero güven rozeti (Sinema İtalik / Big Display) — değer + etiket, "1" = gizli */
+  heroTrustValue?: string;
+  heroTrustLabel?: string;
+  heroRatingValue?: string;
+  heroTrustHidden?: string;
   // Stats
   stat1Label?: string;
   stat2Label?: string;
@@ -131,6 +139,11 @@ export interface LandingTexts {
   aboutBadge1Subtitle?: string;
   aboutBadge2Title?: string;
   aboutBadge2Subtitle?: string;
+  /** "1" ise Hakkımda istatistikleri hiç gösterilmez */
+  aboutStatsHidden?: string;
+  /** Gymix/Fitence sosyal kanıt satırı — metin + "1" = satır gizli */
+  aboutReviewText?: string;
+  aboutRatingHidden?: string;
 }
 
 export function getTextEffectStyle(effect?: TextEffect, color?: string): React.CSSProperties {

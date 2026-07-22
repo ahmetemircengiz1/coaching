@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import type { LandingThemeContent } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
+import { getCtaProps } from "../cta-helpers";
 
 /**
  * HeroSplitAccent — Gymone esinli (iyileştirilmiş).
@@ -31,7 +34,8 @@ export function HeroSplitAccent({
     "Profesyonel kişisel antrenmanla en iyi formuna kavuş. Vücudunu yeniden inşa et.";
   const ctaPrimary = texts?.ctaPrimaryText || "Başla";
   const ctaSecondary = texts?.ctaSecondaryText || "Programları İncele";
-  const topBadge = "Online Kişisel Antrenör";
+  const ctaPrimaryProps = getCtaProps(content, texts?.ctaPrimaryTarget, "auth");
+  const ctaSecondaryProps = getCtaProps(content, texts?.ctaSecondaryTarget, "packages");
 
   const heroImage = content.heroImageDesktopUrl || content.heroImageOriginalUrl || null;
   const heroVideo = content.heroVideoUrl || null;
@@ -48,22 +52,6 @@ export function HeroSplitAccent({
       {/* SOL: Metin tarafı */}
       <div className="relative z-10 flex items-center px-6 lg:px-12 py-20 lg:py-12">
         <div className="w-full max-w-xl space-y-8">
-          {/* Top pill badge */}
-          <div className="animate-[fadeInLeft_0.7s_ease_0.1s_both]">
-            <span
-              className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-widest"
-              style={{
-                color: accent,
-                border: `1px solid ${accent}40`,
-                borderRadius: "2px",
-              }}
-            >
-              <span>[</span>
-              <span>{topBadge}</span>
-              <span>]</span>
-            </span>
-          </div>
-
           {/* Headline */}
           <h1
             className="font-black uppercase text-white leading-[0.95] tracking-tight animate-[fadeInLeft_0.8s_ease_0.2s_both]"
@@ -96,7 +84,7 @@ export function HeroSplitAccent({
           {/* CTAs */}
           <div className="flex gap-3 flex-wrap pt-2 animate-[fadeInLeft_1s_ease_0.6s_both]">
             <a
-              href={content.authUrl}
+              {...ctaPrimaryProps}
               className="inline-flex items-center gap-2 px-8 py-4 font-bold text-sm uppercase tracking-wider transition-all hover:scale-[1.03]"
               style={{
                 backgroundColor: "#000",
@@ -109,9 +97,14 @@ export function HeroSplitAccent({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </a>
-            <span className="inline-flex items-center px-4 py-4 text-xs font-bold uppercase tracking-widest text-white/50">
-              {ctaSecondary}
-            </span>
+            {ctaSecondary && (
+              <a
+                {...ctaSecondaryProps}
+                className="inline-flex items-center px-4 py-4 text-xs font-bold uppercase tracking-widest text-white/50 transition-colors hover:text-white"
+              >
+                {ctaSecondary}
+              </a>
+            )}
           </div>
         </div>
       </div>

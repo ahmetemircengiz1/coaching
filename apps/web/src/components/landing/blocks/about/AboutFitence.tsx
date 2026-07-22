@@ -5,6 +5,7 @@ import { Dumbbell, ArrowRight, Star } from "lucide-react";
 import type { LandingThemeContent } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
 import { scrollToCategory } from "../navbar/nav-helpers";
+import { resolveAboutStats } from "./about-helpers";
 
 interface EliteProps {
   content: LandingThemeContent;
@@ -27,18 +28,12 @@ export function AboutFitence({ content, config }: EliteProps) {
     texts?.aboutTitleAccent || "Güven, Tutku & Ömür Boyu Sağlık.";
   const image = texts?.aboutImage;
   const image2 = texts?.aboutImage2;
-  const stat1 = {
-    v: texts?.aboutStat1Value || "15K+",
-    l:
-      texts?.aboutStat1Label ||
-      "Tamamlanan antrenman seansı. Her gün gerçek koçluk, gerçek ilerleme.",
-  };
-  const stat2 = {
-    v: texts?.aboutStat2Value || "98%",
-    l:
-      texts?.aboutStat2Label ||
-      "Üyelerimiz destekleyici ortamımızı ve koçluk kalitemizi takdir ediyor.",
-  };
+  const stats = resolveAboutStats(texts, [
+    { v: "15K+", l: "Tamamlanan antrenman seansı. Her gün gerçek koçluk, gerçek ilerleme." },
+    { v: "98%", l: "Üyelerimiz destekleyici ortamımızı ve koçluk kalitemizi takdir ediyor." },
+  ]);
+  const ratingHidden = texts?.aboutRatingHidden === "1";
+  const reviewText = texts?.aboutReviewText || "500+ üye yorumu";
   const bio =
     texts?.aboutBio1 ||
     "Fitness'ın sadece antrenmandan ibaret olmadığına; güven, tutku ve sağlık inşa etmek olduğuna inanıyoruz. Yolculuğuna başlamak ya da bir üst seviyeye taşımak isteyen herkesin yanındayız.";
@@ -80,8 +75,9 @@ export function AboutFitence({ content, config }: EliteProps) {
 
           {/* Center */}
           <div className="space-y-7">
-            <StatRow value={stat1.v} label={stat1.l} />
-            <StatRow value={stat2.v} label={stat2.l} />
+            {stats.map((s, i) => (
+              <StatRow key={i} value={s.v} label={s.l} />
+            ))}
             <p className="text-sm leading-relaxed text-white/70 sm:text-base">{bio}</p>
             <div className="flex flex-wrap items-center gap-5">
               <button
@@ -93,21 +89,23 @@ export function AboutFitence({ content, config }: EliteProps) {
                   <ArrowRight className="h-4 w-4" />
                 </span>
               </button>
-              <div className="flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-rose-400 to-rose-200" />
-                  <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-amber-400 to-amber-200" />
-                  <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-emerald-400 to-emerald-200" />
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex text-amber-400">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="h-3 w-3 fill-current" />
-                    ))}
+              {!ratingHidden && (
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-2">
+                    <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-rose-400 to-rose-200" />
+                    <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-amber-400 to-amber-200" />
+                    <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-emerald-400 to-emerald-200" />
                   </div>
-                  <span className="text-xs text-white/60">500+ üye yorumu</span>
+                  <div className="flex flex-col">
+                    <div className="flex text-amber-400">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} className="h-3 w-3 fill-current" />
+                      ))}
+                    </div>
+                    <span className="text-xs text-white/60">{reviewText}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 

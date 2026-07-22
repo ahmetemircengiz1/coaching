@@ -1,7 +1,10 @@
+"use client";
+
 import React, { useId } from "react";
 import type { LandingThemeContent } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
 import { getTextEffectStyle } from "../../types";
+import { getCtaProps } from "../cta-helpers";
 
 interface EliteHeroProps {
   content: LandingThemeContent;
@@ -49,11 +52,12 @@ export function HeroCinematic({ content, config }: EliteHeroProps) {
           {texts?.heroHeadline || "UNBREAKABLE"}
         </h1>
 
-        <button 
+        <a
+          {...getCtaProps(content, texts?.ctaPrimaryTarget, "auth")}
           className="mt-8 px-12 py-4 bg-transparent border border-white/30 text-white font-medium uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-colors"
         >
           {texts?.ctaPrimaryText || "Efsanevi Başlangıç"}
-        </button>
+        </a>
       </div>
     </section>
   );

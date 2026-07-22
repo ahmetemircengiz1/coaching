@@ -483,9 +483,21 @@ type ContentField = {
   placeholder?: string;
   group?: string;
   image?: boolean;
+  /** Aç/kapa anahtarı — "1" (açık) veya boş (kapalı) olarak saklanır */
+  toggle?: boolean;
+  /** Sabit seçenek listesi — boş değer "(Varsayılan)" anlamına gelir */
+  options?: { value: string; label: string }[];
   /** Yalnız bu blokId'lerde gösterilir. Atlanırsa tüm bloklarda görünür. */
   onlyForBlocks?: string[];
 };
+
+/** Hero CTA butonlarının tıklanınca gideceği hedefler */
+const CTA_TARGET_OPTIONS: { value: string; label: string }[] = [
+  { value: "auth", label: "Kayıt / Giriş ekranı" },
+  { value: "packages", label: "Paketler bölümüne kaydır" },
+  { value: "about", label: "Hakkımda bölümüne kaydır" },
+  { value: "contact", label: "İletişim / WhatsApp" },
+];
 
 // "Sistem 3'lü kart" — features ve howItWorks blokları aynı key naming'i paylaşıyor.
 // Foto alanları opsiyonel: boş bırakılırsa blok kendi ikonuna düşer (fotosuz varyant).
@@ -510,8 +522,15 @@ const CONTENT_FIELDS_BY_CATEGORY: Record<string, ContentField[]> = {
   hero: [
     { key: "heroHeadline", label: "Başlık", placeholder: "Hayalinizdeki forma kavuşun" },
     { key: "heroSubtitle", label: "Alt başlık", multiline: true, placeholder: "Kişiselleştirilmiş antrenman ve beslenme programı..." },
-    { key: "ctaPrimaryText", label: "Ana buton metni", placeholder: "Başla" },
-    { key: "ctaSecondaryText", label: "İkincil buton metni", placeholder: "Daha fazla bilgi" },
+    { key: "ctaPrimaryText", label: "Buton metni", placeholder: "Başla", group: "Ana Buton" },
+    { key: "ctaPrimaryTarget", label: "Tıklanınca nereye gitsin?", options: CTA_TARGET_OPTIONS, group: "Ana Buton" },
+    { key: "ctaSecondaryText", label: "Buton metni", placeholder: "Daha fazla bilgi", group: "İkincil Buton" },
+    { key: "ctaSecondaryTarget", label: "Tıklanınca nereye gitsin?", options: CTA_TARGET_OPTIONS, group: "İkincil Buton" },
+    // Güven rozeti — yalnız bu rozeti gösteren hero bloklarında
+    { key: "heroTrustValue", label: "Rozet değeri", placeholder: "+120 öğrenci", group: "Güven Rozeti", onlyForBlocks: ["hero-italic-cinema", "hero-display-bold"] },
+    { key: "heroTrustLabel", label: "Rozet açıklaması", placeholder: "aktif programda", group: "Güven Rozeti", onlyForBlocks: ["hero-italic-cinema", "hero-display-bold"] },
+    { key: "heroRatingValue", label: "Puan (yıldızların yanı)", placeholder: "4.9", group: "Güven Rozeti", onlyForBlocks: ["hero-display-bold"] },
+    { key: "heroTrustHidden", label: "Rozeti tamamen gizle", toggle: true, group: "Güven Rozeti", onlyForBlocks: ["hero-italic-cinema", "hero-display-bold"] },
   ],
   features: SYSTEM_TRIPLE_FIELDS,
   howItWorks: SYSTEM_TRIPLE_FIELDS,
@@ -531,7 +550,7 @@ const CONTENT_FIELDS_BY_CATEGORY: Record<string, ContentField[]> = {
     { key: "transformationsTitle", label: "Bölüm başlığı", placeholder: "Değişimin Kanıtı" },
   ],
   testimonials: [
-    { key: "transformationsTitle", label: "Bölüm başlığı", placeholder: "Öğrenci Yorumları" },
+    { key: "testimonialsTitle", label: "Bölüm başlığı", placeholder: "Öğrenci Yorumları" },
   ],
   cta: [
     { key: "ctaEyebrow", label: "Üst etiket (opsiyonel)", placeholder: "Birlikte başaralım" },
@@ -553,12 +572,17 @@ const CONTENT_FIELDS_BY_CATEGORY: Record<string, ContentField[]> = {
     { key: "aboutRole", label: "Unvan / Rol", placeholder: "Kurucu / Antrenör" },
     { key: "aboutImage", label: "Ana fotoğraf (koç)", image: true },
     { key: "aboutImage2", label: "İkincil fotoğraf (opsiyonel)", image: true },
-    { key: "aboutStat1Value", label: "İstatistik 1 — değer", placeholder: "10+" },
-    { key: "aboutStat1Label", label: "İstatistik 1 — etiket", placeholder: "Yıl Tecrübe" },
-    { key: "aboutStat2Value", label: "İstatistik 2 — değer", placeholder: "200+" },
-    { key: "aboutStat2Label", label: "İstatistik 2 — etiket", placeholder: "Mutlu Danışan" },
-    { key: "aboutStat3Value", label: "İstatistik 3 — değer", placeholder: "1.900+" },
-    { key: "aboutStat3Label", label: "İstatistik 3 — etiket", placeholder: "Antrenman Saati" },
+    // İstatistikler opsiyonel: hiçbiri girilmezse blok default'ları gösterir,
+    // en az biri girilirse yalnız dolu olanlar görünür, toggle hepsini kapatır.
+    { key: "aboutStat1Value", label: "İstatistik 1 — değer", placeholder: "10+", group: "İstatistikler" },
+    { key: "aboutStat1Label", label: "İstatistik 1 — etiket", placeholder: "Yıl Tecrübe", group: "İstatistikler" },
+    { key: "aboutStat2Value", label: "İstatistik 2 — değer", placeholder: "200+", group: "İstatistikler" },
+    { key: "aboutStat2Label", label: "İstatistik 2 — etiket", placeholder: "Mutlu Danışan", group: "İstatistikler" },
+    { key: "aboutStat3Value", label: "İstatistik 3 — değer", placeholder: "1.900+", group: "İstatistikler" },
+    { key: "aboutStat3Label", label: "İstatistik 3 — etiket", placeholder: "Antrenman Saati", group: "İstatistikler" },
+    { key: "aboutStatsHidden", label: "İstatistikleri tamamen gizle", toggle: true, group: "İstatistikler", onlyForBlocks: ["about-fightness", "about-gymix", "about-progrex", "about-fitence"] },
+    { key: "aboutReviewText", label: "Sosyal kanıt metni", placeholder: "(1k+ yorum)", group: "Sosyal Kanıt", onlyForBlocks: ["about-gymix", "about-fitence"] },
+    { key: "aboutRatingHidden", label: "Yıldız/sosyal kanıt satırını gizle", toggle: true, group: "Sosyal Kanıt", onlyForBlocks: ["about-gymix", "about-fitence"] },
     { key: "aboutBadge1Title", label: "Rozet 1 — başlık (Curtis)", placeholder: "Sertifikalı Koç" },
     { key: "aboutBadge1Subtitle", label: "Rozet 1 — alt (Curtis)", placeholder: "NASM & ACE" },
     { key: "aboutBadge2Title", label: "Rozet 2 — başlık (Curtis)", placeholder: "Profesyonel Yaklaşım" },
@@ -687,12 +711,58 @@ function FieldInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  if (field.toggle) {
+    const on = value === "1";
+    return (
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        onClick={() => onChange(on ? "" : "1")}
+        className="flex w-full items-center justify-between gap-3 select-none"
+      >
+        <span className="text-xs font-medium text-left" style={{ color: "var(--dashboard-main-text-muted)" }}>
+          {field.label}
+        </span>
+        <span
+          className="relative h-5 w-9 shrink-0 rounded-full transition-colors"
+          style={{
+            backgroundColor: on ? "var(--dashboard-accent)" : "var(--dashboard-card-border)",
+          }}
+        >
+          <span
+            className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all"
+            style={{ left: on ? "calc(100% - 18px)" : "2px" }}
+          />
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div>
       <label className="text-xs font-medium block mb-1" style={{ color: "var(--dashboard-main-text-muted)" }}>
         {field.label}
       </label>
-      {field.image ? (
+      {field.options ? (
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2 rounded-md text-sm"
+          style={{
+            backgroundColor: "var(--dashboard-main-bg)",
+            color: "var(--dashboard-main-text)",
+            border: "1px solid var(--dashboard-card-border)",
+          }}
+        >
+          <option value="">(Varsayılan)</option>
+          {field.options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      ) : field.image ? (
         <FileUpload
           bucket="transformations"
           currentUrl={value || undefined}

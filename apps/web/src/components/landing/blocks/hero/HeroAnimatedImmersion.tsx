@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { LandingThemeContent } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
+import { getCtaProps } from "../cta-helpers";
 
 /**
  * HeroAnimatedImmersion — Athlex esinli (özel animasyonlu).
@@ -40,7 +41,9 @@ export function HeroAnimatedImmersion({
     texts?.heroSubtitle ||
     "Kolay egzersizler ve planlarla daha güçlü, formda ve enerjik hissetmene yardımcı oluyoruz.";
   const ctaPrimary = texts?.ctaPrimaryText || "İletişime Geç";
-  const ctaSecondary = texts?.ctaSecondaryText || "Tanıtım Videosu";
+  const ctaSecondary = texts?.ctaSecondaryText || "Programları İncele";
+  const ctaPrimaryProps = getCtaProps(content, texts?.ctaPrimaryTarget, "contact");
+  const ctaSecondaryProps = getCtaProps(content, texts?.ctaSecondaryTarget, "packages");
 
   const heroImage = content.heroImageDesktopUrl || content.heroImageOriginalUrl || null;
   const heroVideo = content.heroVideoUrl || null;
@@ -132,21 +135,6 @@ export function HeroAnimatedImmersion({
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/30" />
       </motion.div>
 
-      {/* Top pill badges */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="absolute top-24 left-6 lg:left-12 z-20 flex gap-2 flex-wrap"
-      >
-        <span className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white bg-white/10 backdrop-blur-md border border-white/20 rounded">
-          [ Öne Çıkan ]
-        </span>
-        <span className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white bg-white/10 backdrop-blur-md border border-white/20 rounded">
-          Fitness & Koçluk
-        </span>
-      </motion.div>
-
       {/* Main content — bottom-left + bottom-right */}
       <div className="relative z-10 w-full pb-16 lg:pb-20 px-6 lg:px-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-8 items-end">
@@ -199,7 +187,7 @@ export function HeroAnimatedImmersion({
               className="mt-8 flex gap-3 flex-wrap"
             >
               <motion.a
-                href={content.authUrl}
+                {...ctaPrimaryProps}
                 whileHover={{ scale: 1.04, boxShadow: `0 0 30px ${primary}99` }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -209,16 +197,14 @@ export function HeroAnimatedImmersion({
                 {ctaPrimary}
               </motion.a>
               {ctaSecondary && (
-                <motion.button
+                <motion.a
+                  {...ctaSecondaryProps}
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.98 }}
                   className="inline-flex items-center gap-2 px-6 py-3.5 rounded-md border border-white/30 text-white font-medium backdrop-blur-sm hover:bg-white/10 transition-colors"
                 >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
                   {ctaSecondary}
-                </motion.button>
+                </motion.a>
               )}
             </motion.div>
           </div>

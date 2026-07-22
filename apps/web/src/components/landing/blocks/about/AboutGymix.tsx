@@ -5,6 +5,7 @@ import { Dumbbell, ArrowRight, Star } from "lucide-react";
 import type { LandingThemeContent } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
 import { scrollToCategory } from "../navbar/nav-helpers";
+import { resolveAboutStats } from "./about-helpers";
 
 interface EliteProps {
   content: LandingThemeContent;
@@ -27,10 +28,9 @@ export function AboutGymix({ content, config }: EliteProps) {
     "Fitness sadece ağırlık kaldırmak değil — bu bir inşa.";
   const image = texts?.aboutImage;
   const image2 = texts?.aboutImage2;
-  const stat1 = {
-    v: texts?.aboutStat1Value || "15+",
-    l: texts?.aboutStat1Label || "Profesyonel Tecrübe",
-  };
+  const stats = resolveAboutStats(texts, [{ v: "15+", l: "Profesyonel Tecrübe" }]);
+  const ratingHidden = texts?.aboutRatingHidden === "1";
+  const reviewText = texts?.aboutReviewText || "(1k+ yorum)";
   const bio1 =
     texts?.aboutBio1 ||
     "Gelişmiş antrenman teknikleri, kişiye özel programlar ve modern ekipmanı bir araya getirerek premium bir fitness deneyimi sunuyoruz. İster güç ister kondisyon hedefin olsun, sana özel rota seninle birlikte çizilir.";
@@ -73,12 +73,21 @@ export function AboutGymix({ content, config }: EliteProps) {
 
           {/* Center */}
           <div>
-            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 border-b border-white/15 pb-5">
-              <span className="text-5xl font-black sm:text-6xl">{stat1.v}</span>
-              <span className="text-sm font-bold uppercase tracking-widest text-white/65">
-                {stat1.l}
-              </span>
-            </div>
+            {stats.length > 0 && (
+              <div className="space-y-5">
+                {stats.map((s, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-wrap items-baseline gap-x-4 gap-y-2 border-b border-white/15 pb-5"
+                  >
+                    <span className="text-5xl font-black sm:text-6xl">{s.v}</span>
+                    <span className="text-sm font-bold uppercase tracking-widest text-white/65">
+                      {s.l}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="mt-6 space-y-4 text-sm leading-relaxed text-white/65 sm:text-base">
               <p>{bio1}</p>
               <p>{bio2}</p>
@@ -94,21 +103,23 @@ export function AboutGymix({ content, config }: EliteProps) {
                   <ArrowRight className="h-4 w-4" />
                 </span>
               </button>
-              <div className="flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-rose-400 to-rose-200" />
-                  <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-amber-400 to-amber-200" />
-                  <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-emerald-400 to-emerald-200" />
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex" style={{ color: accent }}>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="h-3 w-3 fill-current" />
-                    ))}
+              {!ratingHidden && (
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-2">
+                    <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-rose-400 to-rose-200" />
+                    <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-amber-400 to-amber-200" />
+                    <span className="h-8 w-8 rounded-full border-2 border-black bg-gradient-to-br from-emerald-400 to-emerald-200" />
                   </div>
-                  <span className="text-xs text-white/60">(1k+ yorum)</span>
+                  <div className="flex flex-col">
+                    <div className="flex" style={{ color: accent }}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} className="h-3 w-3 fill-current" />
+                      ))}
+                    </div>
+                    <span className="text-xs text-white/60">{reviewText}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 

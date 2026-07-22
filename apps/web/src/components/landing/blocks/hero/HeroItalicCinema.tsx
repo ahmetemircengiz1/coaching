@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import type { LandingThemeContent } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
+import { getCtaProps } from "../cta-helpers";
 
 /**
  * HeroItalicCinema — Hermes esinli.
@@ -38,6 +41,15 @@ export function HeroItalicCinema({
     "Mükemmel zamanı bekleme, hayalini kurduğun vücudu inşa etmeye bugün başla.";
   const ctaPrimary = texts?.ctaPrimaryText || "Programlarımı Gör";
   const ctaSecondary = texts?.ctaSecondaryText || "Daha Fazla Bilgi";
+  const ctaPrimaryProps = getCtaProps(content, texts?.ctaPrimaryTarget, "auth");
+  const ctaSecondaryProps = getCtaProps(content, texts?.ctaSecondaryTarget, "about");
+
+  // Güven rozeti — koç metnini değiştirebilir veya tamamen gizleyebilir
+  const trustHidden = texts?.heroTrustHidden === "1";
+  const trustValue =
+    texts?.heroTrustValue ||
+    `+${content.studentCount > 0 ? content.studentCount : 1322} öğrenci`;
+  const trustLabel = texts?.heroTrustLabel || "aktif programda";
 
   const heroImage = content.heroImageDesktopUrl || content.heroImageOriginalUrl || null;
   const heroVideo = content.heroVideoUrl || null;
@@ -162,7 +174,7 @@ export function HeroItalicCinema({
                 style={{ animationDelay: `${afterHeadline + 0.15}s` }}
               >
                 <a
-                  href={content.authUrl}
+                  {...ctaPrimaryProps}
                   className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-md bg-white text-black font-semibold transition-all hover:bg-white/90 hover:gap-3"
                   style={{ fontFamily: displayFont }}
                 >
@@ -172,12 +184,13 @@ export function HeroItalicCinema({
                   </svg>
                 </a>
                 {ctaSecondary && (
-                  <button
+                  <a
+                    {...ctaSecondaryProps}
                     className="inline-flex items-center px-7 py-3.5 rounded-md border border-white/30 text-white font-medium hover:bg-white/10 hover:border-white/50 transition-all"
                     style={{ fontFamily: displayFont }}
                   >
                     {ctaSecondary}
-                  </button>
+                  </a>
                 )}
               </div>
             </div>
@@ -187,28 +200,28 @@ export function HeroItalicCinema({
               className="flex lg:justify-end animate-[fadeInUp_0.9s_ease_both]"
               style={{ animationDelay: `${afterHeadline}s` }}
             >
-              <div className="inline-flex items-center gap-3 px-5 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
-                <div className="flex -space-x-2.5">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="w-8 h-8 rounded-full border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white"
-                      style={{
-                        background: `linear-gradient(${90 + i * 60}deg, ${primary}, ${accent})`,
-                      }}
-                      aria-hidden
-                    >
-                      {String.fromCharCode(65 + i)}
-                    </div>
-                  ))}
+              {!trustHidden && (
+                <div className="inline-flex items-center gap-3 px-5 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
+                  <div className="flex -space-x-2.5">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="w-8 h-8 rounded-full border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white"
+                        style={{
+                          background: `linear-gradient(${90 + i * 60}deg, ${primary}, ${accent})`,
+                        }}
+                        aria-hidden
+                      >
+                        {String.fromCharCode(65 + i)}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-white">
+                    <p className="text-sm font-bold leading-none">{trustValue}</p>
+                    <p className="text-[11px] text-white/60 leading-none mt-1">{trustLabel}</p>
+                  </div>
                 </div>
-                <div className="text-white">
-                  <p className="text-sm font-bold leading-none">
-                    +{content.studentCount > 0 ? content.studentCount : 1322} öğrenci
-                  </p>
-                  <p className="text-[11px] text-white/60 leading-none mt-1">aktif programda</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
