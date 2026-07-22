@@ -483,20 +483,36 @@ const WHY_CARDS = [
 
 const FAQ = [
   {
-    q: "Kod veya teknik bilgi gerekiyor mu?",
-    a: "Hayır. Site, panel ve öğrenci uygulaması hazır geliyor. Sen sadece marka bilgilerini girip yayına alıyorsun; tek bir satır kod yazmana gerek yok.",
+    q: "Teknik bilgi gerekiyor mu?",
+    a: "Hayır. Web siten, koç panelin ve öğrenci paneli hazır olarak geliyor. Marka adını ve tarzını seçiyorsun; siten dakikalar içinde kendi adresinde yayında — tek satır kod yazmadan.",
   },
   {
-    q: "Gerçekten ücretsiz mi?",
-    a: "Evet. Şu an tüm özellikler herkese açık ve ücretsiz. İleride premium paketler ekleyeceğiz, ancak bugün kullandığın özellikler için sürpriz bir ücret çıkmayacak.",
+    q: "Gerçekten ücretsiz mi? Sonradan ücret çıkacak mı?",
+    a: "Şu an tüm özellikler herkese açık ve ücretsiz. İleride premium planlar eklenecek; ancak bugün kullandığın özellikler için sürpriz bir fatura çıkmayacak ve erken katılan koçlar her zaman avantajlı olacak.",
   },
   {
-    q: "Öğrencilerimden nasıl ödeme alırım?",
-    a: "Ödemeyi kendi yöntemlerinle alırsın; Shred araya girmez ve komisyon kesmez. Belirlediğin ücretin tamamı sende kalır.",
+    q: "Öğrencilerimden ödemeyi nasıl alırım, komisyon var mı?",
+    a: "Ödemeyi doğrudan sen alırsın — havale, IBAN veya dilediğin yöntemle. Shred araya girmez ve kazancından komisyon almaz; belirlediğin ücretin tamamı sende kalır.",
+  },
+  {
+    q: "Öğrencilerim siteme nasıl kayıt olur?",
+    a: "Kontrol tamamen sende. Panelinden tek tıkla kayıt kodu üretir, öğrencine gönderirsin; öğrencin bu kodla senin sitenden kayıt olur ve anında programını, beslenme planını ve ilerleme takibini görmeye başlar.",
   },
   {
     q: "Kendi alan adımı bağlayabilir miyim?",
-    a: "Evet. Başlangıçta siten koçadı.shred.com.tr adresinde yayında olur; istediğin zaman kendi alan adını (ör. seninmarkan.com) bağlayabilirsin.",
+    a: "Evet. Siten önce koçadı.shred.com.tr adresinde yayına girer; istediğin zaman kendi alan adını (ör. seninmarkan.com) bağlayıp tamamen kendi markanla devam edersin.",
+  },
+  {
+    q: "Sitemin tasarımını sonradan değiştirebilir miyim?",
+    a: "İstediğin an. Hazır şablonlar arasında geçiş yapabilir, bölümleri açıp kapatabilir; metinleri, fotoğrafları ve renkleri site kurucudan saniyeler içinde güncelleyebilirsin. Değişiklikler anında yayına yansır.",
+  },
+  {
+    q: "Verilerim ve öğrencilerimin verileri güvende mi?",
+    a: "Evet. Her koçun verisi diğerlerinden tamamen izole tutulur; öğrenci fotoğrafları gizli depolamada saklanır ve yalnızca yetkili kişiler görebilir. İstediğin an hesabını kapatıp tüm verilerini kalıcı olarak silebilirsin.",
+  },
+  {
+    q: "Telefondan kullanabilir miyim?",
+    a: "Tamamen. Hem koç paneli hem öğrenci paneli mobil öncelikli tasarlandı; program atamaktan check-in incelemeye her şeyi telefonundan yönetebilirsin.",
   },
 ];
 
