@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,117 +13,23 @@ import { signUpStudentWithCode, resendStudentConfirmation, finalizeStudentSignup
 type Tab = "coach" | "student";
 type StudentMode = "login" | "register";
 
-/* ─── Theme color definitions matching landing themes ─── */
-const THEME_COLORS: Record<number, {
-  bg: string;
-  cardBg: string;
-  cardBorder: string;
-  text: string;
-  muted: string;
-  accent: string;
-  accentText: string;
-  inputBg: string;
-  inputBorder: string;
-  tabInactiveBg: string;
-  tabInactiveText: string;
-  fontFamily?: string;
-}> = {
-  1: {
-    bg: "#060608",
-    cardBg: "rgba(26,24,19,0.8)",
-    cardBorder: "rgba(212,175,55,0.2)",
-    text: "#EFEFEF",
-    muted: "rgba(239,239,239,0.5)",
-    accent: "#D4AF37",
-    accentText: "#060608",
-    inputBg: "rgba(212,175,55,0.05)",
-    inputBorder: "rgba(212,175,55,0.2)",
-    tabInactiveBg: "rgba(212,175,55,0.05)",
-    tabInactiveText: "rgba(239,239,239,0.5)",
-    fontFamily: "'Playfair Display', Georgia, serif",
-  },
-  2: {
-    bg: "#060B14",
-    cardBg: "rgba(10,18,32,0.6)",
-    cardBorder: "rgba(0,229,255,0.2)",
-    text: "#E0F2FE",
-    muted: "rgba(148,163,184,0.6)",
-    accent: "#00E5FF",
-    accentText: "#060B14",
-    inputBg: "rgba(0,229,255,0.05)",
-    inputBorder: "rgba(0,229,255,0.2)",
-    tabInactiveBg: "rgba(0,229,255,0.05)",
-    tabInactiveText: "rgba(148,163,184,0.6)",
-  },
-  3: {
-    bg: "#F5F6FB",
-    cardBg: "rgba(255,255,255,0.9)",
-    cardBorder: "rgba(30,183,180,0.15)",
-    text: "#262A33",
-    muted: "#5A6577",
-    accent: "#1EB7B4",
-    accentText: "#ffffff",
-    inputBg: "rgba(30,183,180,0.05)",
-    inputBorder: "rgba(30,183,180,0.2)",
-    tabInactiveBg: "rgba(30,183,180,0.06)",
-    tabInactiveText: "#5A6577",
-  },
-  4: {
-    bg: "#FAF8F5",
-    cardBg: "rgba(255,255,255,0.9)",
-    cardBorder: "rgba(62,47,40,0.08)",
-    text: "#3E2F28",
-    muted: "rgba(62,47,40,0.5)",
-    accent: "#C75B39",
-    accentText: "#ffffff",
-    inputBg: "rgba(199,91,57,0.05)",
-    inputBorder: "rgba(199,91,57,0.2)",
-    tabInactiveBg: "rgba(199,91,57,0.04)",
-    tabInactiveText: "rgba(62,47,40,0.5)",
-    fontFamily: "Georgia, 'Times New Roman', serif",
-  },
-  5: {
-    bg: "#111111",
-    cardBg: "rgba(26,26,26,0.8)",
-    cardBorder: "rgba(46,200,216,0.15)",
-    text: "#ffffff",
-    muted: "rgba(184,196,216,0.5)",
-    accent: "#2EC8D8",
-    accentText: "#0A0D14",
-    inputBg: "rgba(46,200,216,0.06)",
-    inputBorder: "rgba(46,200,216,0.2)",
-    tabInactiveBg: "rgba(46,200,216,0.05)",
-    tabInactiveText: "rgba(184,196,216,0.5)",
-  },
-  6: {
-    bg: "#050505",
-    cardBg: "rgba(15,15,15,0.85)",
-    cardBorder: "rgba(255,255,255,0.1)",
-    text: "#ffffff",
-    muted: "rgba(255,255,255,0.5)",
-    accent: "#ffffff",
-    accentText: "#000000",
-    inputBg: "rgba(255,255,255,0.05)",
-    inputBorder: "rgba(255,255,255,0.1)",
-    tabInactiveBg: "rgba(255,255,255,0.05)",
-    tabInactiveText: "rgba(255,255,255,0.5)",
-  },
-  7: {
-    bg: "#000000",
-    cardBg: "rgba(10,10,10,0.85)",
-    cardBorder: "rgba(204,255,0,0.15)",
-    text: "#ffffff",
-    muted: "rgba(255,255,255,0.5)",
-    accent: "#ccff00",
-    accentText: "#000000",
-    inputBg: "rgba(204,255,0,0.05)",
-    inputBorder: "rgba(204,255,0,0.2)",
-    tabInactiveBg: "rgba(204,255,0,0.05)",
-    tabInactiveText: "rgba(255,255,255,0.5)",
-  },
-};
-
-const DEFAULT_THEME = THEME_COLORS[1];
+/* ─── Tek tip auth teması ───
+ * Şablondan bağımsız, nötr koyu premium palet: her koç sitesinin auth ekranı
+ * aynı sade tasarımı kullanır (marka kimliği logo/isimle taşınır).
+ * Beyaz vurgu + koyu zemin her landing temasıyla uyumludur ve kontrast garantilidir. */
+const AUTH_THEME = {
+  bg: "#0A0A0B",
+  cardBg: "rgba(255,255,255,0.04)",
+  cardBorder: "rgba(255,255,255,0.08)",
+  text: "#F5F5F5",
+  muted: "rgba(255,255,255,0.55)",
+  accent: "#FFFFFF",
+  accentText: "#0A0A0B",
+  inputBg: "rgba(255,255,255,0.05)",
+  inputBorder: "rgba(255,255,255,0.10)",
+  tabInactiveBg: "rgba(255,255,255,0.05)",
+  tabInactiveText: "rgba(255,255,255,0.55)",
+} as const;
 
 export default function CoachSiteAuthPage() {
   const [tab, setTab] = useState<Tab>("student");
@@ -148,8 +54,8 @@ export default function CoachSiteAuthPage() {
     return () => clearTimeout(timer);
   }, [resendCooldown]);
   const [coachBrand, setCoachBrand] = useState("");
+  const [coachLogo, setCoachLogo] = useState<string | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
-  const [themeId, setThemeId] = useState(1);
   const [isReady, setIsReady] = useState(false);
 
   const router = useRouter();
@@ -157,7 +63,7 @@ export default function CoachSiteAuthPage() {
   const searchParams = useSearchParams();
   const domain = params.domain as string;
 
-  const t = useMemo(() => THEME_COLORS[themeId] || DEFAULT_THEME, [themeId]);
+  const t = AUTH_THEME;
 
   // Doğrulama linkine tıklandığında (başka sekmede bile olsa) oturum çerezleri
   // bu tarayıcıya yazılır; burada algılayıp kaydı BU sekmede tamamlıyoruz.
@@ -196,10 +102,8 @@ export default function CoachSiteAuthPage() {
       const data = await getPublicCoachPackages(domain);
       if (data) {
         setCoachBrand(data.brandName);
+        setCoachLogo(data.logo || null);
         setWhatsappNumber(data.whatsappNumber || null);
-        if (data.landingThemeId && data.landingThemeId >= 1 && data.landingThemeId <= 7) {
-          setThemeId(data.landingThemeId);
-        }
       }
       setIsReady(true);
     }
@@ -350,7 +254,7 @@ export default function CoachSiteAuthPage() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#111111" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: t.bg }}>
         <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
       </div>
     );
@@ -359,17 +263,30 @@ export default function CoachSiteAuthPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 py-12"
-      style={{ backgroundColor: t.bg, fontFamily: t.fontFamily || "var(--font-inter), Inter, sans-serif" }}
+      style={{
+        backgroundColor: t.bg,
+        backgroundImage: "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,255,255,0.06), transparent 60%)",
+        fontFamily: "var(--font-inter), Inter, sans-serif",
+      }}
     >
       <div className="w-full max-w-md space-y-6">
-        {/* Brand */}
-        <div className="text-center">
-          <h1
-            className="text-3xl font-bold tracking-tight"
-            style={{ color: t.text, fontFamily: t.fontFamily }}
-          >
-            {coachBrand || "Coach"}
-          </h1>
+        {/* Brand — logo varsa logo, yoksa marka adı */}
+        <div className="text-center space-y-2">
+          {coachLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coachLogo}
+              alt={coachBrand || "Koç"}
+              className="mx-auto h-12 w-auto max-w-[220px] object-contain"
+            />
+          ) : (
+            <h1 className="text-3xl font-bold tracking-tight" style={{ color: t.text }}>
+              {coachBrand || "Coach"}
+            </h1>
+          )}
+          <p className="text-sm" style={{ color: t.muted }}>
+            Üye Girişi
+          </p>
         </div>
 
         {/* Tab Seçici */}
