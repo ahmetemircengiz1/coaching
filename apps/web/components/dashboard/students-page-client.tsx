@@ -306,7 +306,9 @@ export function StudentsPageClient({
                     </div>
                     <div>
                       <p className="font-semibold" style={{ color: "var(--dashboard-main-text)" }}>{student.name}</p>
-                      <p className="text-sm xl:hidden" style={{ color: "var(--dashboard-main-text-muted)" }}>{student.packageName}</p>
+                      <p className="text-sm xl:hidden" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                        {student.packageName} · {new Date(student.startDate).toLocaleDateString("tr-TR")}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
@@ -315,6 +317,13 @@ export function StudentsPageClient({
                       <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Paket</p>
                       <p className="text-sm truncate max-w-[120px]" style={{ color: "var(--dashboard-main-text)" }}>
                         {student.packageName}
+                      </p>
+                    </div>
+                    {/* Başlangıç */}
+                    <div className="text-right hidden lg:block">
+                      <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Başlangıç</p>
+                      <p className="text-sm" style={{ color: "var(--dashboard-main-text)" }}>
+                        {new Date(student.startDate).toLocaleDateString("tr-TR")}
                       </p>
                     </div>
                     {/* Mevcut Program */}

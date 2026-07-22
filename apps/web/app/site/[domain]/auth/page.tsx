@@ -56,6 +56,12 @@ export default function CoachSiteAuthPage() {
   const [coachBrand, setCoachBrand] = useState("");
   const [coachLogo, setCoachLogo] = useState<string | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
+  // Landing'de tıklanan paket (?package= param'ı) — kayıt formunda chip olarak
+  // gösterilir ve kayıtla birlikte koça iletilir.
+  const [packages, setPackages] = useState<
+    { id: string; name: string; price: number; currency: string; duration: number }[]
+  >([]);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   const router = useRouter();
@@ -95,6 +101,13 @@ export default function CoachSiteAuthPage() {
       setTab("student");
       setStudentMode("register");
     }
+    // Landing'de bir pakete tıklanarak gelindiyse doğrudan kayıt moduna geç
+    const packageParam = searchParams.get("package");
+    if (packageParam) {
+      setSelectedPackageId(packageParam);
+      setTab("student");
+      setStudentMode("register");
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -104,6 +117,15 @@ export default function CoachSiteAuthPage() {
         setCoachBrand(data.brandName);
         setCoachLogo(data.logo || null);
         setWhatsappNumber(data.whatsappNumber || null);
+        setPackages(
+          data.packages.map((p) => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            currency: p.currency,
+            duration: p.duration,
+          }))
+        );
       }
       setIsReady(true);
     }
@@ -174,6 +196,7 @@ export default function CoachSiteAuthPage() {
         name: name.trim(),
         phone: phone.trim() || undefined,
         code: code.trim().toUpperCase(),
+        packageId: selectedPackageId || undefined,
       });
       if ("error" in result) {
         setError(result.error);
@@ -580,6 +603,46 @@ export default function CoachSiteAuthPage() {
                           minLength={8}
                         />
                       </div>
+
+                      {/* Landing'de tıklanan paket — chip olarak göster */}
+                      {(() => {
+                        const selectedPackage = selectedPackageId
+                          ? packages.find((p) => p.id === selectedPackageId)
+                          : null;
+                        if (!selectedPackage) return null;
+                        return (
+                          <div
+                            className="rounded-xl border px-4 py-3"
+                            style={{ backgroundColor: t.inputBg, borderColor: t.cardBorder }}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[11px] uppercase tracking-wider" style={{ color: t.muted }}>
+                                  Seçilen Paket
+                                </p>
+                                <p className="text-sm font-semibold truncate" style={{ color: t.text }}>
+                                  {selectedPackage.name}
+                                </p>
+                                <p className="text-xs mt-0.5" style={{ color: t.muted }}>
+                                  {selectedPackage.price.toLocaleString("tr-TR")} {selectedPackage.currency} · {selectedPackage.duration} hafta
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPackageId(null)}
+                                aria-label="Paket seçimini kaldır"
+                                className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm transition hover:bg-white/10"
+                                style={{ color: t.muted }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                            <p className="text-[11px] mt-2 leading-relaxed" style={{ color: t.muted }}>
+                              Koç kodun bir pakete bağlıysa o paket geçerli olur.
+                            </p>
+                          </div>
+                        );
+                      })()}
 
                       <div>
                         <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>Koç Kodu</label>

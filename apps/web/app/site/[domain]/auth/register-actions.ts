@@ -16,6 +16,8 @@ type SignupInput = {
   name: string;
   phone?: string;
   code: string;
+  /** Landing'de tıklanan paketin id'si — koç panelinde paket bilgisi olarak görünür */
+  packageId?: string;
 };
 
 function getBaseUrl(hdrs: Headers): string {
@@ -98,6 +100,17 @@ export async function signUpStudentWithCode(
     return { error: "Bu e-posta bu koçta zaten kayıtlı. Giriş yapmayı deneyin." };
   }
 
+  // Tıklanan paket koça ait ve aktif mi? Geçersizse kayıt akışını bozmadan
+  // sessizce yok sayılır (paket bilgisi opsiyonel bir zenginleştirmedir).
+  let pendingPackageId: string | null = null;
+  if (data.packageId) {
+    const pkg = await prisma.coachPackage.findFirst({
+      where: { id: data.packageId, coachId: coach.id, isActive: true },
+      select: { id: true },
+    });
+    pendingPackageId = pkg?.id || null;
+  }
+
   // Supabase auth kullanıcısı oluştur (anon signUp → e-posta doğrulama zorunlu).
   // Student satırı ve kodun tüketilmesi doğrulama SONRASINA (/auth/complete →
   // finalizeStudentSignup) ertelenir; kayıt bilgileri user_metadata'da taşınır.
@@ -114,6 +127,7 @@ export async function signUpStudentWithCode(
         coach_domain: coach.subdomain,
         phone: data.phone || null,
         pending_reg_code: data.code,
+        pending_package_id: pendingPackageId,
       },
       emailRedirectTo: `${baseUrl}/site/${domain}/auth/callback?next=/site/${domain}/auth/verified`,
     },
@@ -223,6 +237,19 @@ export async function finalizeStudentSignup(
     typeof meta.name === "string" && meta.name.trim() ? meta.name.trim() : user.email || "Öğrenci";
   const phone = typeof meta.phone === "string" && meta.phone.trim() ? meta.phone.trim() : null;
 
+  // Landing'de tıklanan paket — kod pakete bağlı değilse fallback olarak atanır.
+  // Finalize anına kadar paket silinmiş/pasifleşmiş olabilir → tekrar doğrula.
+  let clickedPackageId: string | null = null;
+  const pendingPackageId =
+    typeof meta.pending_package_id === "string" ? meta.pending_package_id : "";
+  if (pendingPackageId) {
+    const pkg = await prisma.coachPackage.findFirst({
+      where: { id: pendingPackageId, coachId: coach.id, isActive: true },
+      select: { id: true },
+    });
+    clickedPackageId = pkg?.id || null;
+  }
+
   try {
     const student = await prisma.$transaction(async (tx) => {
       // Kodu tekrar verify et (race condition)
@@ -241,7 +268,9 @@ export async function finalizeStudentSignup(
           name,
           phone,
           coachId: coach.id,
-          coachPackageId: codeRow.coachPackageId || null,
+          // Kod bir pakete bağlıysa koçun bilinçli ataması kazanır;
+          // değilse öğrencinin landing'de tıkladığı paket atanır.
+          coachPackageId: codeRow.coachPackageId || clickedPackageId,
           status: "active",
         },
         select: { id: true },
@@ -263,6 +292,7 @@ export async function finalizeStudentSignup(
       coachId: coach.id,
       codeId: codeRow.id,
       userId: user.id,
+      clickedPackageId,
     }));
 
     return { success: true, studentId: student.id };

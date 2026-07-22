@@ -44,6 +44,8 @@ export const studentSignupSchema = z
       .max(32)
       .trim()
       .transform((v) => v.toUpperCase()),
+    /** Landing'de tıklanan paket (?package= param'ı) — opsiyonel */
+    packageId: z.string().max(50).trim().optional(),
   })
   .refine((d) => d.password === d.confirmPassword, {
     message: "Şifreler eşleşmiyor.",
