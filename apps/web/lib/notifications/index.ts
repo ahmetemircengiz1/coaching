@@ -4,7 +4,10 @@ export type NotificationType =
   | "check_in"
   | "program_assigned"
   | "nutrition_assigned"
-  | "feedback";
+  | "feedback"
+  | "security_alert"
+  | "guest_signup"
+  | "guest_converted";
 
 export async function createNotification(data: {
   recipientId: string;

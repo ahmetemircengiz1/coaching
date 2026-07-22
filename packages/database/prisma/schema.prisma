@@ -116,12 +116,53 @@ model Coach {
   transformations   Transformation[]
   testimonials      Testimonial[]
   nutritionPlans    NutritionPlan[]
+  guests            Guest[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([subdomain])
   @@index([customDomain])
+}
+
+// ============================================
+// MİSAFİR ZİYARETÇİ (kod olmadan e-postayla kayıt; salt-okunur panel keşfi)
+// Kayıtlı öğrencilerden (Student) tamamen ayrı tutulur — koç için lead listesi.
+// ============================================
+
+model Guest {
+  id                 String    @id @default(cuid())
+  userId             String    @unique // Supabase Auth user ID
+  email              String
+  name               String?
+  phone              String?
+  coachId            String
+  coach              Coach     @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  // Kod kullanıp tam öğrenciye dönüşünce işaretlenir; satır lead geçmişi için kalır
+  convertedStudentId String?
+  convertedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  lastSeenAt         DateTime  @default(now())
+
+  @@unique([email, coachId])
+  @@index([coachId])
+}
+
+// ============================================
+// TANINAN CİHAZLAR (yeni cihazdan giriş uyarısı için)
+// deviceId httpOnly "shred_did" çerezinde tutulan UUID'dir.
+// ============================================
+
+model KnownDevice {
+  id         String   @id @default(cuid())
+  userId     String   // Supabase Auth user ID
+  deviceId   String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([userId])
 }
 
 // ============================================

@@ -138,6 +138,29 @@ export function buildPasswordResetEmail(input: { resetLink: string }): SendMailO
   };
 }
 
+export function buildNewDeviceLoginEmail(input: {
+  brandName: string;
+  browserSummary: string;
+  loginAt: string;
+  resetLink: string;
+}): SendMailOptions {
+  return {
+    to: "",
+    subject: "Hesabına yeni bir cihazdan giriş yapıldı",
+    html: shell(
+      "Yeni cihazdan giriş",
+      `<p><strong>${input.brandName}</strong> hesabına daha önce görmediğimiz bir cihaz veya tarayıcıdan giriş yapıldı.</p>
+       <p style="font-size:14px;color:#444;margin:16px 0;">
+         <strong>Tarayıcı:</strong> ${input.browserSummary}<br />
+         <strong>Tarih:</strong> ${input.loginAt}
+       </p>
+       <p>Bu girişi sen yaptıysan bir şey yapmana gerek yok. Güvenlik için diğer cihazlardaki oturumlar otomatik kapatıldı.</p>
+       <p><strong>Bu sen değilsen</strong> hemen şifreni sıfırla:</p>
+       ${ctaButton(input.resetLink, "Şifremi sıfırla")}`,
+    ),
+  };
+}
+
 export function buildCheckInFeedbackEmail(input: {
   studentName: string;
   coachName: string;

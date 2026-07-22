@@ -13,6 +13,7 @@ import {
 } from "@/lib/validation/schemas";
 import { mapResendEmailError } from "@/lib/auth-email-errors";
 import { checkEmailDomain } from "@/lib/email-check";
+import { recordDeviceLogin } from "@/lib/auth/device-actions";
 
 function getBaseUrl(hdrs: Headers): string {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -203,6 +204,15 @@ export async function signIn(formData: FormData) {
 
   if (!data.user) {
     return { error: "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin." };
+  }
+
+  // Cihaz kaydı (yeni cihazsa e-posta uyarısı) + tek aktif oturum:
+  // diğer cihazlardaki oturumlar kapatılır. Hata olursa giriş akışını bozmaz.
+  try {
+    await recordDeviceLogin({ authPath: "/platform/auth", brandName: "Shred" });
+    await supabase.auth.signOut({ scope: "others" });
+  } catch (err) {
+    console.error("[signIn] cihaz güvenlik adımı başarısız:", err);
   }
 
   const role = data.user.user_metadata?.role;

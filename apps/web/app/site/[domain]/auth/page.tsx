@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { determineUserRole } from "../dashboard/students/actions";
 import { getPublicCoachPackages } from "./actions";
 import { signUpStudentWithCode, resendStudentConfirmation, finalizeStudentSignup } from "./register-actions";
+import { recordDeviceLogin } from "@/lib/auth/device-actions";
 
 type Tab = "coach" | "student";
 type StudentMode = "login" | "register";
@@ -86,6 +87,8 @@ export default function CoachSiteAuthPage() {
           setError(result.error);
           return;
         }
+        // İlk cihazı sessizce kaydet (uyarı gitmez) + çerezi yaz
+        await recordDeviceLogin({ authPath: `/site/${domain}/auth` }).catch(() => {});
         window.location.href = `/site/${domain}/student`;
       }
     }, 3000);
@@ -142,6 +145,18 @@ export default function CoachSiteAuthPage() {
     setError("");
   };
 
+  // Başarılı girişten sonra: cihazı kaydet (yeni cihazsa e-posta uyarısı gider)
+  // ve diğer cihazlardaki oturumları kapat (tek aktif oturum politikası).
+  const secureNewSession = async () => {
+    try {
+      await recordDeviceLogin({ authPath: `/site/${domain}/auth`, brandName: coachBrand });
+      const supabase = createClient();
+      await supabase.auth.signOut({ scope: "others" });
+    } catch {
+      // Güvenlik adımı başarısız olsa bile giriş akışını bozma
+    }
+  };
+
   // --- Koç Girişi ---
   const handleCoachLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,6 +184,7 @@ export default function CoachSiteAuthPage() {
     const { role } = await determineUserRole(domain);
 
     if (role === "coach") {
+      await secureNewSession();
       router.push(`/site/${domain}/dashboard`);
     } else {
       setError("Bu hesap bu sitede koç olarak kayıtlı değil.");
@@ -222,6 +238,7 @@ export default function CoachSiteAuthPage() {
         setLoading(false);
         return;
       }
+      await secureNewSession();
       router.push(`/site/${domain}/student`);
       return;
     }
@@ -252,6 +269,7 @@ export default function CoachSiteAuthPage() {
     const { role } = await determineUserRole(domain);
 
     if (role === "student") {
+      await secureNewSession();
       router.push(`/site/${domain}/student`);
       return;
     }
@@ -266,6 +284,7 @@ export default function CoachSiteAuthPage() {
     // Doğrulanmış ama Student satırı oluşmamış (finalize yarım kalmış) olabilir — tamamla
     const finalized = await finalizeStudentSignup(domain);
     if ("success" in finalized) {
+      await secureNewSession();
       router.push(`/site/${domain}/student`);
       return;
     }
