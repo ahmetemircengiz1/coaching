@@ -31,6 +31,55 @@ export async function getStudentData(domain: string) {
   return student;
 }
 
+// Misafir desteği: sayfalar önce bunu çağırır. Student varsa normal akış,
+// Guest varsa sayfa salt-okunur örnek içerik (GuestPreview) gösterir.
+// İkisi de yoksa auth'a yönlendirilir.
+export async function getStudentOrGuest(
+  domain: string
+): Promise<
+  | { kind: "student" }
+  | { kind: "guest"; guestName: string | null; brandName: string; whatsappNumber: string | null }
+> {
+  const user = await getAuthUser();
+  if (!user) {
+    redirect(`/site/${domain}/auth`);
+  }
+
+  const student = await prisma.student.findUnique({
+    where: { userId: user.id },
+    select: { id: true, coach: { select: { subdomain: true } } },
+  });
+  if (student && student.coach.subdomain === domain) {
+    return { kind: "student" };
+  }
+
+  const guest = await prisma.guest.findUnique({
+    where: { userId: user.id },
+    select: {
+      id: true,
+      name: true,
+      lastSeenAt: true,
+      coach: { select: { subdomain: true, brandName: true, whatsappNumber: true } },
+    },
+  });
+  if (guest && guest.coach.subdomain === domain) {
+    // "Son görülme"yi saatte bir tazele (koç panelindeki lead listesi için)
+    if (Date.now() - guest.lastSeenAt.getTime() > 3_600_000) {
+      await prisma.guest
+        .update({ where: { id: guest.id }, data: { lastSeenAt: new Date() } })
+        .catch(() => {});
+    }
+    return {
+      kind: "guest",
+      guestName: guest.name,
+      brandName: guest.coach.brandName,
+      whatsappNumber: guest.coach.whatsappNumber,
+    };
+  }
+
+  redirect(`/site/${domain}/auth`);
+}
+
 // Student dashboard verileri
 export async function getStudentDashboard(domain: string) {
   const student = await getStudentData(domain);

@@ -52,6 +52,20 @@ export const studentSignupSchema = z
     path: ["confirmPassword"],
   });
 
+// Misafir kaydı — kod gerektirmez, panel salt-okunur keşif modunda açılır
+export const guestSignupSchema = z
+  .object({
+    email: z.string().email("Geçerli bir e-posta girin.").max(255).trim().toLowerCase(),
+    password: z.string().min(8, "Şifre en az 8 karakter olmalı.").max(128),
+    confirmPassword: z.string().min(8).max(128),
+    name: z.string().min(2, "İsim en az 2 karakter olmalı.").max(100).trim(),
+    phone: z.string().max(30).trim().optional(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Şifreler eşleşmiyor.",
+    path: ["confirmPassword"],
+  });
+
 // ─── Onboarding ───
 const subdomainRegex = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/;
 

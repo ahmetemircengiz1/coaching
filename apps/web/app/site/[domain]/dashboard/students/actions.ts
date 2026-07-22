@@ -40,6 +40,37 @@ async function getAuthenticatedCoach(domain: string) {
   return coach;
 }
 
+// ─── Misafir listesi (lead'ler) ───
+// Kod'suz kayıt olup paneli keşfeden ziyaretçiler. E-postaları BİLİNÇLİ olarak
+// koça açıktır (iletişim/lead amaçlı); kayıtlı öğrenci e-postaları gizli kalır.
+export async function getGuestsList(domain: string) {
+  const coach = await getAuthenticatedCoach(domain);
+
+  const guests = await prisma.guest.findMany({
+    where: { coachId: coach.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      phone: true,
+      createdAt: true,
+      lastSeenAt: true,
+      convertedAt: true,
+    },
+  });
+
+  return guests.map((g) => ({
+    id: g.id,
+    email: g.email,
+    name: g.name,
+    phone: g.phone,
+    createdAt: g.createdAt.toISOString(),
+    lastSeenAt: g.lastSeenAt.toISOString(),
+    convertedAt: g.convertedAt ? g.convertedAt.toISOString() : null,
+  }));
+}
+
 // ─── Davet oluştur ───
 export async function createStudentInvite(
   domain: string,
@@ -403,6 +434,16 @@ export async function determineUserRole(domain: string) {
 
   if (student && student.coach.subdomain === domain) {
     return { role: "student" as const };
+  }
+
+  // Misafir (kod'suz kayıt) — öğrenci paneline salt-okunur keşif modunda girer
+  const guest = await prisma.guest.findUnique({
+    where: { userId: user.id },
+    select: { coach: { select: { subdomain: true } } },
+  });
+
+  if (guest && guest.coach.subdomain === domain) {
+    return { role: "guest" as const };
   }
 
   return { role: null as string | null };

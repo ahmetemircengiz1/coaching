@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getStudentProgress, getStudentPlanHistory } from "../actions";
+import { getStudentProgress, getStudentPlanHistory, getStudentOrGuest } from "../actions";
 import { WeightChart, MeasurementsChart } from "@/components/dashboard/progress-chart";
+import { GuestPreview } from "@/components/student/guest-preview";
 
 const cardStyle = {
   backgroundColor: "var(--dashboard-card-bg)",
@@ -44,6 +45,14 @@ export default async function StudentProgressPage({
   params: Promise<{ domain: string }>;
 }) {
   const { domain } = await params;
+  const gate = await getStudentOrGuest(domain);
+  if (gate.kind === "guest") {
+    return (
+      <div className="py-6">
+        <GuestPreview page="progress" />
+      </div>
+    );
+  }
   const [{ checkIns }, planHistory] = await Promise.all([
     getStudentProgress(domain),
     getStudentPlanHistory(domain),

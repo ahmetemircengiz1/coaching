@@ -8,6 +8,7 @@ import { LogoutButton } from "@/components/student/logout-button";
 import { WhatsAppFab } from "@/components/student/whatsapp-fab";
 import { DashboardThemeProvider } from "@/src/components/DashboardThemeProvider";
 import { getDashboardTheme } from "@/src/theme/dashboardThemes";
+import { GuestBar } from "@/components/student/guest-bar";
 
 function SidebarContent({ children }: { children: React.ReactNode }) {
   return (
@@ -65,6 +66,63 @@ export default async function StudentLayout({
   });
 
   if (!student || student.coach.subdomain !== domain) {
+    // Misafir (kod'suz kayıt) — paneli salt-okunur keşif modunda açar.
+    // Sayfalar getStudentOrGuest ile misafiri algılayıp örnek içerik gösterir.
+    const guest = await prisma.guest.findUnique({
+      where: { userId: user.id },
+      select: {
+        coach: {
+          select: {
+            brandName: true,
+            subdomain: true,
+            dashboardThemeId: true,
+            whatsappNumber: true,
+          },
+        },
+      },
+    });
+
+    if (guest && guest.coach.subdomain === domain) {
+      const guestTheme = getDashboardTheme(guest.coach.dashboardThemeId || 1);
+      return (
+        <DashboardThemeProvider theme={guestTheme}>
+          <div
+            className="min-h-screen"
+            style={{
+              backgroundColor: "var(--dashboard-main-bg)",
+              color: "var(--dashboard-main-text)",
+            }}
+          >
+            <header
+              className="fixed top-0 w-full z-50 h-14 flex items-center px-6"
+              style={{
+                backgroundColor: "var(--dashboard-header-bg)",
+                borderBottom: "1px solid var(--dashboard-header-border)",
+              }}
+            >
+              <span className="font-heading text-lg font-bold">{guest.coach.brandName}</span>
+              <div className="ml-auto flex items-center gap-3">
+                <LogoutButton domain={domain} />
+              </div>
+            </header>
+
+            <main className="pt-14 pb-20 px-4 max-w-2xl mx-auto">
+              <div className="pt-4">
+                <GuestBar
+                  domain={domain}
+                  whatsappNumber={guest.coach.whatsappNumber}
+                  brandName={guest.coach.brandName}
+                />
+              </div>
+              {children}
+            </main>
+
+            <BottomNav domain={domain} />
+          </div>
+        </DashboardThemeProvider>
+      );
+    }
+
     redirect(`/site/${domain}/auth`);
   }
 

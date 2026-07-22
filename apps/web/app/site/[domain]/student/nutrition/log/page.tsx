@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getStudentMealLog } from "../meal-log-actions";
+import { getStudentOrGuest } from "../../actions";
 import { MealLogDayView } from "@/components/student/meal-log-day-view";
 import { MealLogHistory } from "@/components/student/meal-log-history";
+import { GuestPreview } from "@/components/student/guest-preview";
 
 // Yeni güne geçişte "bugünkü yemekler" slot'larının sıfırlanması için cache bypass.
 export const dynamic = "force-dynamic";
@@ -16,6 +18,14 @@ export default async function MealLogPage({
   searchParams: Promise<{ days?: string }>;
 }) {
   const { domain } = await params;
+  const gate = await getStudentOrGuest(domain);
+  if (gate.kind === "guest") {
+    return (
+      <div className="py-6">
+        <GuestPreview page="nutrition-log" />
+      </div>
+    );
+  }
   const sp = await searchParams;
   const daysBack = Math.min(Math.max(parseInt(sp.days || "30", 10) || 30, 7), 90);
   const window = await getStudentMealLog(domain, daysBack);

@@ -26,6 +26,17 @@ type StudentItem = {
 type SortKey = "name" | "lastCheckIn" | "startDate" | "endDateAsc";
 type StatusFilter = "all" | "active" | "inactive" | "endingSoon" | "expired";
 
+// Kod'suz kayıt olan misafir ziyaretçiler (lead listesi) — e-postaları koça açık
+type GuestItem = {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  convertedAt: string | null;
+};
+
 const DAY_MS = 86_400_000;
 
 export function StudentsPageClient({
@@ -34,17 +45,20 @@ export function StudentsPageClient({
   maxStudents,
   packages,
   codes,
+  guests,
 }: {
   domain: string;
   students: StudentItem[];
   maxStudents: number;
   packages: PackageOption[];
   codes: CodeItem[];
+  guests: GuestItem[];
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortBy, setSortBy] = useState<SortKey>("name");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<"students" | "guests">("students");
 
   const now = useMemo(() => Date.now(), []);
 
@@ -153,6 +167,30 @@ export function StudentsPageClient({
         <StudentCodesSection domain={domain} packages={packages} codes={codes} />
       </div>
 
+      {/* Öğrenciler / Misafirler görünüm sekmeleri */}
+      <div className="flex gap-1">
+        {([
+          { key: "students" as const, label: `Öğrenciler (${students.length})` },
+          { key: "guests" as const, label: `Misafirler (${guests.length})` },
+        ]).map((v) => (
+          <button
+            key={v.key}
+            onClick={() => setView(v.key)}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition"
+            style={{
+              backgroundColor: view === v.key
+                ? "color-mix(in srgb, var(--dashboard-accent) 20%, transparent)"
+                : "var(--dashboard-card-bg)",
+              color: view === v.key ? "var(--dashboard-accent)" : "var(--dashboard-main-text-muted)",
+              border: `1px solid ${view === v.key ? "var(--dashboard-accent)" : "var(--dashboard-card-border)"}`,
+            }}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "students" && (<>
       {/* Arama + Filtre + Sıralama */}
       {students.length > 0 && (
         <div className="space-y-3">
@@ -373,6 +411,76 @@ export function StudentsPageClient({
           ))}
         </div>
         </>
+      )}
+      </>)}
+
+      {/* Misafirler görünümü — lead listesi */}
+      {view === "guests" && (
+        guests.length === 0 ? (
+          <EmptyState
+            icon="👋"
+            title="Henüz misafir yok"
+            description="Sitenden kod olmadan 'misafir' olarak kayıt olan ziyaretçiler burada listelenir. E-postalarından onlara ulaşıp kayıt kodu gönderebilirsin."
+          />
+        ) : (
+          <div className="grid gap-3">
+            {guests.map((g) => (
+              <Card
+                key={g.id}
+                style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)" }}
+              >
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold truncate" style={{ color: "var(--dashboard-main-text)" }}>
+                          {g.name || g.email}
+                        </p>
+                        {g.convertedAt ? (
+                          <Badge variant="default">Öğrenci oldu</Badge>
+                        ) : (
+                          <Badge variant="secondary">Misafir</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-sm truncate" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                          {g.email}
+                        </p>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(g.email);
+                            toast.success("E-posta kopyalandı");
+                          }}
+                          className="text-xs px-2 py-0.5 rounded border transition hover:opacity-80 shrink-0"
+                          style={{
+                            borderColor: "var(--dashboard-card-border)",
+                            color: "var(--dashboard-main-text-muted)",
+                          }}
+                        >
+                          Kopyala
+                        </button>
+                      </div>
+                      {g.phone && (
+                        <p className="text-xs mt-0.5" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                          {g.phone}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right text-xs shrink-0" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                      <p>Kayıt: {new Date(g.createdAt).toLocaleDateString("tr-TR")}</p>
+                      <p className="mt-0.5">Son görülme: {new Date(g.lastSeenAt).toLocaleDateString("tr-TR")}</p>
+                    </div>
+                  </div>
+                  {!g.convertedAt && (
+                    <p className="text-xs mt-3 pt-3 border-t" style={{ color: "var(--dashboard-main-text-muted)", borderColor: "var(--dashboard-card-border)" }}>
+                      Üstteki koddan bir kayıt kodu üretip bu e-postaya gönder — kodu panelinde girince kayıtlı öğrencin olur.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
       )}
     </div>
   );

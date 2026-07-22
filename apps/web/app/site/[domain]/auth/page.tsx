@@ -8,7 +8,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { determineUserRole } from "../dashboard/students/actions";
 import { getPublicCoachPackages } from "./actions";
-import { signUpStudentWithCode, resendStudentConfirmation, finalizeStudentSignup } from "./register-actions";
+import {
+  signUpStudentWithCode,
+  resendStudentConfirmation,
+  finalizeStudentSignup,
+  signUpAsGuest,
+  finalizeGuestSignup,
+} from "./register-actions";
 import { recordDeviceLogin } from "@/lib/auth/device-actions";
 
 type Tab = "coach" | "student";
@@ -44,6 +50,10 @@ export default function CoachSiteAuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  // Doğrulama bekleyen kayıt misafir mi öğrenci mi — finalize hangi yoldan tamamlanacak
+  const [pendingKind, setPendingKind] = useState<"student" | "guest">("student");
+  // Kod'suz misafir kaydı modu
+  const [isGuestSignup, setIsGuestSignup] = useState(false);
   const [resendNotice, setResendNotice] = useState("");
   // Supabase aynı adrese ~60 sn'de bir e-posta gönderilmesine izin verir;
   // butonu geri sayımla kilitleyip boşa denemeyi önlüyoruz.
@@ -81,7 +91,10 @@ export default function CoachSiteAuthPage() {
       const { data } = await supabase.auth.getUser();
       if (data.user?.email_confirmed_at) {
         clearInterval(timer);
-        const result = await finalizeStudentSignup(domain);
+        const result =
+          pendingKind === "guest"
+            ? await finalizeGuestSignup(domain)
+            : await finalizeStudentSignup(domain);
         if ("error" in result) {
           setPendingEmail(null);
           setError(result.error);
@@ -205,15 +218,23 @@ export default function CoachSiteAuthPage() {
         setLoading(false);
         return;
       }
-      const result = await signUpStudentWithCode(domain, {
-        email: email.trim(),
-        password,
-        confirmPassword,
-        name: name.trim(),
-        phone: phone.trim() || undefined,
-        code: code.trim().toUpperCase(),
-        packageId: selectedPackageId || undefined,
-      });
+      const result = isGuestSignup
+        ? await signUpAsGuest(domain, {
+            email: email.trim(),
+            password,
+            confirmPassword,
+            name: name.trim(),
+            phone: phone.trim() || undefined,
+          })
+        : await signUpStudentWithCode(domain, {
+            email: email.trim(),
+            password,
+            confirmPassword,
+            name: name.trim(),
+            phone: phone.trim() || undefined,
+            code: code.trim().toUpperCase(),
+            packageId: selectedPackageId || undefined,
+          });
       if ("error" in result) {
         setError(result.error);
         setLoading(false);
@@ -221,6 +242,7 @@ export default function CoachSiteAuthPage() {
       }
       if (result.needsConfirmation) {
         // E-posta doğrulama açık → linke tıklanana kadar hesap askıda
+        setPendingKind(isGuestSignup ? "guest" : "student");
         setPendingEmail(result.email);
         setResendCooldown(60); // az önce bir e-posta gönderildi
         setLoading(false);
@@ -268,7 +290,7 @@ export default function CoachSiteAuthPage() {
 
     const { role } = await determineUserRole(domain);
 
-    if (role === "student") {
+    if (role === "student" || role === "guest") {
       await secureNewSession();
       router.push(`/site/${domain}/student`);
       return;
@@ -281,9 +303,16 @@ export default function CoachSiteAuthPage() {
       return;
     }
 
-    // Doğrulanmış ama Student satırı oluşmamış (finalize yarım kalmış) olabilir — tamamla
+    // Doğrulanmış ama Student/Guest satırı oluşmamış (finalize yarım kalmış)
+    // olabilir — önce öğrenci, sonra misafir olarak tamamlamayı dene
     const finalized = await finalizeStudentSignup(domain);
     if ("success" in finalized) {
+      await secureNewSession();
+      router.push(`/site/${domain}/student`);
+      return;
+    }
+    const guestFinalized = await finalizeGuestSignup(domain);
+    if ("success" in guestFinalized) {
       await secureNewSession();
       router.push(`/site/${domain}/student`);
       return;
@@ -624,7 +653,7 @@ export default function CoachSiteAuthPage() {
                       </div>
 
                       {/* Landing'de tıklanan paket — chip olarak göster */}
-                      {(() => {
+                      {!isGuestSignup && (() => {
                         const selectedPackage = selectedPackageId
                           ? packages.find((p) => p.id === selectedPackageId)
                           : null;
@@ -663,20 +692,51 @@ export default function CoachSiteAuthPage() {
                         );
                       })()}
 
-                      <div>
-                        <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>Koç Kodu</label>
-                        <Input
-                          type="text"
-                          value={code}
-                          onChange={(e) => setCode(e.target.value.toUpperCase())}
-                          placeholder="Koçunuzdan aldığınız kod"
-                          className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all uppercase tracking-widest font-mono"
-                          style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
-                          required
-                          minLength={6}
-                          maxLength={32}
-                        />
-                      </div>
+                      {!isGuestSignup ? (
+                        <div>
+                          <label className="text-sm font-medium mb-1.5 block px-1" style={{ color: t.muted }}>Koç Kodu</label>
+                          <Input
+                            type="text"
+                            value={code}
+                            onChange={(e) => setCode(e.target.value.toUpperCase())}
+                            placeholder="Koçunuzdan aldığınız kod"
+                            className="h-12 rounded-xl text-sm px-4 focus:ring-1 transition-all uppercase tracking-widest font-mono"
+                            style={{ backgroundColor: t.inputBg, borderColor: t.inputBorder, color: t.text, "--tw-ring-color": t.accent } as React.CSSProperties}
+                            required
+                            minLength={6}
+                            maxLength={32}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => { setIsGuestSignup(true); setError(""); }}
+                            className="text-xs mt-2 px-1 underline underline-offset-2 transition hover:opacity-80"
+                            style={{ color: t.muted }}
+                          >
+                            Kodum yok — misafir olarak keşfet
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          className="rounded-xl border px-4 py-3"
+                          style={{ backgroundColor: t.inputBg, borderColor: t.cardBorder }}
+                        >
+                          <p className="text-sm font-semibold" style={{ color: t.text }}>
+                            Misafir kaydı
+                          </p>
+                          <p className="text-xs mt-1 leading-relaxed" style={{ color: t.muted }}>
+                            Kod olmadan paneli örnek içerikle keşfedersin. Koçundan kod aldığında
+                            panelden girerek tam üyeliğe geçersin.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => { setIsGuestSignup(false); setError(""); }}
+                            className="text-xs mt-2 underline underline-offset-2 transition hover:opacity-80"
+                            style={{ color: t.muted }}
+                          >
+                            Kodum var — kodla kayıt ol
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
 
@@ -689,7 +749,9 @@ export default function CoachSiteAuthPage() {
                     {loading
                       ? "Yükleniyor..."
                       : studentMode === "register"
-                        ? "Kayıt Ol"
+                        ? isGuestSignup
+                          ? "Misafir Olarak Kayıt Ol"
+                          : "Kayıt Ol"
                         : "Giriş Yap"}
                   </Button>
                 </form>

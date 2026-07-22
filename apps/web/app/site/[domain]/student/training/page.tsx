@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { getStudentTraining } from "../actions";
+import { getStudentTraining, getStudentOrGuest } from "../actions";
 import { TrainingProgramView, type ViewWeek } from "@/components/student/training-program-view";
+import { GuestPreview } from "@/components/student/guest-preview";
 
 export default async function StudentTrainingPage({
   params,
@@ -8,6 +9,14 @@ export default async function StudentTrainingPage({
   params: Promise<{ domain: string }>;
 }) {
   const { domain } = await params;
+  const gate = await getStudentOrGuest(domain);
+  if (gate.kind === "guest") {
+    return (
+      <div className="py-6">
+        <GuestPreview page="training" />
+      </div>
+    );
+  }
   const { trainingPlan } = await getStudentTraining(domain);
 
   const cardStyle = {

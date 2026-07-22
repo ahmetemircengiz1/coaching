@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getStudentDashboard } from "./actions";
+import { getStudentDashboard, getStudentOrGuest } from "./actions";
 import { getStudentMealLog } from "./nutrition/meal-log-actions";
 import { Sun, Sunset, Moon, Coffee, Check } from "lucide-react";
+import { GuestPreview } from "@/components/student/guest-preview";
 
 // Günlük yemek/antrenman özetinin midnight'ta sıfırlanması için Next.js cache'i bypass.
 export const dynamic = "force-dynamic";
@@ -13,6 +14,14 @@ export default async function StudentDashboardPage({
   params: Promise<{ domain: string }>;
 }) {
   const { domain } = await params;
+  const gate = await getStudentOrGuest(domain);
+  if (gate.kind === "guest") {
+    return (
+      <div className="py-6">
+        <GuestPreview page="dashboard" />
+      </div>
+    );
+  }
   const [{ student, trainingPlan, nutritionPlan, lastCheckIn }, mealLog] =
     await Promise.all([
       getStudentDashboard(domain),

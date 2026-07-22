@@ -5,9 +5,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { checkRateLimitAsync, AUTH_LIMIT, getClientIp } from "@/lib/rate-limit";
-import { studentSignupSchema } from "@/lib/validation/schemas";
+import { studentSignupSchema, guestSignupSchema } from "@/lib/validation/schemas";
 import { mapResendEmailError } from "@/lib/auth-email-errors";
 import { checkEmailDomain } from "@/lib/email-check";
+import { createNotification } from "@/lib/notifications";
 
 type SignupInput = {
   email: string;
@@ -336,6 +337,320 @@ export async function resendStudentConfirmation(
     return mapResendEmailError(error);
   }
   return { success: true };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MİSAFİR KAYDI — kod gerektirmez; panel salt-okunur keşif modunda açılır.
+// Misafirler Student tablosuna DEĞİL, ayrı Guest tablosuna yazılır ve koç
+// panelinde lead listesi olarak (e-postalarıyla) görünür.
+// ═══════════════════════════════════════════════════════════════════
+
+type GuestSignupInput = {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  name: string;
+  phone?: string;
+};
+
+export async function signUpAsGuest(
+  domain: string,
+  input: GuestSignupInput
+): Promise<
+  { success: true; email: string; needsConfirmation: boolean } | { error: string }
+> {
+  const hdrs = await headers();
+  const ip = getClientIp(hdrs);
+  const rl = await checkRateLimitAsync(`guest:signup:${ip}`, AUTH_LIMIT);
+  if (!rl.success) {
+    return { error: "Çok fazla kayıt denemesi. Lütfen birkaç dakika sonra tekrar deneyin." };
+  }
+
+  const parsed = guestSignupSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Geçersiz veri." };
+  }
+  const data = parsed.data;
+
+  const emailCheck = await checkEmailDomain(data.email);
+  if (!emailCheck.ok) {
+    return { error: emailCheck.error };
+  }
+
+  const coach = await prisma.coach.findFirst({
+    where: { OR: [{ subdomain: domain }, { customDomain: domain }] },
+    select: { id: true, subdomain: true },
+  });
+  if (!coach) {
+    return { error: "Koç sitesi bulunamadı." };
+  }
+
+  // Zaten kayıtlı öğrenciyse misafirliğe gerek yok
+  const emailLower = data.email.toLowerCase();
+  const existingStudent = await prisma.student.findFirst({
+    where: { email: emailLower, coachId: coach.id },
+    select: { id: true },
+  });
+  if (existingStudent) {
+    return { error: "Bu e-posta bu koçta zaten öğrenci olarak kayıtlı. Giriş yapmayı deneyin." };
+  }
+
+  const supabase = await createClient();
+  const baseUrl = getBaseUrl(hdrs);
+
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email: emailLower,
+    password: data.password,
+    options: {
+      data: {
+        name: data.name,
+        role: "guest",
+        coach_domain: coach.subdomain,
+        phone: data.phone || null,
+      },
+      emailRedirectTo: `${baseUrl}/site/${domain}/auth/callback?next=/site/${domain}/auth/verified`,
+    },
+  });
+
+  if (signUpError) {
+    const msg = signUpError.message.toLowerCase();
+    if (msg.includes("already") || msg.includes("registered")) {
+      return { error: "Bu e-posta zaten kayıtlı. Giriş yapmayı veya şifre sıfırlamayı deneyin." };
+    }
+    console.error("[signUpAsGuest] signUp error:", signUpError.message);
+    return { error: "Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin." };
+  }
+
+  // Enumeration koruması: kayıtlı e-postayla signUp identities'i boş user döner
+  if (signUpData.user && !signUpData.session && (signUpData.user.identities?.length ?? 0) === 0) {
+    return { error: "Bu e-posta zaten kayıtlı. Giriş yapmayı veya şifre sıfırlamayı deneyin." };
+  }
+
+  if (!signUpData.session) {
+    console.log(JSON.stringify({ type: "GUEST_SIGNUP_PENDING", coachId: coach.id }));
+    return { success: true, email: emailLower, needsConfirmation: true };
+  }
+
+  const finalized = await finalizeGuestSignup(domain);
+  if ("error" in finalized) {
+    return finalized;
+  }
+  return { success: true, email: emailLower, needsConfirmation: false };
+}
+
+// E-posta doğrulaması sonrası (veya autoconfirm ile hemen) Guest satırını yazar.
+// Tekrar çağrılırsa idempotenttir; kullanıcı bu arada öğrenci olduysa da başarı sayar.
+export async function finalizeGuestSignup(
+  domain: string
+): Promise<{ success: true; kind: "guest" | "student" } | { error: string }> {
+  const user = await getAuthUser();
+  if (!user) {
+    return { error: "Oturum doğrulanamadı. Lütfen giriş yapmayı deneyin." };
+  }
+
+  const coach = await prisma.coach.findFirst({
+    where: { OR: [{ subdomain: domain }, { customDomain: domain }] },
+    select: { id: true, userId: true },
+  });
+  if (!coach) {
+    return { error: "Koç sitesi bulunamadı." };
+  }
+
+  // Zaten öğrenciyse misafirlik gereksiz — tam panele gider
+  const existingStudent = await prisma.student.findUnique({
+    where: { userId: user.id },
+    select: { id: true, coachId: true },
+  });
+  if (existingStudent) {
+    if (existingStudent.coachId === coach.id) {
+      return { success: true, kind: "student" };
+    }
+    return { error: "Bu hesap başka bir koçun öğrencisi olarak kayıtlı." };
+  }
+
+  // Idempotent: Guest satırı zaten varsa başarı
+  const existingGuest = await prisma.guest.findUnique({
+    where: { userId: user.id },
+    select: { id: true, coachId: true },
+  });
+  if (existingGuest) {
+    if (existingGuest.coachId === coach.id) {
+      return { success: true, kind: "guest" };
+    }
+    return { error: "Bu hesap başka bir koçun sitesinde misafir olarak kayıtlı." };
+  }
+
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  if (meta.role !== "guest") {
+    return { error: "Bu hesap bir misafir kaydı değil." };
+  }
+
+  const name =
+    typeof meta.name === "string" && meta.name.trim() ? meta.name.trim() : null;
+  const phone = typeof meta.phone === "string" && meta.phone.trim() ? meta.phone.trim() : null;
+  const emailLower = (user.email || "").toLowerCase();
+
+  try {
+    // Aynı e-posta bu koçta daha önce misafir olmuşsa (eski hesap silinmiş
+    // olabilir) satırı yeni auth kullanıcısına bağla — @@unique([email, coachId])
+    await prisma.guest.upsert({
+      where: { email_coachId: { email: emailLower, coachId: coach.id } },
+      create: {
+        userId: user.id,
+        email: emailLower,
+        name,
+        phone,
+        coachId: coach.id,
+      },
+      update: { userId: user.id, name, phone, lastSeenAt: new Date() },
+    });
+  } catch (err) {
+    console.error("[finalizeGuestSignup] guest yazılamadı:", err);
+    return { error: "Kayıt tamamlanamadı. Lütfen tekrar deneyin." };
+  }
+
+  console.log(JSON.stringify({ type: "GUEST_SIGNUP", coachId: coach.id, userId: user.id }));
+
+  // Koça haber ver — misafir e-postası lead olarak panelde görünür
+  await createNotification({
+    recipientId: coach.userId,
+    type: "guest_signup",
+    title: "Yeni misafir kaydı",
+    message: `${name || emailLower} sitenizi misafir olarak keşfetmeye başladı.`,
+    link: `/site/${domain}/dashboard/students`,
+  }).catch((err) => console.error("[finalizeGuestSignup] bildirim yazılamadı:", err));
+
+  return { success: true, kind: "guest" };
+}
+
+// Misafir panelindeki "kod gir" alanı: geçerli koç kodunu kullanınca misafir
+// tam kayıtlı öğrenciye dönüşür (tüm özellikler açılır, koçun listesine geçer).
+export async function redeemCodeAsGuest(
+  domain: string,
+  codeInput: string
+): Promise<{ success: true } | { error: string }> {
+  const hdrs = await headers();
+  const ip = getClientIp(hdrs);
+  const rl = await checkRateLimitAsync(`guest:redeem:${ip}`, AUTH_LIMIT);
+  if (!rl.success) {
+    return { error: "Çok fazla deneme. Lütfen birkaç dakika sonra tekrar deneyin." };
+  }
+
+  const code = (codeInput || "").trim().toUpperCase();
+  if (code.length < 6 || code.length > 32) {
+    return { error: "Koç kodu geçersiz." };
+  }
+
+  const user = await getAuthUser();
+  if (!user) {
+    return { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yapın." };
+  }
+
+  const coach = await prisma.coach.findFirst({
+    where: { OR: [{ subdomain: domain }, { customDomain: domain }] },
+    select: { id: true, userId: true },
+  });
+  if (!coach) {
+    return { error: "Koç sitesi bulunamadı." };
+  }
+
+  // Zaten öğrenci mi?
+  const existingStudent = await prisma.student.findUnique({
+    where: { userId: user.id },
+    select: { id: true, coachId: true },
+  });
+  if (existingStudent) {
+    if (existingStudent.coachId === coach.id) return { success: true };
+    return { error: "Bu hesap başka bir koçun öğrencisi olarak kayıtlı." };
+  }
+
+  const guest = await prisma.guest.findUnique({
+    where: { userId: user.id },
+    select: { id: true, coachId: true, email: true, name: true, phone: true },
+  });
+  if (!guest || guest.coachId !== coach.id) {
+    return { error: "Misafir kaydınız bulunamadı. Lütfen tekrar giriş yapın." };
+  }
+
+  const now = new Date();
+  const codeRow = await prisma.coachRegistrationCode.findUnique({
+    where: { code },
+    select: { id: true, coachId: true, usedAt: true, revokedAt: true, expiresAt: true, coachPackageId: true },
+  });
+
+  if (!codeRow || codeRow.coachId !== coach.id) {
+    return { error: "Koç kodu geçersiz. Koçunuzdan yeni bir kod isteyin." };
+  }
+  if (codeRow.usedAt) {
+    return { error: "Bu kod zaten kullanılmış. Koçunuzdan yeni bir kod isteyin." };
+  }
+  if (codeRow.revokedAt) {
+    return { error: "Bu kod iptal edilmiş. Koçunuzdan yeni bir kod isteyin." };
+  }
+  if (codeRow.expiresAt && codeRow.expiresAt < now) {
+    return { error: "Bu kodun süresi dolmuş. Koçunuzdan yeni bir kod isteyin." };
+  }
+
+  try {
+    const student = await prisma.$transaction(async (tx) => {
+      // Race: kod bu arada kullanılmış olabilir
+      const fresh = await tx.coachRegistrationCode.findUnique({
+        where: { id: codeRow.id },
+        select: { usedAt: true, revokedAt: true, expiresAt: true },
+      });
+      if (!fresh || fresh.usedAt || fresh.revokedAt || (fresh.expiresAt && fresh.expiresAt < new Date())) {
+        throw new Error("code_race");
+      }
+
+      const created = await tx.student.create({
+        data: {
+          userId: user.id,
+          email: guest.email,
+          name: guest.name || guest.email,
+          phone: guest.phone,
+          coachId: coach.id,
+          coachPackageId: codeRow.coachPackageId || null,
+          status: "active",
+        },
+        select: { id: true },
+      });
+
+      await tx.coachRegistrationCode.update({
+        where: { id: codeRow.id },
+        data: { usedAt: new Date(), usedByStudentId: created.id },
+      });
+
+      await tx.guest.update({
+        where: { id: guest.id },
+        data: { convertedStudentId: created.id, convertedAt: new Date() },
+      });
+
+      return created;
+    });
+
+    console.log(JSON.stringify({
+      type: "GUEST_CONVERTED",
+      coachId: coach.id,
+      userId: user.id,
+      studentId: student.id,
+    }));
+
+    await createNotification({
+      recipientId: coach.userId,
+      type: "guest_converted",
+      title: "Misafir öğrenciye dönüştü",
+      message: `${guest.name || guest.email} kod kullanarak kayıtlı öğrencin oldu.`,
+      link: `/site/${domain}/dashboard/students/${student.id}`,
+    }).catch((err) => console.error("[redeemCodeAsGuest] bildirim yazılamadı:", err));
+
+    return { success: true };
+  } catch (err) {
+    if (err instanceof Error && err.message === "code_race") {
+      return { error: "Kod az önce başka biri tarafından kullanıldı. Koçunuzdan yeni bir kod isteyin." };
+    }
+    console.error("[redeemCodeAsGuest] Beklenmeyen hata:", err);
+    return { error: "İşlem tamamlanamadı. Lütfen tekrar deneyin." };
+  }
 }
 
 export async function requestPasswordReset(

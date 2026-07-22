@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getStudentNutrition } from "../actions";
+import { getStudentNutrition, getStudentOrGuest } from "../actions";
 import { MealCompleteToggle } from "@/components/student/meal-complete-toggle";
+import { GuestPreview } from "@/components/student/guest-preview";
 
 // Her gün sıfırdan "yedim" işaretlemesi yapılabilmesi için sayfa her istekte
 // taze render edilir — Next.js cache'ine düşmesin.
@@ -18,6 +19,14 @@ export default async function StudentNutritionPage({
   params: Promise<{ domain: string }>;
 }) {
   const { domain } = await params;
+  const gate = await getStudentOrGuest(domain);
+  if (gate.kind === "guest") {
+    return (
+      <div className="py-6">
+        <GuestPreview page="nutrition" />
+      </div>
+    );
+  }
   const { nutritionPlan, mealStatus } = await getStudentNutrition(domain);
   const todayLabel = TR_DATE.format(new Date());
 
