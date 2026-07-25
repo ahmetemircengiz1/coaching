@@ -191,7 +191,7 @@ export function LandingTextsSettings({ domain, initialLandingTexts, selectedThem
         {/* ─── Bölüm Başlıkları ─── */}
         <div className="space-y-4 border-t pt-6" style={{ borderColor: "var(--dashboard-card-border)" }}>
           <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--dashboard-main-text-muted)" }}>Bölüm Başlıkları</h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1">İstatistik 1 Etiket</label>
               <input type="text" value={stat1Label} onChange={(e) => setStat1Label(e.target.value)} placeholder="Aktif Öğrenci" maxLength={50} className={inputClass} style={inputStyle} />

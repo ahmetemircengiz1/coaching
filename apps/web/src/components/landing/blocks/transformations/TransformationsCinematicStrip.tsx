@@ -78,8 +78,11 @@ export function TransformationsCinematicStrip({
     let raf = 0;
     let last = performance.now();
 
+    // Genişlik her karede DOM'dan okunmaz (forced reflow) — cache'lenir,
+    // yalnız resize'da güncellenir.
+    let vw = vp.clientWidth;
+
     const apply = () => {
-      const vw = vp.clientWidth;
       const cx = vw / 2;
       const half = vw / 2 || 1;
       for (let i = 0; i < L; i++) {
@@ -109,21 +112,45 @@ export function TransformationsCinematicStrip({
     apply();
     setReady(true);
 
+    const onResize = () => {
+      vw = vp.clientWidth;
+      apply();
+    };
+    window.addEventListener("resize", onResize);
+
     if (reduce) {
-      const onResize = () => apply();
-      window.addEventListener("resize", onResize);
       return () => window.removeEventListener("resize", onResize);
     }
 
     const tick = (now: number) => {
+      if (!visible) {
+        raf = 0;
+        return; // ekran dışı → döngü durur, görünür olunca IO yeniden başlatır
+      }
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       offset = (offset + SPEED * dt) % stripW;
       apply();
       raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+
+    // Şerit yalnızca ekrandayken animasyon çalışsın — sayfanın başka
+    // yerindeyken 60fps'lik döngü mobilde boşuna pil/GPU yakıyordu.
+    let visible = false;
+    const io = new IntersectionObserver(([entry]) => {
+      visible = entry?.isIntersecting ?? false;
+      if (visible && !raf) {
+        last = performance.now();
+        raf = requestAnimationFrame(tick);
+      }
+    });
+    io.observe(vp);
+
+    return () => {
+      io.disconnect();
+      window.removeEventListener("resize", onResize);
+      if (raf) cancelAnimationFrame(raf);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loop.length]);
 

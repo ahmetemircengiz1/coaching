@@ -19,7 +19,6 @@ export function FloatingWhatsApp({ whatsappUrl, whatsappNumber }: FloatingWhatsA
       style={{ backgroundColor: "#25D366", color: "#ffffff" }}
     >
       <MessageCircle size={26} strokeWidth={2.25} />
-      <span className="absolute inset-0 rounded-full ring-2 ring-[#25D366]/50 animate-ping" aria-hidden="true" />
     </a>
   );
 }

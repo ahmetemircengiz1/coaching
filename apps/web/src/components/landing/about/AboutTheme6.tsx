@@ -61,7 +61,7 @@ export function AboutTheme6({ content, paragraphs }: Props) {
               <article className="relative">
                 {/* Large quote mark decoration */}
                 <div
-                  className="absolute -top-16 -left-4 text-[12rem] font-bold text-white/5 select-none pointer-events-none leading-none"
+                  className="absolute -top-10 -left-2 text-[7rem] md:-top-16 md:-left-4 md:text-[12rem] font-bold text-white/5 select-none pointer-events-none leading-none"
                   style={{ fontFamily: "Georgia, serif" }}
                 >
                   &ldquo;

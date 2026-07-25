@@ -100,13 +100,13 @@ export default async function StudentLayout({
                 borderBottom: "1px solid var(--dashboard-header-border)",
               }}
             >
-              <span className="font-heading text-lg font-bold">{guest.coach.brandName}</span>
-              <div className="ml-auto flex items-center gap-3">
+              <span className="font-heading text-lg font-bold truncate min-w-0">{guest.coach.brandName}</span>
+              <div className="ml-auto flex shrink-0 items-center gap-3">
                 <LogoutButton domain={domain} />
               </div>
             </header>
 
-            <main className="pt-14 pb-20 px-4 max-w-2xl mx-auto">
+            <main className="pt-14 pb-24 px-4 max-w-2xl mx-auto">
               <div className="pt-4">
                 <GuestBar
                   domain={domain}
@@ -179,15 +179,15 @@ export default async function StudentLayout({
             borderBottom: "1px solid var(--dashboard-header-border)",
           }}
         >
-          <span className="font-heading text-lg font-bold">
+          <span className="font-heading text-lg font-bold truncate min-w-0">
             {student.coach.brandName}
           </span>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-3">
             <LogoutButton domain={domain} />
           </div>
         </header>
 
-        <main className="pt-14 pb-20 px-4 max-w-2xl mx-auto">
+        <main className="pt-14 pb-24 px-4 max-w-2xl mx-auto">
           <PageGuide role="student" domain={domain} />
           {children}
         </main>

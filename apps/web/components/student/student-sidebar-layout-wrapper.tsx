@@ -62,7 +62,7 @@ export function StudentSidebarLayoutWrapper({
         onToggle={toggle}
       />
       <div
-        className={`flex-1 ${marginClass} ${paddingClass} p-2 lg:p-4 transition-all duration-300`}
+        className={`flex-1 ${marginClass} ${paddingClass} p-2 pt-16 lg:p-4 lg:pt-4 transition-all duration-300`}
       >
         {children}
       </div>

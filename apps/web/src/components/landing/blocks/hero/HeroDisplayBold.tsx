@@ -110,6 +110,7 @@ export function HeroDisplayBold({
             <img
               src={heroImage}
               alt=""
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover scale-105 animate-[slowZoom_30s_ease-in-out_infinite_alternate]"
               style={{ objectPosition: `${content.heroFocalX ?? 50}% ${content.heroFocalY ?? 35}%` }}
             />
@@ -292,7 +293,8 @@ export function HeroDisplayBold({
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : heroImage ? (
-                <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                // Hero görünümünde (fold üstü) olduğu için loading="lazy" bilinçli olarak yok
+                <img src={heroImage} alt="" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
               ) : (
                 <div
                   className="absolute inset-0"

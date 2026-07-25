@@ -70,7 +70,7 @@ export function GuestBar({
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder="Koç kodun"
-          className="flex-1 min-w-[140px] h-10 px-3 rounded-lg text-sm uppercase tracking-widest font-mono"
+          className="flex-1 min-w-[140px] h-10 px-3 rounded-lg text-base sm:text-sm uppercase tracking-widest font-mono"
           style={{
             backgroundColor: "var(--dashboard-main-bg)",
             color: "var(--dashboard-main-text)",

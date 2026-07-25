@@ -102,7 +102,7 @@ export function HowNumberedList({
 
           <div className="mt-9 relative rounded-[2rem] overflow-hidden h-72 sm:h-80">
             {photo ? (
-              <img src={photo} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <img src={photo} alt="" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
             ) : (
               <div
                 className="absolute inset-0 flex items-center justify-center"
@@ -129,6 +129,8 @@ export function HowNumberedList({
                   <img
                     src={s.image}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="absolute inset-0 w-full h-full object-cover"
                     style={{ opacity: 0.5 }}
                     aria-hidden

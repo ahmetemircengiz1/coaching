@@ -61,7 +61,7 @@ export function FaqFightness({ content, config }: Props) {
             >
               {faqImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={faqImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <img src={faqImage} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
               ) : (
                 <div
                   className="flex h-full w-full flex-col items-center justify-center gap-4"

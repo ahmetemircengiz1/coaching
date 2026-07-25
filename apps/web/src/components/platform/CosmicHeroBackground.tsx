@@ -28,9 +28,14 @@ export function CosmicHeroBackground() {
   useEffect(() => {
     // Sayılar bilinçli olarak ölçülü: her yıldız bir box-shadow ve katmanlar
     // sürekli animasyonda — fazlası zayıf GPU'larda kaydırmayı kastırıyor.
-    setSmall(genStars(320));
-    setMedium(genStars(120));
-    setLarge(genStars(60));
+    // Dokunmatik cihazlarda katman animasyonu CSS'te kapalı; yıldız sayısı da
+    // düşürülür (boya alanı küçülsün, pil/GPU rahatlasın).
+    const coarse =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(pointer: coarse)").matches;
+    setSmall(genStars(coarse ? 120 : 320));
+    setMedium(genStars(coarse ? 45 : 120));
+    setLarge(genStars(coarse ? 20 : 60));
   }, []);
 
   return (

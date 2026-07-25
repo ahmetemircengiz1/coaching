@@ -37,7 +37,7 @@ export function CoachBottomNav({
   const basePath = `/site/${domain}/dashboard`;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w=[calc(100%-2rem)] w-full max-w-lg z-50 px-4">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg z-50">
       <nav
         className="backdrop-blur-xl px-2 py-2 rounded-3xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] border transition-all duration-300"
         style={{

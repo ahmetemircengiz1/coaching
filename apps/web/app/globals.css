@@ -61,6 +61,15 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Mobil yatay taşma emniyeti: geniş bir öğe sayfayı yana kaydırmasın.
+     `clip` sticky konumlandırmayı bozmaz; desteklemeyen eski tarayıcılar
+     bir önceki `hidden` değerine düşer. */
+  html,
+  body {
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
 }
 
 /* Coach site tema override'ları - CSS variables ile dinamik tema */

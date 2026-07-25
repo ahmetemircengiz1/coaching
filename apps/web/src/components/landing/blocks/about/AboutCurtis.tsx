@@ -113,6 +113,8 @@ export function AboutCurtis({ content, config }: EliteProps) {
               <img
                 src={image}
                 alt={brand}
+                loading="lazy"
+                decoding="async"
                 className="h-full min-h-[520px] w-full object-cover"
               />
             ) : (
@@ -202,6 +204,8 @@ function LocationCard({
         <img
           src={image}
           alt={title}
+          loading="lazy"
+          decoding="async"
           className="h-full min-h-[180px] w-full object-cover"
         />
       ) : (

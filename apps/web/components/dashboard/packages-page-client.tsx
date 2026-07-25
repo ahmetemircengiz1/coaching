@@ -193,7 +193,7 @@ export default function PackagesPageClient({
               disabled={loading}
               className="w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 disabled:opacity-50"
               style={{ ...inputStyle, border: "1px solid var(--dashboard-card-border)" }} />
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Fiyat</label>
                 <Input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))}

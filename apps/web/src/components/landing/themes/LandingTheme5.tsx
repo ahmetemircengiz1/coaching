@@ -29,7 +29,7 @@ function normalizePackages(packages: LandingPackage[]) {
 /* ─── Background ─── */
 function Theme5Background() {
   return (
-    <div className="pointer-events-none fixed inset-0 z-0">
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_10%,#000_20%,transparent_100%)]" />
       <div className="absolute -top-[20%] right-[10%] w-[600px] h-[600px] bg-[#2EC8D8]/10 blur-[120px] rounded-full" />
       <div className="absolute top-[40%] text-transparent -left-[10%] w-[500px] h-[500px] bg-[#9D4EDD]/10 blur-[120px] rounded-full" />
@@ -335,7 +335,7 @@ export function Theme5Contact({ content, variant }: SectionRendererProps) {
 /* ─── Main Component (backward compatible) ─── */
 export function LandingTheme5({ content }: LandingThemeComponentProps) {
   return (
-    <div className="relative min-h-screen bg-[#07090F] text-[#E2E8F0] selection:bg-[#2EC8D8]/30 selection:text-[#2EC8D8]" style={{ fontFamily: "var(--font-body, Inter, sans-serif)" }}>
+    <div className="relative min-h-screen overflow-x-clip bg-[#07090F] text-[#E2E8F0] selection:bg-[#2EC8D8]/30 selection:text-[#2EC8D8]" style={{ fontFamily: "var(--font-body, Inter, sans-serif)" }}>
       <Theme5Background />
       <div className="relative z-10 flex flex-col min-h-screen">
         <Theme5Navbar content={content} />
@@ -353,7 +353,7 @@ export function LandingTheme5({ content }: LandingThemeComponentProps) {
 /* ─── Layout Export (DynamicLandingRenderer için) ─── */
 export const theme5Layout: ThemeLayout = {
   Wrapper: ({ children }) => (
-    <div className="relative min-h-screen bg-[#07090F] text-[#E2E8F0] selection:bg-[#2EC8D8]/30 selection:text-[#2EC8D8]" style={{ fontFamily: "var(--font-body, Inter, sans-serif)" }}>
+    <div className="relative min-h-screen overflow-x-clip bg-[#07090F] text-[#E2E8F0] selection:bg-[#2EC8D8]/30 selection:text-[#2EC8D8]" style={{ fontFamily: "var(--font-body, Inter, sans-serif)" }}>
       <Theme5Background />
       <div className="relative z-10 flex flex-col min-h-screen">
         {children}

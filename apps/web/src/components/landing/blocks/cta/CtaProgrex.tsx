@@ -35,7 +35,7 @@ export function CtaProgrex({ content, config }: EliteProps) {
       {/* Arkaplan */}
       <div className="absolute inset-0 z-0">
         {image ? (
-          <img src={image} alt="" className="h-full w-full object-cover" />
+          <img src={image} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div
             className="h-full w-full"

@@ -528,7 +528,10 @@ export default function NutritionPageClient({
     const hasActions = !!onRemove;
     const cols = hasActions ? "grid-cols-9" : "grid-cols-8";
     return (
-      <div className="space-y-1">
+      // 8-9 kolonlu tablo dar ekranda ~33px kolona sıkışıyordu: içerik
+      // minimum genişliğini korur, kart içinde yatay kaydırılır.
+      <div className="overflow-x-auto">
+      <div className="min-w-[430px] space-y-1">
         <div className={`grid ${cols} text-[10px] px-1`} style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.6 }}>
           <span className="col-span-3">Besin</span>
           <span className="text-right">Kalori</span>
@@ -584,6 +587,7 @@ export default function NutritionPageClient({
           <span className="text-right text-red-300">{totals.sugar.toFixed(0)}</span>
           {hasActions && <span></span>}
         </div>
+      </div>
       </div>
     );
   };
@@ -1197,7 +1201,8 @@ export default function NutritionPageClient({
                               className="text-xs text-red-400/50 hover:text-red-400">Sil</button>
                           </div>
                           {mealFoods.length > 0 && (
-                            <div className="space-y-1.5">
+                            <div className="overflow-x-auto">
+                            <div className="min-w-[430px] space-y-1.5">
                               <div className="grid grid-cols-8 text-[10px] px-1" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.6 }}>
                                 <span className="col-span-3">Besin</span>
                                 <span className="text-right">Kalori</span>
@@ -1227,6 +1232,7 @@ export default function NutritionPageClient({
                                 <span className="text-right text-yellow-300">{totals.fat.toFixed(0)}</span>
                                 <span className="text-right text-red-300">{totals.sugar.toFixed(0)}</span>
                               </div>
+                            </div>
                             </div>
                           )}
                           <MealAlternativesEditor

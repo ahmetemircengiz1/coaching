@@ -185,7 +185,7 @@ export function StudentCheckInClient() {
             <textarea
               value={formData.notes}
               onChange={(e) => updateField("notes", e.target.value)}
-              className="w-full rounded-md px-3 py-2 text-sm min-h-[100px]"
+              className="w-full rounded-md px-3 py-2 text-base sm:text-sm min-h-[100px]"
               style={{
                 backgroundColor: "color-mix(in srgb, var(--dashboard-card-bg) 80%, var(--dashboard-main-bg))",
                 borderColor: "var(--dashboard-card-border)",

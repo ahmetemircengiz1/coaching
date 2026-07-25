@@ -452,7 +452,7 @@ export function Theme4Contact({ content, variant }: SectionRendererProps) {
 /* ─── Main Component (backward compatible) ─── */
 export function LandingTheme4({ content }: LandingThemeComponentProps) {
   return (
-    <div className="relative min-h-screen bg-[#FBF9F6] text-[#2C2A29] selection:bg-[#EAE4D9] selection:text-[#2C2A29]" style={{ fontFamily: "var(--font-body, Inter, sans-serif)" }}>
+    <div className="relative min-h-screen overflow-x-clip bg-[#FBF9F6] text-[#2C2A29] selection:bg-[#EAE4D9] selection:text-[#2C2A29]" style={{ fontFamily: "var(--font-body, Inter, sans-serif)" }}>
       <Theme4Background />
       <div className="relative z-10 flex flex-col min-h-screen">
         <Theme4Navbar content={content} />
@@ -471,7 +471,7 @@ export function LandingTheme4({ content }: LandingThemeComponentProps) {
 /* ─── Layout Export (DynamicLandingRenderer için) ─── */
 export const theme4Layout: ThemeLayout = {
   Wrapper: ({ children }) => (
-    <div className="relative min-h-screen bg-[#FBF9F6] text-[#2C2A29] selection:bg-[#EAE4D9] selection:text-[#2C2A29]" style={{ fontFamily: "var(--font-body, Inter, sans-serif)" }}>
+    <div className="relative min-h-screen overflow-x-clip bg-[#FBF9F6] text-[#2C2A29] selection:bg-[#EAE4D9] selection:text-[#2C2A29]" style={{ fontFamily: "var(--font-body, Inter, sans-serif)" }}>
       <Theme4Background />
       <div className="relative z-10 flex flex-col min-h-screen">
         {children}

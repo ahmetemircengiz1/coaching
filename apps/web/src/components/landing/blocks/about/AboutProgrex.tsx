@@ -67,6 +67,8 @@ export function AboutProgrex({ content, config: _config }: EliteProps) {
               <img
                 src={image}
                 alt={brand}
+                loading="lazy"
+                decoding="async"
                 className="h-full min-h-[420px] w-full object-cover"
               />
             ) : (

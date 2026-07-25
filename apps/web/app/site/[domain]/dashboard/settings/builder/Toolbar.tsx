@@ -30,14 +30,14 @@ export function Toolbar({ domain, saveStatus }: ToolbarProps) {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 px-4 py-2 border-b" style={{ borderColor: "var(--dashboard-card-border)", backgroundColor: "var(--dashboard-card-bg)" }}>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 sm:px-4 py-2 border-b" style={{ borderColor: "var(--dashboard-card-border)", backgroundColor: "var(--dashboard-card-bg)" }}>
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold" style={{ color: "var(--dashboard-main-text)" }}>
             Section Builder
           </h3>
           <SaveIndicator status={saveStatus} />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           <button
             type="button"
             onClick={() => setTemplateOpen(true)}
@@ -50,7 +50,8 @@ export function Toolbar({ domain, saveStatus }: ToolbarProps) {
             title="Hazır şablon seç"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Şablon Galerisi
+            <span className="hidden sm:inline">Şablon Galerisi</span>
+            <span className="sm:hidden">Şablonlar</span>
           </button>
           <div className="w-px h-5 mx-1" style={{ backgroundColor: "var(--dashboard-card-border)" }} />
           <ToolbarButton onClick={() => undo()} disabled={!canUndo} title="Geri al (Ctrl+Z)" aria-label="Geri al">

@@ -77,7 +77,7 @@ export default async function StudentNutritionPage({
       {nutritionPlan.targetCalories && (
         <Card style={cardStyle}>
           <CardContent className="py-4">
-            <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2 text-center">
               <div>
                 <p className="text-lg font-bold" style={{ color: "var(--dashboard-accent)" }}>
                   {nutritionPlan.targetCalories}

@@ -241,7 +241,7 @@ function MealEntryCard({
             onChange={(e) => setNoteDraft(e.target.value)}
             maxLength={500}
             placeholder="Bu öğüne kısa not..."
-            className="flex-1 bg-white/10 text-white text-[11px] rounded p-1.5 resize-none placeholder-white/40 outline-none"
+            className="flex-1 bg-white/10 text-white text-base sm:text-[11px] rounded p-1.5 resize-none placeholder-white/40 outline-none"
             autoFocus
           />
           <div className="flex gap-1">

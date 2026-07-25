@@ -107,7 +107,7 @@ export function MealCompleteToggle({
           </button>
           {showAltPicker && (
             <div
-              className="absolute right-0 top-full mt-1 z-20 min-w-56 rounded-lg shadow-xl"
+              className="absolute right-0 top-full mt-1 z-20 min-w-56 max-w-[calc(100vw-2rem)] rounded-lg shadow-xl"
               style={{
                 backgroundColor: "var(--dashboard-card-bg)",
                 border: "1px solid var(--dashboard-card-border)",

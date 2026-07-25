@@ -99,16 +99,16 @@ export function StatsScrollStage({
 
   const stageStyle: React.CSSProperties =
     pin === "fixed"
-      ? { position: "fixed", top: 0, left: 0, right: 0, height: "100vh" }
+      ? { position: "fixed", top: 0, left: 0, right: 0, height: "100svh" }
       : pin === "after"
-        ? { position: "absolute", bottom: 0, left: 0, right: 0, height: "100vh" }
-        : { position: "absolute", top: 0, left: 0, right: 0, height: "100vh" };
+        ? { position: "absolute", bottom: 0, left: 0, right: 0, height: "100svh" }
+        : { position: "absolute", top: 0, left: 0, right: 0, height: "100svh" };
 
   return (
     <section
       ref={sectionRef}
       className="relative bg-black"
-      style={{ height: `${count * 100}vh` }}
+      style={{ height: `${count * 100}svh` }}
     >
       <div
         className="overflow-hidden bg-black flex items-center justify-center"

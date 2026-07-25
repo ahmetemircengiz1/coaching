@@ -310,7 +310,7 @@ export default function FoodSearch({ onSelect, placeholder = "Besin ara veya lis
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
                   <label className="text-[10px] block mb-1" style={{ color: "var(--dashboard-main-text-muted)" }}>Kalori</label>
                   <Input

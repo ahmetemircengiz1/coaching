@@ -16,8 +16,8 @@ export function CtaFluidBackground({ content, config }: EliteProps) {
     <section className="py-32 px-6 overflow-hidden relative" style={{ backgroundColor: bg }}>
       {/* Fluid Mesh Background */}
       <div className="absolute inset-0 opacity-40">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[100%] blur-[120px] rounded-[100%] mix-blend-screen animate-slow-spin" style={{ backgroundColor: primary }} />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[80%] h-[120%] blur-[150px] rounded-[100%] mix-blend-screen animate-slow-spin-reverse" style={{ backgroundColor: `${primary}80` }} />
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[100%] blur-[90px] rounded-[100%] mix-blend-screen" style={{ backgroundColor: primary }} />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[80%] h-[120%] blur-[100px] rounded-[100%] mix-blend-screen" style={{ backgroundColor: `${primary}80` }} />
       </div>
       
       {/* Content */}

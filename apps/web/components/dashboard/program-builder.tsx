@@ -582,7 +582,7 @@ export default function ProgramBuilder({
                         className="rounded-lg"
                         style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 3%, var(--dashboard-card-bg))" }}
                       >
-                        <div className="flex items-center gap-3 py-2 px-3">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 px-3">
                           <div className="flex flex-col gap-0.5">
                             <button
                               onClick={() => handleReorder(workout.id, we.id, "up")}
@@ -670,7 +670,7 @@ export default function ProgramBuilder({
                         Kütüphaneyi aç
                       </a>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                       <div className="flex items-center gap-1">
                         <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Set:</label>
                         <Input

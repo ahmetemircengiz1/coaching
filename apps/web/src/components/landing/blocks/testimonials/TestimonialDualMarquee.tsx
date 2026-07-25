@@ -47,8 +47,8 @@ export function TestimonialDualMarquee({ content, config }: Props) {
       style={{
         background: `${text}0d`,
         borderColor: `${text}24`,
-        backdropFilter: "blur(14px)",
-        WebkitBackdropFilter: "blur(14px)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
         boxShadow: `0 18px 50px -16px rgba(0,0,0,0.55), inset 0 1px 0 ${text}1a`,
       }}
     >

@@ -44,7 +44,7 @@ function StackCard({
       >
         {t.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={t.avatar} alt={t.clientName} className="h-full w-full object-cover" />
+          <img src={t.avatar} alt={t.clientName} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div
             className="flex h-full w-full items-center justify-center text-6xl font-extrabold"

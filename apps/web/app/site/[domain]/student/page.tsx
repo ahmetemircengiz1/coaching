@@ -107,7 +107,7 @@ export default async function StudentDashboardPage({
             <CardContent className="pt-4">
               <p className="font-semibold">{nutritionPlan.name}</p>
               {nutritionPlan.targetCalories && (
-                <div className="flex gap-3 mt-3">
+                <div className="flex flex-wrap gap-2 sm:gap-3 mt-3">
                   <div className="px-2.5 py-1 rounded-md text-xs" style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-card-border) 30%, var(--dashboard-card-bg))" }}>
                     <span style={{ color: "var(--dashboard-main-text-muted)" }}>Kcal </span>
                     <span className="font-semibold text-[var(--dashboard-main-text)]">{nutritionPlan.targetCalories}</span>

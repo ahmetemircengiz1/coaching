@@ -589,6 +589,9 @@ export default function PlatformHomePage() {
   //   düzensiz event akışı görüntüye yansımaz).
   useEffect(() => {
     if (reduce) return;
+    // Dokunmatik cihazlarda tekerlek motoru gereksiz — non-passive wheel
+    // listener'ı hiç takma (mobilde doğal scroll + performans).
+    if (window.matchMedia("(pointer: coarse)").matches) return;
     const sec = journeyRef.current;
     if (!sec) return;
 
@@ -924,7 +927,7 @@ export default function PlatformHomePage() {
   const SCENES = [sceneHero, sceneFlow, sceneFeatures, sceneWhy];
 
   return (
-    <div className="relative min-h-screen bg-[#050505] font-sans text-white selection:bg-[#3d6fd1]/30 selection:text-white">
+    <div className="relative min-h-screen overflow-x-clip bg-[#050505] font-sans text-white selection:bg-[#3d6fd1]/30 selection:text-white">
       {/* ============ SCROLL'A KİLİTLİ YILDIZ YOLCULUĞU (sabit, tüm sayfa arkası) ============ */}
       <StarfieldJourney />
 

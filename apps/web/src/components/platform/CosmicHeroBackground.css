@@ -87,8 +87,9 @@
   }
 }
 
-/* Hareket azaltma tercihinde yıldızlar sabit */
-@media (prefers-reduced-motion: reduce) {
+/* Hareket azaltma tercihinde ve dokunmatik cihazlarda yıldızlar sabit
+   (sürekli compositing zayıf mobil GPU'larda kaydırmayı kastırıyor) */
+@media (prefers-reduced-motion: reduce), (pointer: coarse) {
   .cosmic-hero .stars,
   .cosmic-hero .stars2,
   .cosmic-hero .stars3 {

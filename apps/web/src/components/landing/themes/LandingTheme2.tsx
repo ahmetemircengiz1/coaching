@@ -251,12 +251,12 @@ function Theme2PlatformTour({ content }: { content: LandingThemeContent }) {
             <div className="flex flex-col md:flex-row gap-6 mt-4">
               <div className="flex-1 group">
                 <FadeInScroll delay={300} duration={1200} direction="left" distance={100}>
-                  <img src="/dashboard-preview-1.png" alt="Platform Arayüzü 1" className="w-full h-auto aspect-[16/10] object-cover object-left-top md:object-center rounded-xl border border-[#00E5FF]/20 shadow-[0_0_40px_rgba(0,229,255,0.1)] group-hover:scale-[1.02] group-hover:border-[#00E5FF]/50 transition-all duration-500" />
+                  <img src="/dashboard-preview-1.png" alt="Platform Arayüzü 1" loading="lazy" decoding="async" className="w-full h-auto aspect-[16/10] object-cover object-left-top md:object-center rounded-xl border border-[#00E5FF]/20 shadow-[0_0_40px_rgba(0,229,255,0.1)] group-hover:scale-[1.02] group-hover:border-[#00E5FF]/50 transition-all duration-500" />
                 </FadeInScroll>
               </div>
               <div className="flex-1 group md:mt-12">
                 <FadeInScroll delay={500} duration={1200} direction="right" distance={100}>
-                  <img src="/dashboard-preview-2.png" alt="Platform Arayüzü 2" className="w-full h-auto aspect-[16/10] object-cover object-left-top md:object-center rounded-xl border border-[#00E5FF]/20 shadow-[0_0_40px_rgba(0,229,255,0.1)] group-hover:scale-[1.02] group-hover:border-[#00E5FF]/50 transition-all duration-500" />
+                  <img src="/dashboard-preview-2.png" alt="Platform Arayüzü 2" loading="lazy" decoding="async" className="w-full h-auto aspect-[16/10] object-cover object-left-top md:object-center rounded-xl border border-[#00E5FF]/20 shadow-[0_0_40px_rgba(0,229,255,0.1)] group-hover:scale-[1.02] group-hover:border-[#00E5FF]/50 transition-all duration-500" />
                 </FadeInScroll>
               </div>
             </div>

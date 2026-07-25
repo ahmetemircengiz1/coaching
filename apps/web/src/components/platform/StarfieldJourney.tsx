@@ -21,6 +21,11 @@ export function StarfieldJourney() {
     const reduce =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Dokunmatik cihazlarda sürekli canvas repaint pahalı: tek statik kare çiz,
+    // scroll dinleme/animasyon döngüsü hiç kurulmasın.
+    const coarse =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(pointer: coarse)").matches;
 
     let dpr = 1;
     let w = 0;
@@ -151,6 +156,14 @@ export function StarfieldJourney() {
     readScroll();
     travel = targetTravel;
     draw();
+
+    if (coarse) {
+      // Statik yıldız alanı: yalnızca döndürmede yeniden çiz
+      window.addEventListener("resize", onResize);
+      return () => {
+        window.removeEventListener("resize", onResize);
+      };
+    }
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
