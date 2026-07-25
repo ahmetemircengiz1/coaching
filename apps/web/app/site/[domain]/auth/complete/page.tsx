@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { finalizeStudentSignup } from "../register-actions";
+import { finalizeSignup } from "../register-actions";
+import { recordDeviceLogin } from "@/lib/auth/device-actions";
 
 /**
  * E-posta doğrulama linkinin indiği ara sayfa.
  * Callback route code'u session'a çevirip buraya yönlendirir; burada
- * finalizeStudentSignup Student satırını oluşturur ve öğrenci paneline geçilir.
+ * finalizeSignup metadata'daki role'e göre Student veya Guest satırını
+ * oluşturur ve panele geçilir.
  */
 export default function CompleteSignupPage() {
   const router = useRouter();
@@ -19,11 +21,13 @@ export default function CompleteSignupPage() {
   useEffect(() => {
     if (ran.current) return; // StrictMode/yeniden render'da çift çağrıyı önle
     ran.current = true;
-    finalizeStudentSignup(domain).then((result) => {
+    finalizeSignup(domain).then(async (result) => {
       if ("error" in result) {
         setError(result.error);
         return;
       }
+      // İlk cihazı sessizce kaydet (uyarı gitmez) + cihaz çerezini yaz
+      await recordDeviceLogin({ authPath: `/site/${domain}/auth` }).catch(() => {});
       router.replace(`/site/${domain}/student`);
     });
   }, [domain, router]);

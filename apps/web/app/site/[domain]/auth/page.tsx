@@ -11,9 +11,8 @@ import { getPublicCoachPackages } from "./actions";
 import {
   signUpStudentWithCode,
   resendStudentConfirmation,
-  finalizeStudentSignup,
+  finalizeSignup,
   signUpAsGuest,
-  finalizeGuestSignup,
 } from "./register-actions";
 import { recordDeviceLogin } from "@/lib/auth/device-actions";
 
@@ -50,8 +49,6 @@ export default function CoachSiteAuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
-  // Doğrulama bekleyen kayıt misafir mi öğrenci mi — finalize hangi yoldan tamamlanacak
-  const [pendingKind, setPendingKind] = useState<"student" | "guest">("student");
   // Kod'suz misafir kaydı modu
   const [isGuestSignup, setIsGuestSignup] = useState(false);
   const [resendNotice, setResendNotice] = useState("");
@@ -91,10 +88,8 @@ export default function CoachSiteAuthPage() {
       const { data } = await supabase.auth.getUser();
       if (data.user?.email_confirmed_at) {
         clearInterval(timer);
-        const result =
-          pendingKind === "guest"
-            ? await finalizeGuestSignup(domain)
-            : await finalizeStudentSignup(domain);
+        // Metadata'daki role'e göre doğru finalize seçilir (öğrenci/misafir)
+        const result = await finalizeSignup(domain);
         if ("error" in result) {
           setPendingEmail(null);
           setError(result.error);
@@ -242,7 +237,6 @@ export default function CoachSiteAuthPage() {
       }
       if (result.needsConfirmation) {
         // E-posta doğrulama açık → linke tıklanana kadar hesap askıda
-        setPendingKind(isGuestSignup ? "guest" : "student");
         setPendingEmail(result.email);
         setResendCooldown(60); // az önce bir e-posta gönderildi
         setLoading(false);
@@ -304,21 +298,15 @@ export default function CoachSiteAuthPage() {
     }
 
     // Doğrulanmış ama Student/Guest satırı oluşmamış (finalize yarım kalmış)
-    // olabilir — önce öğrenci, sonra misafir olarak tamamlamayı dene
-    const finalized = await finalizeStudentSignup(domain);
+    // olabilir — metadata'daki role'e göre tamamlamayı dene
+    const finalized = await finalizeSignup(domain);
     if ("success" in finalized) {
       await secureNewSession();
       router.push(`/site/${domain}/student`);
       return;
     }
-    const guestFinalized = await finalizeGuestSignup(domain);
-    if ("success" in guestFinalized) {
-      await secureNewSession();
-      router.push(`/site/${domain}/student`);
-      return;
-    }
 
-    setError("Bu site için kaydınız bulunmuyor. Koçunuzdan bir kayıt kodu alın.");
+    setError(finalized.error || "Bu site için kaydınız bulunmuyor. Koçunuzdan bir kayıt kodu alın.");
     await supabase.auth.signOut();
     setLoading(false);
   };

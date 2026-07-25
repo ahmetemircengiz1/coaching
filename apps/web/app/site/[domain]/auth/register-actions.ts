@@ -168,6 +168,28 @@ export async function signUpStudentWithCode(
   return { success: true, email: emailLower, needsConfirmation: false };
 }
 
+// ─── Doğrulama sonrası ortak giriş noktası ───
+// Kullanıcının metadata'sındaki role'e göre doğru finalize akışını seçer.
+// Misafir kaydı finalizeStudentSignup'a düşerse "öğrenci kaydı değil" hatası
+// üretiyordu — dispatch'i client state'ine değil metadata'ya bağlıyoruz.
+export async function finalizeSignup(
+  domain: string
+): Promise<{ success: true; kind: "student" | "guest" } | { error: string }> {
+  const user = await getAuthUser();
+  if (!user) {
+    return { error: "Oturum doğrulanamadı. Lütfen giriş yapmayı deneyin." };
+  }
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  if (meta.role === "guest") {
+    return finalizeGuestSignup(domain);
+  }
+  const result = await finalizeStudentSignup(domain);
+  if ("error" in result) {
+    return result;
+  }
+  return { success: true, kind: "student" };
+}
+
 // ─── E-posta doğrulaması sonrası (veya autoconfirm açıkken hemen) çağrılır ───
 // Oturumdaki kullanıcının metadata'sındaki koç koduna göre Student satırını
 // oluşturur ve kodu kullanıldı işaretler. Tekrar çağrılırsa idempotenttir.
