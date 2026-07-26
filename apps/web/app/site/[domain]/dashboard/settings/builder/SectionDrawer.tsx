@@ -532,6 +532,7 @@ const CONTENT_FIELDS_BY_CATEGORY: Record<string, ContentField[]> = {
     { key: "heroTrustLabel", label: "Rozet açıklaması", placeholder: "aktif programda", group: "Güven Rozeti", onlyForBlocks: ["hero-italic-cinema", "hero-display-bold"] },
     { key: "heroRatingValue", label: "Puan (yıldızların yanı)", placeholder: "4.9", group: "Güven Rozeti", onlyForBlocks: ["hero-display-bold"] },
     { key: "heroTrustHidden", label: "Rozeti tamamen gizle", toggle: true, group: "Güven Rozeti", onlyForBlocks: ["hero-italic-cinema", "hero-display-bold"] },
+    { key: "heroTestimonialHidden", label: "Sağ alttaki öğrenci yorumu kartını gizle", toggle: true, group: "Yorum Kartı", onlyForBlocks: ["hero-animated-immersion"] },
   ],
   features: SYSTEM_TRIPLE_FIELDS,
   howItWorks: SYSTEM_TRIPLE_FIELDS,

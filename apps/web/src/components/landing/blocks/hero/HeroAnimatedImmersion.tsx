@@ -48,7 +48,9 @@ export function HeroAnimatedImmersion({
   const heroImage = content.heroImageDesktopUrl || content.heroImageOriginalUrl || null;
   const heroVideo = content.heroVideoUrl || null;
 
-  // Testimonial: ilk transformation'dan al, yoksa default
+  // Testimonial: ilk transformation'dan al, yoksa default.
+  // Koç isterse karti tamamen gizleyebilir (heroTestimonialHidden = "1").
+  const testimonialHidden = texts?.heroTestimonialHidden === "1";
   const testimonialName = content.transformations[0]?.clientName || "Ahmet K.";
   const testimonialQuote =
     content.transformations[0]?.description ||
@@ -137,7 +139,11 @@ export function HeroAnimatedImmersion({
 
       {/* Main content — bottom-left + bottom-right */}
       <div className="relative z-10 w-full pb-16 lg:pb-20 px-6 lg:px-12">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-8 items-end">
+        <div
+          className={`max-w-7xl mx-auto grid grid-cols-1 gap-8 items-end ${
+            testimonialHidden ? "" : "lg:grid-cols-[1.5fr_1fr]"
+          }`}
+        >
           {/* Bottom-left: headline + subtitle + CTA */}
           <div>
             {/* Letter-reveal headline */}
@@ -210,6 +216,7 @@ export function HeroAnimatedImmersion({
           </div>
 
           {/* Bottom-right: floating testimonial card with 3D hover */}
+          {!testimonialHidden && (
           <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -259,6 +266,7 @@ export function HeroAnimatedImmersion({
               </div>
             </div>
           </motion.div>
+          )}
         </div>
       </div>
     </section>

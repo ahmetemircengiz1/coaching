@@ -74,6 +74,8 @@ export interface LandingTexts {
   heroTrustLabel?: string;
   heroRatingValue?: string;
   heroTrustHidden?: string;
+  /** "1" ise Animasyonlu Sürükleyici hero'daki sağ alt öğrenci yorumu kartı gizlenir */
+  heroTestimonialHidden?: string;
   // Stats
   stat1Label?: string;
   stat2Label?: string;
