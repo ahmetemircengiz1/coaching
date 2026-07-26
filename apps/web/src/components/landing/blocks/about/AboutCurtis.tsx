@@ -76,15 +76,17 @@ export function AboutCurtis({ content, config }: EliteProps) {
     { title: texts?.aboutBadge2Title, sub: texts?.aboutBadge2Subtitle, Icon: BadgeCheck },
   ];
   const anyBadgeEntered = badgeInput.some((b) => b.title || b.sub);
-  const badges =
-    texts?.aboutBadgesHidden === "1"
-      ? []
-      : anyBadgeEntered
-        ? badgeInput.filter((b) => b.title || b.sub)
-        : [
-            { title: "Profesyonel Sporcu", sub: "Eski Yarışmacı Atlet", Icon: Award },
-            { title: "Sertifikalı Koç", sub: "NASM & ACE Sertifikalı", Icon: BadgeCheck },
-          ];
+  // Rozetler gizlenince sol sütun (lokasyon kartı dahil) tamamen kalkar;
+  // kalan foto + bio iki sütun olarak ortalanır.
+  const hideLeftColumn = texts?.aboutBadgesHidden === "1";
+  const badges = hideLeftColumn
+    ? []
+    : anyBadgeEntered
+      ? badgeInput.filter((b) => b.title || b.sub)
+      : [
+          { title: "Profesyonel Sporcu", sub: "Eski Yarışmacı Atlet", Icon: Award },
+          { title: "Sertifikalı Koç", sub: "NASM & ACE Sertifikalı", Icon: BadgeCheck },
+        ];
   const locTitle = brand;
   const locSubtitle = content.businessAddress || "Antrenman Merkezi";
 
@@ -104,19 +106,27 @@ export function AboutCurtis({ content, config }: EliteProps) {
           {subtitle}
         </p>
 
-        <div className="mt-12 grid gap-5 text-left lg:grid-cols-[0.85fr_1fr_1.1fr]">
+        <div
+          className={`mt-12 grid gap-5 text-left ${
+            hideLeftColumn
+              ? "mx-auto max-w-5xl lg:grid-cols-[1fr_1.1fr]"
+              : "lg:grid-cols-[0.85fr_1fr_1.1fr]"
+          }`}
+        >
           {/* Sol: rozetler (opsiyonel) + lokasyon */}
-          <div className="flex flex-col gap-5">
-            {badges.map((b, i) => (
-              <BadgeCard
-                key={i}
-                icon={<b.Icon className="h-5 w-5" />}
-                title={b.title}
-                subtitle={b.sub}
-              />
-            ))}
-            <LocationCard image={image2} title={locTitle} subtitle={locSubtitle} />
-          </div>
+          {!hideLeftColumn && (
+            <div className="flex flex-col gap-5">
+              {badges.map((b, i) => (
+                <BadgeCard
+                  key={i}
+                  icon={<b.Icon className="h-5 w-5" />}
+                  title={b.title}
+                  subtitle={b.sub}
+                />
+              ))}
+              <LocationCard image={image2} title={locTitle} subtitle={locSubtitle} />
+            </div>
+          )}
 
           {/* Center: portre */}
           <div className="overflow-hidden rounded-2xl bg-black/5">
