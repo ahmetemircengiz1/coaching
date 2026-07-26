@@ -70,6 +70,16 @@
     overflow-x: hidden;
     overflow-x: clip;
   }
+
+  /* Masaüstü yoğunluk ayarı: tasarım %75 tarayıcı zoom'unda ideal göründüğü
+     için rem tabanlı tüm ölçüler kökten %75'e küçültülür — %100 zoom artık o
+     görünümü verir. 1024px altı (mobil/tablet) dokunulmaz; iOS input zoom
+     fix'i 16px tabanında kalmaya devam eder. */
+  @media (min-width: 1024px) {
+    html {
+      font-size: 12px;
+    }
+  }
 }
 
 /* Coach site tema override'ları - CSS variables ile dinamik tema */
