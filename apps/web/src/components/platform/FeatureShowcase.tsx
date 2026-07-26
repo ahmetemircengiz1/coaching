@@ -25,7 +25,7 @@ import {
 
 const NAVY = "#0f1730";
 
-const EXERCISES = [
+const EXERCISES: { name: string; meta: string; img: string; desktopOnly?: boolean }[] = [
   {
     name: "Dumbbell Fly",
     meta: "4 Set • 12 Tekrar",
@@ -35,6 +35,12 @@ const EXERCISES = [
     name: "Rope Pushdown",
     meta: "4 Set • 12 Tekrar",
     img: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=60&w=120&auto=format&fit=crop",
+  },
+  {
+    name: "Goblet Squat",
+    meta: "3 Set • 10 Tekrar",
+    img: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=60&w=120&auto=format&fit=crop",
+    desktopOnly: true,
   },
 ];
 
@@ -78,7 +84,7 @@ function Card({
           {desc}
         </p>
       </div>
-      <div className="relative z-10 mt-2.5 h-24 flex-1 md:mt-3 md:h-36">{children}</div>
+      <div className="relative z-10 mt-2.5 h-28 flex-1 md:mt-3 md:h-44">{children}</div>
     </div>
   );
 }
@@ -86,9 +92,9 @@ function Card({
 /* 1) Marka web sitesi: tarayıcı + minik telefon */
 function VisualWebsite() {
   return (
-    <div className="relative h-full px-3 md:px-5">
-      <div className="absolute inset-x-3 top-0 bottom-0 overflow-hidden rounded-t-lg border border-slate-200 bg-white shadow-[0_16px_40px_-18px_rgba(15,23,48,0.35)] md:inset-x-5 md:rounded-t-xl">
-        <div className="flex items-center gap-1 border-b border-slate-100 bg-slate-50 px-2 py-1 md:gap-1.5 md:px-3 md:py-1.5">
+    <div className="relative h-full px-3 pb-2.5 md:px-5 md:pb-4">
+      <div className="flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_16px_40px_-18px_rgba(15,23,48,0.35)] md:rounded-xl">
+        <div className="flex shrink-0 items-center gap-1 border-b border-slate-100 bg-slate-50 px-2 py-1 md:gap-1.5 md:px-3 md:py-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-[#ff5f57]" />
           <span className="h-1.5 w-1.5 rounded-full bg-[#febc2e]" />
           <span className="h-1.5 w-1.5 rounded-full bg-[#28c840]" />
@@ -101,16 +107,17 @@ function VisualWebsite() {
           alt="Koç markası landing sayfası"
           loading="lazy"
           decoding="async"
-          className="block h-full w-full object-cover object-top"
+          className="block min-h-0 w-full flex-1 object-cover object-top"
         />
       </div>
-      <div className="absolute -bottom-1 right-1 z-10 w-10 rotate-6 overflow-hidden rounded-lg border-[3px] border-[#101828] bg-[#101828] shadow-[0_14px_30px_-12px_rgba(15,23,48,0.6)] md:right-3 md:w-14 md:rounded-xl">
+      {/* Öğrenci panelinin mobil ekran görüntüsüyle telefon */}
+      <div className="absolute bottom-1 right-4 z-10 w-11 rotate-6 overflow-hidden rounded-lg border-[3px] border-[#101828] bg-[#101828] shadow-[0_14px_30px_-12px_rgba(15,23,48,0.6)] md:bottom-2 md:right-8 md:w-16 md:rounded-xl">
         <img
-          src="/marketing/brand-landing-2.webp"
-          alt="Aynı sitenin mobil görünümü"
+          src="/marketing/mobil-anasayfa.png"
+          alt="Öğrenci panelinin mobil görünümü"
           loading="lazy"
           decoding="async"
-          className="block h-16 w-full rounded-md object-cover object-left-top md:h-24"
+          className="block h-16 w-full rounded-[5px] object-cover object-top md:h-[6.7rem] md:rounded-lg"
         />
       </div>
     </div>
@@ -130,11 +137,11 @@ function VisualProgram() {
         </span>
         <span className="absolute left-1/2 top-full h-2 w-px bg-slate-300" aria-hidden />
       </div>
-      <div className="mt-3.5 space-y-1.5 md:mt-4 md:space-y-2">
+      <div className="mt-5 space-y-1.5 md:mt-7 md:space-y-2">
         {EXERCISES.map((ex) => (
           <div
             key={ex.name}
-            className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white p-1.5 pr-2.5 shadow-[0_8px_22px_-12px_rgba(15,23,48,0.35)] md:gap-2.5 md:p-2"
+            className={`${ex.desktopOnly ? "hidden md:flex" : "flex"} items-center gap-2 rounded-xl border border-slate-100 bg-white p-1.5 pr-2.5 shadow-[0_8px_22px_-12px_rgba(15,23,48,0.35)] md:gap-2.5 md:p-2`}
           >
             <img
               src={ex.img}
@@ -166,9 +173,9 @@ function VisualNutrition() {
   const C = 2 * Math.PI * 40;
   const seg = (f: number) => `${f * C} ${C}`;
   return (
-    <div className="flex h-full items-center gap-2 px-3 md:gap-3 md:px-5">
+    <div className="flex h-full items-center gap-2 px-3 pb-2.5 md:gap-3 md:px-5 md:pb-4">
       <div className="relative shrink-0">
-        <svg viewBox="0 0 100 100" className="h-16 w-16 -rotate-90 md:h-24 md:w-24">
+        <svg viewBox="0 0 100 100" className="h-16 w-16 -rotate-90 md:h-28 md:w-28">
           <circle cx="50" cy="50" r="40" fill="none" stroke="#eef1f6" strokeWidth="13" />
           <circle cx="50" cy="50" r="40" fill="none" stroke="#3d6fd1" strokeWidth="13" strokeLinecap="round" strokeDasharray={seg(0.42)} />
           <circle cx="50" cy="50" r="40" fill="none" stroke="#f59e0b" strokeWidth="13" strokeLinecap="round" strokeDasharray={seg(0.26)} strokeDashoffset={-0.46 * C} />
@@ -215,9 +222,9 @@ function VisualNutrition() {
 /* 4) İlerleme: kilo grafiği */
 function VisualProgress() {
   return (
-    <div className="relative h-full px-3 md:px-5">
-      <div className="relative h-full overflow-hidden rounded-t-xl border border-slate-100 bg-white shadow-[0_16px_40px_-18px_rgba(15,23,48,0.3)]">
-        <div className="flex items-center justify-between px-2.5 pt-1.5 md:px-4 md:pt-2.5">
+    <div className="relative h-full px-3 pb-2.5 md:px-5 md:pb-4">
+      <div className="relative flex h-full flex-col overflow-hidden rounded-xl border border-slate-100 bg-white shadow-[0_16px_40px_-18px_rgba(15,23,48,0.3)]">
+        <div className="flex shrink-0 items-center justify-between px-2.5 pt-1.5 md:px-4 md:pt-2.5">
           <div>
             <p className="text-[7px] font-bold uppercase tracking-wider text-slate-400 md:text-[9px]">
               Kilo Takibi
@@ -230,7 +237,7 @@ function VisualProgress() {
             −6,2 kg
           </span>
         </div>
-        <svg viewBox="0 0 320 120" className="mt-0.5 w-full md:mt-1" preserveAspectRatio="none" aria-hidden>
+        <svg viewBox="0 0 320 120" className="mt-0.5 min-h-0 w-full flex-1 md:mt-1" preserveAspectRatio="none" aria-hidden>
           <defs>
             <linearGradient id="fs-area" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#3d6fd1" stopOpacity="0.28" />
@@ -275,10 +282,10 @@ function VisualProgress() {
 /* 5) Bildirim: telefon + e-posta bildirimi */
 function VisualNotification() {
   return (
-    <div className="flex h-full justify-center overflow-hidden px-3">
-      <div className="w-full max-w-[11rem] overflow-hidden rounded-t-2xl border-[4px] border-b-0 border-[#101828] bg-[#101828] shadow-[0_20px_46px_-18px_rgba(15,23,48,0.6)] md:max-w-[13rem]">
+    <div className="flex h-full justify-center px-3 pb-2.5 md:pb-4">
+      <div className="h-full w-full max-w-[10rem] overflow-hidden rounded-xl border-[3px] border-[#101828] bg-[#101828] shadow-[0_20px_46px_-18px_rgba(15,23,48,0.6)] md:max-w-[12rem] md:rounded-2xl md:border-4">
         <div
-          className="relative h-full rounded-t-xl p-1.5 pt-5 md:p-2 md:pt-6"
+          className="relative h-full rounded-lg p-1.5 pt-4 md:rounded-xl md:p-2 md:pt-6"
           style={{ background: "linear-gradient(160deg, #66a6ff 0%, #3d6fd1 45%, #7b5be6 100%)" }}
         >
           <span className="absolute left-1/2 top-1.5 h-2 w-10 -translate-x-1/2 rounded-full bg-[#101828] md:h-2.5 md:w-12" aria-hidden />
@@ -318,9 +325,9 @@ function VisualNotification() {
 /* 6) Komisyon yok: satış kartı + arkada paketler */
 function VisualCommission() {
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="relative h-full">
       {/* Arkadaki soluk paket kartları */}
-      <div className="absolute left-1 top-1 w-24 -rotate-3 rounded-xl border border-slate-100 bg-white/90 p-1.5 shadow-[0_10px_26px_-14px_rgba(15,23,48,0.4)] md:left-3 md:top-2 md:w-32 md:p-2">
+      <div className="absolute left-2 top-0 w-24 -rotate-3 rounded-xl border border-slate-100 bg-white/90 p-1.5 shadow-[0_10px_26px_-14px_rgba(15,23,48,0.4)] md:left-4 md:top-1 md:w-32 md:p-2">
         <div className="flex items-center gap-1.5">
           <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-md bg-[#eef2ff] md:h-5 md:w-5" style={{ color: NAVY }}>
             <Calendar className="h-2 w-2 md:h-2.5 md:w-2.5" />
@@ -335,7 +342,7 @@ function VisualCommission() {
           </div>
         </div>
       </div>
-      <div className="absolute bottom-1 right-1 w-24 rotate-2 rounded-xl border border-slate-100 bg-white/90 p-1.5 shadow-[0_10px_26px_-14px_rgba(15,23,48,0.4)] md:bottom-2 md:right-3 md:w-32 md:p-2">
+      <div className="absolute bottom-2.5 right-2 w-24 rotate-2 rounded-xl border border-slate-100 bg-white/90 p-1.5 shadow-[0_10px_26px_-14px_rgba(15,23,48,0.4)] md:bottom-4 md:right-4 md:w-32 md:p-2">
         <div className="flex items-center gap-1.5">
           <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-md bg-[#eef2ff] md:h-5 md:w-5" style={{ color: NAVY }}>
             <Star className="h-2 w-2 md:h-2.5 md:w-2.5" />
