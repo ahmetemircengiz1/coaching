@@ -134,11 +134,14 @@ export interface LandingTexts {
   aboutStat2Label?: string;
   aboutStat3Value?: string;
   aboutStat3Label?: string;
-  /** Curtis Hakkımda rozet kartları (sertifika, ünvan vb.) */
+  /** Curtis Hakkımda rozet kartları (sertifika, ünvan vb.) — opsiyonel:
+   *  hiçbiri girilmezse default'lar, biri girilirse yalnız dolular görünür */
   aboutBadge1Title?: string;
   aboutBadge1Subtitle?: string;
   aboutBadge2Title?: string;
   aboutBadge2Subtitle?: string;
+  /** "1" ise Curtis rozet kartları hiç gösterilmez */
+  aboutBadgesHidden?: string;
   /** "1" ise Hakkımda istatistikleri hiç gösterilmez */
   aboutStatsHidden?: string;
   /** Gymix/Fitence sosyal kanıt satırı — metin + "1" = satır gizli */

@@ -68,10 +68,23 @@ export function AboutCurtis({ content, config }: EliteProps) {
     "Fitness sektöründeki yıllarca süren tecrübemle gerçek güç inşa etmeye, kondisyonu geliştirmeye ve uzun vadeli fiziksel kapasiteyi büyütmeye odaklanıyorum. Yapılandırılmış programlama, teknik hassasiyet ve ölçülebilir ilerleme koçluğumun temelidir.";
   const bio2 =
     "Sağlam temellere, ilerleyici aşırı yüke ve amaca yönelik antrenmana öncelik veriyorum; dirençli ve kapasiteli bedenler inşa etmek için her programı kasıtlı, ilerleyici ve sürekli gelişim üzerine kuruyorum.";
-  const badge1Title = texts?.aboutBadge1Title || "Profesyonel Sporcu";
-  const badge1Sub = texts?.aboutBadge1Subtitle || "Eski Yarışmacı Atlet";
-  const badge2Title = texts?.aboutBadge2Title || "Sertifikalı Koç";
-  const badge2Sub = texts?.aboutBadge2Subtitle || "NASM & ACE Sertifikalı";
+  // Rozetler opsiyonel: hiçbir alan girilmemişse default ikili görünür (yeni
+  // siteler boş kalmasın); en az bir alan girilmişse yalnız dolu rozetler
+  // görünür; aboutBadgesHidden "1" ise rozet kartları tamamen gizlenir.
+  const badgeInput = [
+    { title: texts?.aboutBadge1Title, sub: texts?.aboutBadge1Subtitle, Icon: Award },
+    { title: texts?.aboutBadge2Title, sub: texts?.aboutBadge2Subtitle, Icon: BadgeCheck },
+  ];
+  const anyBadgeEntered = badgeInput.some((b) => b.title || b.sub);
+  const badges =
+    texts?.aboutBadgesHidden === "1"
+      ? []
+      : anyBadgeEntered
+        ? badgeInput.filter((b) => b.title || b.sub)
+        : [
+            { title: "Profesyonel Sporcu", sub: "Eski Yarışmacı Atlet", Icon: Award },
+            { title: "Sertifikalı Koç", sub: "NASM & ACE Sertifikalı", Icon: BadgeCheck },
+          ];
   const locTitle = brand;
   const locSubtitle = content.businessAddress || "Antrenman Merkezi";
 
@@ -92,18 +105,16 @@ export function AboutCurtis({ content, config }: EliteProps) {
         </p>
 
         <div className="mt-12 grid gap-5 text-left lg:grid-cols-[0.85fr_1fr_1.1fr]">
-          {/* Sol: rozetler + lokasyon */}
+          {/* Sol: rozetler (opsiyonel) + lokasyon */}
           <div className="flex flex-col gap-5">
-            <BadgeCard
-              icon={<Award className="h-5 w-5" />}
-              title={badge1Title}
-              subtitle={badge1Sub}
-            />
-            <BadgeCard
-              icon={<BadgeCheck className="h-5 w-5" />}
-              title={badge2Title}
-              subtitle={badge2Sub}
-            />
+            {badges.map((b, i) => (
+              <BadgeCard
+                key={i}
+                icon={<b.Icon className="h-5 w-5" />}
+                title={b.title}
+                subtitle={b.sub}
+              />
+            ))}
             <LocationCard image={image2} title={locTitle} subtitle={locSubtitle} />
           </div>
 
@@ -175,16 +186,16 @@ function BadgeCard({
   subtitle,
 }: {
   icon: React.ReactNode;
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
 }) {
   return (
     <div className="rounded-2xl bg-white p-6">
       <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 text-black/75">
         {icon}
       </div>
-      <h4 className="mt-10 text-base font-bold">{title}</h4>
-      <p className="mt-1 text-sm text-black/55">{subtitle}</p>
+      {title && <h4 className="mt-10 text-base font-bold">{title}</h4>}
+      {subtitle && <p className="mt-1 text-sm text-black/55">{subtitle}</p>}
     </div>
   );
 }
@@ -199,7 +210,7 @@ function LocationCard({
   subtitle: string;
 }) {
   return (
-    <div className="relative min-h-[180px] overflow-hidden rounded-2xl bg-black/10">
+    <div className="relative min-h-[180px] flex-1 overflow-hidden rounded-2xl bg-black/10">
       {image ? (
         <img
           src={image}

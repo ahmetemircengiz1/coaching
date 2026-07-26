@@ -504,6 +504,7 @@ const CTA_TARGET_OPTIONS: { value: string; label: string }[] = [
 // 4. Kart alanları YALNIZ Bento bloğunda görünür (tek 4 karta sahip blok).
 const SYSTEM_TRIPLE_FIELDS: ContentField[] = [
   { key: "systemTitle", label: "Bölüm başlığı", placeholder: "Sistem Nasıl Çalışır?" },
+  { key: "systemImage", label: "Sol görsel (opsiyonel)", image: true, onlyForBlocks: ["how-numbered-list"] },
   { key: "system1Title", label: "1. Kart başlığı", placeholder: "Ön Değerlendirme", group: "Kart 1" },
   { key: "system1Description", label: "1. Kart açıklaması", multiline: true, placeholder: "Kısa açıklama...", group: "Kart 1" },
   { key: "system1Image", label: "1. Kart fotoğrafı (opsiyonel)", image: true, group: "Kart 1" },
@@ -583,10 +584,13 @@ const CONTENT_FIELDS_BY_CATEGORY: Record<string, ContentField[]> = {
     { key: "aboutStatsHidden", label: "İstatistikleri tamamen gizle", toggle: true, group: "İstatistikler", onlyForBlocks: ["about-fightness", "about-gymix", "about-progrex", "about-fitence"] },
     { key: "aboutReviewText", label: "Sosyal kanıt metni", placeholder: "(1k+ yorum)", group: "Sosyal Kanıt", onlyForBlocks: ["about-gymix", "about-fitence"] },
     { key: "aboutRatingHidden", label: "Yıldız/sosyal kanıt satırını gizle", toggle: true, group: "Sosyal Kanıt", onlyForBlocks: ["about-gymix", "about-fitence"] },
-    { key: "aboutBadge1Title", label: "Rozet 1 — başlık (Curtis)", placeholder: "Sertifikalı Koç" },
-    { key: "aboutBadge1Subtitle", label: "Rozet 1 — alt (Curtis)", placeholder: "NASM & ACE" },
-    { key: "aboutBadge2Title", label: "Rozet 2 — başlık (Curtis)", placeholder: "Profesyonel Yaklaşım" },
-    { key: "aboutBadge2Subtitle", label: "Rozet 2 — alt (Curtis)", placeholder: "Aktif Antrenör" },
+    // Rozetler opsiyonel: hiçbiri girilmezse default ikili görünür, en az biri
+    // girilirse yalnız dolu olanlar, toggle hepsini kapatır.
+    { key: "aboutBadge1Title", label: "Rozet 1 — başlık", placeholder: "Sertifikalı Koç", group: "Rozetler", onlyForBlocks: ["about-curtis"] },
+    { key: "aboutBadge1Subtitle", label: "Rozet 1 — alt yazı", placeholder: "NASM & ACE", group: "Rozetler", onlyForBlocks: ["about-curtis"] },
+    { key: "aboutBadge2Title", label: "Rozet 2 — başlık", placeholder: "Profesyonel Yaklaşım", group: "Rozetler", onlyForBlocks: ["about-curtis"] },
+    { key: "aboutBadge2Subtitle", label: "Rozet 2 — alt yazı", placeholder: "Aktif Antrenör", group: "Rozetler", onlyForBlocks: ["about-curtis"] },
+    { key: "aboutBadgesHidden", label: "Rozet kartlarını tamamen gizle", toggle: true, group: "Rozetler", onlyForBlocks: ["about-curtis"] },
   ],
   footer: [
     { key: "footerHeadline", label: "Footer başlığı (opsiyonel)", placeholder: "Yerini bul, yolculuğa burada başla" },
@@ -608,6 +612,12 @@ function ContentTab({ sectionId }: { sectionId: string }) {
 
   const update = (key: string, value: string) => {
     setOverrides(sectionId, { ...overrides, [key]: value || undefined });
+  };
+
+  // Görsel kaldırma: boş string olarak SAKLANIR (undefined JSON'a yazılmaz;
+  // yazılmayınca taban landingTexts'teki eski görsel geri gelirdi).
+  const removeImage = (key: string) => {
+    setOverrides(sectionId, { ...overrides, [key]: "" });
   };
 
   const clearAll = () => {
@@ -655,6 +665,7 @@ function ContentTab({ sectionId }: { sectionId: string }) {
               field={field}
               value={overrides[field.key] ?? ""}
               onChange={(v) => update(field.key, v)}
+              onRemove={field.image ? () => removeImage(field.key) : undefined}
             />
           ))}
         </div>
@@ -679,6 +690,7 @@ function ContentTab({ sectionId }: { sectionId: string }) {
               field={field}
               value={overrides[field.key] ?? ""}
               onChange={(v) => update(field.key, v)}
+              onRemove={field.image ? () => removeImage(field.key) : undefined}
             />
           ))}
         </div>
@@ -706,10 +718,12 @@ function FieldInput({
   field,
   value,
   onChange,
+  onRemove,
 }: {
   field: ContentField;
   value: string;
   onChange: (v: string) => void;
+  onRemove?: () => void;
 }) {
   if (field.toggle) {
     const on = value === "1";
@@ -767,6 +781,7 @@ function FieldInput({
           bucket="transformations"
           currentUrl={value || undefined}
           onUploaded={(url) => onChange(url)}
+          onRemove={onRemove}
           label={field.label}
           aspectRatio="aspect-video"
         />

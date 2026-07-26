@@ -1,7 +1,7 @@
 import React from "react";
 import type { LandingThemeContent } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
-import { ArrowRight, Compass } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 /**
  * HowNumberedList — rachel esinli.
@@ -63,7 +63,10 @@ export function HowNumberedList({
     },
   ];
 
-  const photo = content.heroImage || content.transformations?.[0]?.afterPhoto || null;
+  // Sol görsel yalnız bu bölüme özel yüklenen fotoğrafı gösterir. Hero
+  // fotoğrafına düşmez (aynı fotoğrafın sayfada iki kez görünmesi rahatsız
+  // ediciydi); görsel yoksa alan hiç render edilmez.
+  const photo = t?.systemImage || null;
 
   return (
     <section className="py-24 sm:py-32 px-6" style={{ backgroundColor: bg }}>
@@ -100,18 +103,11 @@ export function HowNumberedList({
             </span>
           </a>
 
-          <div className="mt-9 relative rounded-[2rem] overflow-hidden h-72 sm:h-80">
-            {photo ? (
+          {photo && (
+            <div className="mt-9 relative rounded-[2rem] overflow-hidden h-72 sm:h-80">
               <img src={photo} alt="" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
-            ) : (
-              <div
-                className="absolute inset-0 flex items-center justify-center"
-                style={{ background: `linear-gradient(150deg, ${primary}, ${primary}0a)` }}
-              >
-                <Compass className="w-20 h-20 text-black/20" strokeWidth={1.1} />
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Sağ — numaralı adım listesi (foto verilen adımlar foto-bg karta dönüşür) */}

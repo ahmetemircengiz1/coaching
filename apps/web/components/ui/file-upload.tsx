@@ -8,6 +8,8 @@ interface FileUploadProps {
   /** url: DB'de saklanacak kalıcı referans. displayUrl: anlık önizleme için
    *  (private bucket'larda imzalı URL; public'lerde url ile aynı). */
   onUploaded: (url: string, displayUrl?: string) => void;
+  /** Verilirse önizlemenin köşesinde "Kaldır" butonu çıkar — fotoğraf sökülebilir olur */
+  onRemove?: () => void;
   currentUrl?: string;
   label?: string;
   aspectRatio?: string;
@@ -18,6 +20,7 @@ interface FileUploadProps {
 export default function FileUpload({
   bucket,
   onUploaded,
+  onRemove,
   currentUrl,
   label = "Fotoğraf Yükle",
   aspectRatio = "aspect-square",
@@ -138,6 +141,23 @@ export default function FileUpload({
                 {uploading ? "Yükleniyor..." : "Değiştir"}
               </span>
             </div>
+            {onRemove && !uploading && (
+              <button
+                type="button"
+                aria-label="Fotoğrafı kaldır"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreview(null);
+                  if (inputRef.current) inputRef.current.value = "";
+                  onRemove();
+                }}
+                className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-red-600"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center p-4 text-[var(--dashboard-main-text-muted)] text-center w-full h-full">
