@@ -9,10 +9,8 @@ import {
   X,
   Globe,
   Dumbbell,
-  Apple,
   LineChart,
   Smartphone,
-  MessageCircle,
   Palette,
   Wallet,
   Zap,
@@ -21,6 +19,7 @@ import {
   UserPlus,
   Maximize2,
 } from "lucide-react";
+import { FeatureShowcase } from "@/src/components/platform/FeatureShowcase";
 import { PlatformFooter } from "@/src/components/platform/PlatformFooter";
 import { CosmicHeroBackground } from "@/src/components/platform/CosmicHeroBackground";
 import { StarfieldJourney } from "@/src/components/platform/StarfieldJourney";
@@ -388,76 +387,6 @@ function StackedLandings({
   );
 }
 
-type Feature = {
-  icon: typeof Globe;
-  title: string;
-  desc: string;
-  details: { label: string; text: string }[];
-};
-
-const FEATURES: Feature[] = [
-  {
-    icon: Globe,
-    title: "Kendi Markalı Web Siten",
-    desc: "Sana özel alan adı, profesyonel tasarım. Dakikalar içinde yayında.",
-    details: [
-      { label: "Hazır temalar", text: "Onlarca hazır tasarımdan seç; logonu, renklerini ve içeriğini gir." },
-      { label: "Kendi alan adın", text: "koçadı.shred.com.tr ile başla, dilediğinde kendi alan adını bağla." },
-      { label: "Anında yayında", text: "Yaptığın her değişiklik canlı sitende anında görünür." },
-    ],
-  },
-  {
-    icon: Dumbbell,
-    title: "Antrenman Programı",
-    desc: "Kapsamlı egzersiz kütüphanesiyle hızlıca program oluştur.",
-    details: [
-      { label: "Egzersiz kütüphanesi", text: "Yüzlerce hazır egzersiz; video ve açıklamalarla destekli." },
-      { label: "Hızlı oluşturucu", text: "Programları dakikalar içinde kur, şablon olarak kaydet ve yeniden kullan." },
-      { label: "Tek tıkla atama", text: "Hazırladığın programı öğrencine tek tıkla gönder." },
-    ],
-  },
-  {
-    icon: Apple,
-    title: "Beslenme Planı",
-    desc: "Kalori ve makro hesaplamalı öğün takibi.",
-    details: [
-      { label: "Makro hesaplama", text: "Kalori, protein, karbonhidrat ve yağ otomatik hesaplanır." },
-      { label: "Besin veritabanı", text: "Geniş besin listesiyle öğünleri saniyeler içinde oluştur." },
-      { label: "Öğün takibi", text: "Öğrencin günlük öğünlerini işaretler, sen ilerlemesini izlersin." },
-    ],
-  },
-  {
-    icon: LineChart,
-    title: "Akıllı İlerleme",
-    desc: "Gelişim grafikleri ve check-in'ler tek ekranda.",
-    details: [
-      { label: "Otomatik grafikler", text: "Kilo, ölçü ve performans verileri otomatik grafiklere dönüşür." },
-      { label: "Haftalık check-in", text: "Öğrenci formu doldurur, veriler doğrudan paneline akar." },
-      { label: "Fotoğraf takibi", text: "Önce/sonra fotoğraflarıyla görsel ilerlemeyi takip et." },
-    ],
-  },
-  {
-    icon: Smartphone,
-    title: "Öğrenci Mobil Paneli",
-    desc: "Öğrencilerin her şeye telefonundan ulaşır.",
-    details: [
-      { label: "Cepte her şey", text: "Program, beslenme ve check-in tek mobil deneyimde." },
-      { label: "Senin markanla", text: "Öğrenci senin markanı görür — Shred'i değil." },
-      { label: "Hatırlatmalar", text: "Yeni program ve check-in hatırlatmaları anında ulaşır." },
-    ],
-  },
-  {
-    icon: MessageCircle,
-    title: "WhatsApp Entegrasyonu",
-    desc: "Kesintisiz iletişim için tek tıkla ulaşım.",
-    details: [
-      { label: "Tek tık", text: "Öğrenci sitenden WhatsApp'a tek tıkla ulaşır." },
-      { label: "Hazır mesaj", text: "Önceden tanımlı mesajla iletişim anında başlar." },
-      { label: "Daha hızlı dönüş", text: "Soruları kaybetmeden, hızlıca yanıtla." },
-    ],
-  },
-];
-
 const WHY_CARDS = [
   {
     icon: Wallet,
@@ -548,7 +477,6 @@ const FLOW_DRAW_SECONDS = 5;
 
 export default function PlatformHomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedFeature, setSelectedFeature] = useState<number | null>(null);
   const [zoomImg, setZoomImg] = useState<{ src: string; alt: string } | null>(null);
   const openZoom = (src: string, alt: string) => setZoomImg({ src, alt });
   const reduce = useReducedMotion();
@@ -733,12 +661,11 @@ export default function PlatformHomePage() {
   }, [reduce]);
 
   useEffect(() => {
-    const lock = menuOpen || selectedFeature !== null || zoomImg !== null;
+    const lock = menuOpen || zoomImg !== null;
     document.body.style.overflow = lock ? "hidden" : "";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setMenuOpen(false);
-        setSelectedFeature(null);
         setZoomImg(null);
       }
     };
@@ -747,9 +674,7 @@ export default function PlatformHomePage() {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
     };
-  }, [menuOpen, selectedFeature, zoomImg]);
-
-  const activeFeat = selectedFeature !== null ? FEATURES[selectedFeature] : null;
+  }, [menuOpen, zoomImg]);
 
   // ===== Z-YOLCULUK SAHNELERİ (derinlikten gelir) =====
   const sceneHero = (
@@ -885,37 +810,6 @@ export default function PlatformHomePage() {
     </div>
   );
 
-  const sceneFeatures = (
-    <div className="mx-auto max-w-5xl px-6 text-center">
-      <Eyebrow>Özellikler</Eyebrow>
-      <h2 className="mt-4 text-4xl font-extrabold tracking-tight text-white md:text-6xl">
-        Güçlü. Şık. <span className="text-white">Basit.</span>
-      </h2>
-      <p className="mx-auto mt-5 max-w-xl text-lg text-white/55">
-        İşini büyütmen için tasarlanmış profesyonel araçlar. Detay için bir karta dokun.
-      </p>
-      <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {FEATURES.map((f, i) => (
-          <button
-            key={f.title}
-            type="button"
-            onClick={() => setSelectedFeature(i)}
-            aria-label={`${f.title} — detayları gör`}
-            className="group flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center backdrop-blur-sm transition-all hover:border-white/25 hover:bg-white/[0.06]"
-          >
-            <div
-              className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-[#0c0c0c] transition-transform group-hover:scale-110"
-              style={{ color: ACCENT }}
-            >
-              <f.icon className="h-6 w-6" />
-            </div>
-            <h3 className="text-sm font-bold tracking-tight text-white">{f.title}</h3>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
   const sceneWhy = (
     <div className="mx-auto max-w-5xl px-6 text-center">
       <h2 className="text-4xl font-extrabold tracking-tighter text-white md:text-6xl lg:text-7xl">
@@ -924,7 +818,7 @@ export default function PlatformHomePage() {
     </div>
   );
 
-  const SCENES = [sceneHero, sceneFlow, sceneFeatures, sceneWhy];
+  const SCENES = [sceneHero, sceneFlow, sceneWhy];
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-[#050505] font-sans text-white selection:bg-[#3d6fd1]/30 selection:text-white">
@@ -1064,87 +958,6 @@ export default function PlatformHomePage() {
         )}
       </AnimatePresence>
 
-      {/* ============ ÖZELLİK DETAY MODAL'I ============ */}
-      <AnimatePresence>
-        {activeFeat && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6"
-          >
-            <div
-              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
-              onClick={() => setSelectedFeature(null)}
-              aria-hidden
-            />
-            <motion.div
-              initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 24 }}
-              animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 12 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              role="dialog"
-              aria-modal="true"
-              aria-label={activeFeat.title}
-              className="relative z-10 max-h-[88vh] w-full max-w-2xl overflow-y-auto overflow-x-hidden rounded-3xl border border-white/10 bg-[#0a0a0a] shadow-[0_40px_120px_-20px_rgba(0,0,0,0.9)]"
-            >
-              {/* Görsel başlık */}
-              <div className="relative h-36 w-full overflow-hidden border-b border-white/5 bg-[#0a0a0a]">
-                <div
-                  className="absolute inset-0"
-                  style={{ background: `radial-gradient(circle at 50% 130%, ${ACCENT}33, transparent 60%)` }}
-                />
-                <div
-                  className="absolute inset-0 opacity-[0.05]"
-                  style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1px)", backgroundSize: "22px 22px" }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div
-                    className="flex h-20 w-20 items-center justify-center rounded-3xl border border-white/10 bg-[#0c0c0c] shadow-[0_16px_40px_-16px_rgba(0,0,0,0.9)]"
-                    style={{ color: ACCENT }}
-                  >
-                    <activeFeat.icon className="h-10 w-10" />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedFeature(null)}
-                  aria-label="Kapat"
-                  className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white/70 backdrop-blur-md transition-colors hover:bg-black/60 hover:text-white"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* İçerik */}
-              <div className="p-8">
-                <h3 className="text-2xl font-extrabold tracking-tight text-white">{activeFeat.title}</h3>
-                <p className="mt-3 text-base leading-relaxed text-white/55">{activeFeat.desc}</p>
-
-                <ul className="mt-6 space-y-4">
-                  {activeFeat.details.map((d) => (
-                    <li key={d.label} className="flex gap-3">
-                      <span
-                        className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: ACCENT }}
-                        aria-hidden
-                      />
-                      <p className="text-[15px] leading-relaxed text-white/70">
-                        <span className="font-semibold text-white">
-                          {d.label}:
-                        </span>{" "}
-                        {d.text}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* ============ GÖRSEL BÜYÜTME (LIGHTBOX) ============ */}
       <AnimatePresence>
         {zoomImg && (
@@ -1180,7 +993,7 @@ export default function PlatformHomePage() {
 
       {/* ============ İÇERİK (ambiyansın üstünde) ============ */}
       <div className="relative z-10">
-      {/* ============ Z-YOLCULUK: Hero → Nasıl çalışır → Özellikler → Neden SHRED ============ */}
+      {/* ============ Z-YOLCULUK: Hero → Nasıl çalışır → Neden SHRED ============ */}
       {reduce ? (
         /* reduced-motion: sahneler normal dikey bölümler (3D yok) */
         <div id="nasilcalisir" className="scroll-mt-24">
@@ -1189,9 +1002,6 @@ export default function PlatformHomePage() {
           </section>
           <section className="relative flex min-h-screen items-center justify-center py-24">
             {sceneFlow}
-          </section>
-          <section className="relative flex min-h-screen items-center justify-center py-24">
-            {sceneFeatures}
           </section>
           <section className="relative flex min-h-screen items-center justify-center py-24">
             {sceneWhy}
@@ -1230,8 +1040,13 @@ export default function PlatformHomePage() {
         </section>
       )}
 
+      {/* ============ ÖZELLİKLER: açıklayıcı görselli kartlar ============ */}
+      <section id="ozellikler" className="scroll-mt-24 px-6 py-16 md:py-24">
+        <FeatureShowcase />
+      </section>
+
       {/* ============ ÖZELLİK-DETAY SATIRLARI ============ */}
-      <section id="ozellikler" className="scroll-mt-24 space-y-28 px-6 py-12 md:py-20">
+      <section className="space-y-28 px-6 py-12 md:py-20">
         <div className="container mx-auto max-w-6xl space-y-28">
           <FeatureRow
             eyebrow="Marka web siten"
