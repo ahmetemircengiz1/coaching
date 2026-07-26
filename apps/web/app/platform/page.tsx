@@ -810,7 +810,30 @@ export default function PlatformHomePage() {
     </div>
   );
 
-  const SCENES = [sceneHero, sceneFlow];
+  const sceneFeatures = (
+    <div className="mx-auto w-full max-w-6xl px-4 text-center sm:px-6">
+      <Eyebrow>Özellikler</Eyebrow>
+      <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-white md:text-5xl">
+        Güçlü. Şık. <span className="text-white">Basit.</span>
+      </h2>
+      <p className="mx-auto mt-3 hidden max-w-xl text-base text-white/55 md:block">
+        Koçluk işini büyütmen için gereken her araç — kutudan çıktığı gibi hazır.
+      </p>
+      <div className="mt-5 md:mt-8">
+        <FeatureShowcase />
+      </div>
+    </div>
+  );
+
+  const sceneWhy = (
+    <div className="mx-auto max-w-5xl px-6 text-center">
+      <h2 className="text-4xl font-extrabold tracking-tighter text-white md:text-6xl lg:text-7xl">
+        Neden <span className="text-white">SHRED</span>?
+      </h2>
+    </div>
+  );
+
+  const SCENES = [sceneHero, sceneFlow, sceneFeatures, sceneWhy];
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-[#050505] font-sans text-white selection:bg-[#3d6fd1]/30 selection:text-white">
@@ -985,7 +1008,7 @@ export default function PlatformHomePage() {
 
       {/* ============ İÇERİK (ambiyansın üstünde) ============ */}
       <div className="relative z-10">
-      {/* ============ Z-YOLCULUK: Hero → Nasıl çalışır ============ */}
+      {/* ============ Z-YOLCULUK: Hero → Nasıl çalışır → Özellikler → Neden SHRED ============ */}
       {reduce ? (
         /* reduced-motion: sahneler normal dikey bölümler (3D yok) */
         <div id="nasilcalisir" className="scroll-mt-24">
@@ -994,6 +1017,12 @@ export default function PlatformHomePage() {
           </section>
           <section className="relative flex min-h-screen items-center justify-center py-24">
             {sceneFlow}
+          </section>
+          <section className="relative flex min-h-screen items-center justify-center py-24">
+            {sceneFeatures}
+          </section>
+          <section className="relative flex min-h-screen items-center justify-center py-24">
+            {sceneWhy}
           </section>
         </div>
       ) : (
@@ -1029,22 +1058,8 @@ export default function PlatformHomePage() {
         </section>
       )}
 
-      {/* ============ ÖZELLİKLER: açıklayıcı görselli kartlar ============ */}
-      <section id="ozellikler" className="scroll-mt-24 px-6 py-16 md:py-24">
-        <FeatureShowcase />
-      </section>
-
-      {/* ============ NEDEN SHRED? — derinlikten gelen başlık ============ */}
-      <section className="relative flex items-center justify-center px-6 py-24 md:py-36">
-        <DepthReveal className="mx-auto max-w-5xl text-center">
-          <h2 className="text-4xl font-extrabold tracking-tighter text-white md:text-6xl lg:text-7xl">
-            Neden <span className="text-white">SHRED</span>?
-          </h2>
-        </DepthReveal>
-      </section>
-
       {/* ============ ÖZELLİK-DETAY SATIRLARI ============ */}
-      <section className="space-y-28 px-6 py-12 md:py-20">
+      <section id="ozellikler" className="scroll-mt-24 space-y-28 px-6 py-12 md:py-20">
         <div className="container mx-auto max-w-6xl space-y-28">
           <FeatureRow
             eyebrow="Marka web siten"
