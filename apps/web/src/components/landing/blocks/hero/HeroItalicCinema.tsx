@@ -112,7 +112,12 @@ export function HeroItalicCinema({
               src={heroImage}
               alt=""
               className="absolute inset-0 w-full h-full object-cover scale-105 animate-[slowZoom_30s_ease-in-out_infinite_alternate]"
-              style={{ objectPosition: `${content.heroFocalX ?? 50}% ${content.heroFocalY ?? 35}%` }}
+              style={{
+                objectPosition: `${content.heroFocalX ?? 50}% ${content.heroFocalY ?? 35}%`,
+                // Zoom animasyonu odak noktasından büyüsün — merkezden büyüyünce
+                // koçun ayarladığı odak (örn. yüz) kadraj dışına itiliyordu.
+                transformOrigin: `${content.heroFocalX ?? 50}% ${content.heroFocalY ?? 35}%`,
+              }}
             />
           ) : (
             <>
