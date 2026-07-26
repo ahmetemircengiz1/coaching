@@ -86,7 +86,12 @@ export default function CoachSiteAuthPage() {
     const supabase = createClient();
     const timer = setInterval(async () => {
       const { data } = await supabase.auth.getUser();
-      if (data.user?.email_confirmed_at) {
+      // Yalnız AZ ÖNCE kaydolan e-postanın doğrulanmasını bekle — tarayıcıda
+      // başka bir hesabın eski oturumu varsa yanlış hesapla finalize ediyordu.
+      if (
+        data.user?.email_confirmed_at &&
+        data.user.email?.toLowerCase() === pendingEmail.toLowerCase()
+      ) {
         clearInterval(timer);
         // Metadata'daki role'e göre doğru finalize seçilir (öğrenci/misafir)
         const result = await finalizeSignup(domain);

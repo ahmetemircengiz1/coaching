@@ -58,7 +58,13 @@ function AuthPageContent() {
     const supabase = createClient();
     const timer = setInterval(async () => {
       const { data } = await supabase.auth.getUser();
-      if (data.user?.email_confirmed_at) {
+      // Yalnız AZ ÖNCE kaydolan e-postanın doğrulanmasını bekle — tarayıcıda
+      // başka bir hesabın eski oturumu varsa onu "doğrulandı" sanıp
+      // beklemeden kuruluma atlıyordu.
+      if (
+        data.user?.email_confirmed_at &&
+        data.user.email?.toLowerCase() === emailSentTo.toLowerCase()
+      ) {
         clearInterval(timer);
         window.location.href = `/platform/onboarding${tier ? `?tier=${tier}` : ""}`;
       }
