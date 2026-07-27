@@ -1,7 +1,0 @@
-# Her satir bir Google Haritalar aramasi. Ilce ilce ilerle, bitenleri # ile kapat.
-spor salonu Kadıköy İstanbul
-spor salonu Üsküdar İstanbul
-fitness salonu Beşiktaş İstanbul
-personal trainer stüdyo İstanbul
-# spor salonu Çankaya Ankara
-# spor salonu Karşıyaka İzmir
