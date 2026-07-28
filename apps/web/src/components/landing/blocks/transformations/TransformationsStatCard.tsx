@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import type { LandingThemeContent, LandingTransformation } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
 import { Dumbbell, ArrowLeft, ArrowRight } from "lucide-react";
+import { usePairAspect } from "./use-pair-aspect";
 
 /**
  * TransformationsStatCard — fitnix esinli.
@@ -29,14 +30,17 @@ export function TransformationsStatCard({
     (t) => t.beforePhoto && t.afterPhoto
   );
   const [idx, setIdx] = useState(0);
-  if (transforms.length === 0) return null;
+
+  const active: LandingTransformation | undefined = transforms.length
+    ? transforms[idx % transforms.length]
+    : undefined;
+  const photoAspect = usePairAspect(active?.beforePhoto, active?.afterPhoto, 3 / 4);
+  if (!active) return null;
 
   const primary = config?.primaryColor || "#ff6a1a";
   const bg = config?.backgroundColor || "#0a0a0a";
   const text = config?.textColor || "#ffffff";
   const headingFont = 'var(--font-oswald), "Arial Narrow", sans-serif';
-
-  const active: LandingTransformation = transforms[idx % transforms.length];
   const go = (d: number) =>
     setIdx((p) => (p + d + transforms.length) % transforms.length);
 
@@ -209,7 +213,7 @@ export function TransformationsStatCard({
               <div
                 key={ph.label}
                 className="relative overflow-hidden rounded-2xl"
-                style={{ aspectRatio: "3 / 4", background: `${text}10` }}
+                style={{ aspectRatio: String(photoAspect), background: `${text}10` }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

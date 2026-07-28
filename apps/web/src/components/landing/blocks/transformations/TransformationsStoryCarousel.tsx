@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import type { LandingThemeContent, LandingTransformation } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { usePairAspect } from "./use-pair-aspect";
 
 /**
  * TransformationsStoryCarousel — curtis esinli.
@@ -27,16 +28,18 @@ export function TransformationsStoryCarousel({
     (t) => t.beforePhoto && t.afterPhoto
   );
   const [idx, setIdx] = useState(0);
-  if (transforms.length === 0) return null;
+
+  const n = transforms.length;
+  const active: LandingTransformation | undefined = n
+    ? transforms[idx % n]
+    : undefined;
+  const photoAspect = usePairAspect(active?.beforePhoto, active?.afterPhoto);
+  if (!active) return null;
 
   const primary = config?.primaryColor || "#a3e635";
   const bg = config?.backgroundColor || "#0a0a0a";
   const text = config?.textColor || "#ffffff";
 
-  const n = transforms.length;
-  const active: LandingTransformation = transforms[idx % n];
-  const prev = transforms[(idx - 1 + n) % n];
-  const next = transforms[(idx + 1) % n];
   const go = (d: number) => setIdx((p) => (p + d + n) % n);
 
   const title = texts?.transformationsTitle || "Sonuçlar Kendini Anlatır";
@@ -74,34 +77,6 @@ export function TransformationsStoryCarousel({
 
         {/* Carousel */}
         <div className="relative">
-          {/* Komşu kartlar (soluk önizleme) */}
-          {n > 1 && (
-            <>
-              <div
-                className="pointer-events-none absolute inset-y-8 -left-10 hidden w-44 overflow-hidden rounded-2xl lg:block"
-                style={{ opacity: 0.25, filter: "blur(2px)" }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={prev.afterPhoto}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              </div>
-              <div
-                className="pointer-events-none absolute inset-y-8 -right-10 hidden w-44 overflow-hidden rounded-2xl lg:block"
-                style={{ opacity: 0.25, filter: "blur(2px)" }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={next.afterPhoto}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            </>
-          )}
-
           {/* Aktif kart */}
           <div
             className="relative overflow-hidden rounded-3xl border"
@@ -116,7 +91,7 @@ export function TransformationsStoryCarousel({
                 <div
                   key={ph.label}
                   className="relative overflow-hidden rounded-2xl"
-                  style={{ aspectRatio: "4 / 5", background: `${text}10` }}
+                  style={{ aspectRatio: String(photoAspect), background: `${text}10` }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { LandingThemeContent, LandingTransformation } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
 import { Plus, ArrowLeft, ArrowRight } from "lucide-react";
+import { usePairAspect } from "./use-pair-aspect";
 
 /**
  * TransformationsScratchReveal — progrex esinli.
@@ -58,6 +59,7 @@ export function TransformationsScratchReveal({
     ? transforms[idx % transforms.length]
     : undefined;
   const beforeSrc = active?.beforePhoto;
+  const photoAspect = usePairAspect(active?.beforePhoto, active?.afterPhoto);
 
   useEffect(() => {
     setScratched(false);
@@ -92,7 +94,7 @@ export function TransformationsScratchReveal({
       ctx.drawImage(img, dx, dy, dw, dh);
     };
     img.src = beforeSrc;
-  }, [beforeSrc]);
+  }, [beforeSrc, photoAspect]);
 
   if (!active) return null;
 
@@ -176,7 +178,7 @@ export function TransformationsScratchReveal({
             className={`relative overflow-hidden rounded-3xl${
               metrics.length > 0 ? "" : " mx-auto w-full max-w-md"
             }`}
-            style={{ aspectRatio: "4 / 5", background: card }}
+            style={{ aspectRatio: String(photoAspect), background: card }}
           >
             {/* Sonra fotoğrafı (altta) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}

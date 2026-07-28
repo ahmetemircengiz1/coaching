@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import type { LandingThemeContent, LandingTransformation } from "../../types";
 import type { EliteGlobalStyles } from "../../elite-config";
 import { ChevronsLeftRight, ArrowLeft, ArrowRight } from "lucide-react";
+import { usePairAspect } from "./use-pair-aspect";
 
 /**
  * TransformationsCompareSlider — fitflow esinli.
@@ -31,14 +32,17 @@ export function TransformationsCompareSlider({
   const dragging = useRef(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  if (transforms.length === 0) return null;
+  const n = transforms.length;
+  const active: LandingTransformation | undefined = n
+    ? transforms[idx % n]
+    : undefined;
+  const photoAspect = usePairAspect(active?.beforePhoto, active?.afterPhoto);
+
+  if (!active) return null;
 
   const primary = config?.primaryColor || "#fb5d8d";
   const bg = config?.backgroundColor || "#0a0a0a";
   const text = config?.textColor || "#ffffff";
-
-  const n = transforms.length;
-  const active: LandingTransformation = transforms[idx % n];
   const go = (d: number) => {
     setIdx((p) => (p + d + n) % n);
     setPos(50);
@@ -151,7 +155,7 @@ export function TransformationsCompareSlider({
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           className="relative touch-none select-none overflow-hidden rounded-3xl"
-          style={{ aspectRatio: "4 / 5", background: `${text}10`, cursor: "ew-resize" }}
+          style={{ aspectRatio: String(photoAspect), background: `${text}10`, cursor: "ew-resize" }}
         >
           {/* Sonra (taban) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
