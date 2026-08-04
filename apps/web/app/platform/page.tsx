@@ -695,11 +695,18 @@ export default function PlatformHomePage() {
       </div>
       {/* Başlık ufuk çizgisinin (earth: top %56, mobil %62) hemen üstüne oturur */}
       <div className="absolute inset-x-0 top-[62%] z-10 -translate-y-full px-6 pb-4 text-center sm:top-[56%] md:pb-5">
-        <h1 className="mx-auto max-w-5xl text-4xl font-extrabold uppercase leading-[1.1] tracking-tight text-white md:text-6xl lg:text-7xl">
+        <h1 className="mx-auto max-w-5xl text-5xl font-extrabold leading-[1.05] tracking-tighter text-white md:text-7xl lg:text-8xl">
           Kendi koçluk markanı
           <br />
           dakikalar içinde kur
         </h1>
+      </div>
+      {/* Açıklama ufuk çizgisinin altında */}
+      <div className="absolute inset-x-0 top-[62%] z-10 px-6 pt-10 text-center sm:top-[56%] md:pt-12">
+        <p className="mx-auto max-w-2xl text-lg leading-relaxed text-white/65 md:text-xl">
+          Sana özel marka web siten, güçlü antrenman & beslenme oluşturucu ve otomatik
+          takip sistemi. Tüm öğrencilerini tek panelde profesyonelce yönet.
+        </p>
       </div>
     </>
   );
