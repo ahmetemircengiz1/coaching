@@ -528,6 +528,7 @@ export default function PlatformHomePage() {
     let lastEaten = Infinity; // yutulan son delta büyüklüğü (sönüm/yeni-itiş ayrımı)
     let acc = 0;
     let lastT = 0;
+    let lastUpT = 0; // son yukarı girdinin zamanı (ters yön gürültü filtresi)
     let sceneRaf = 0;
     let glideTarget: number | null = null; // yukarı süzülme hedefi
     let glideRaf = 0;
@@ -554,8 +555,8 @@ export default function PlatformHomePage() {
         glideTarget = null;
         return;
       }
-      // Üstel yaklaşım: her karede kalan mesafenin %14'ü — pürüzsüz sönümlenme
-      window.scrollTo({ top: cur + diff * 0.14, behavior: "instant" });
+      // Üstel yaklaşım: her karede kalan mesafenin %22'si — hızlı ama pürüzsüz sönümlenme
+      window.scrollTo({ top: cur + diff * 0.22, behavior: "instant" });
       glideRaf = requestAnimationFrame(glideStep);
     };
 
@@ -607,9 +608,11 @@ export default function PlatformHomePage() {
         }
         eatMomentum = false;
         acc = 0;
+        lastUpT = performance.now();
         e.preventDefault();
         const base = glideTarget ?? window.scrollY;
-        glideTarget = Math.max(base + delta, 0);
+        // 1.6x: yukarı çıkış tek savuruşta daha fazla yol alsın
+        glideTarget = Math.max(base + delta * 1.6, 0);
         if (!glideRaf) glideRaf = requestAnimationFrame(glideStep);
         return;
       }
@@ -618,6 +621,14 @@ export default function PlatformHomePage() {
       const now = performance.now();
       const gap = now - lastT;
       lastT = now;
+
+      // Yukarı süzülme sürerken araya karışan aşağı delta (touchpad gürültüsü /
+      // momentum artığı) sayfayı bir alt sahneye geri çekiyordu — yut. Bilinçli
+      // bir aşağı itiş kısa bir esten sonra gelir ve normal işlenir.
+      if (glideTarget !== null && now - lastUpT < 200) {
+        e.preventDefault();
+        return;
+      }
       stopGlide();
 
       if (animating) {
@@ -682,18 +693,13 @@ export default function PlatformHomePage() {
       <div className="absolute inset-0" aria-hidden>
         <CosmicHeroBackground />
       </div>
-      <div className="relative z-10 mx-auto flex max-w-5xl translate-y-[2vh] flex-col items-center px-6 text-center">
-        <h1 className="text-5xl font-extrabold leading-[1.05] tracking-tighter text-white md:text-7xl lg:text-8xl">
+      {/* Başlık ufuk çizgisinin (earth: top %56, mobil %62) hemen üstüne oturur */}
+      <div className="absolute inset-x-0 top-[62%] z-10 -translate-y-full px-6 pb-4 text-center sm:top-[56%] md:pb-5">
+        <h1 className="mx-auto max-w-5xl text-4xl font-extrabold uppercase leading-[1.1] tracking-tight text-white md:text-6xl lg:text-7xl">
           Kendi koçluk markanı
           <br />
-          <span className="text-white">dakikalar içinde</span> kur.
+          dakikalar içinde kur
         </h1>
-        {/* ufuk çizgisi bu boşluğun içinde kalır; iki yazı da çizgiye değmez */}
-        <div aria-hidden className="h-[15vh] md:h-[17vh]" />
-        <p className="mx-auto max-w-2xl -translate-y-[5vh] text-lg leading-relaxed text-white/65 md:text-xl">
-          Sana özel marka web siten, güçlü antrenman & beslenme oluşturucu ve otomatik
-          takip sistemi. Tüm öğrencilerini tek panelde profesyonelce yönet.
-        </p>
       </div>
     </>
   );
