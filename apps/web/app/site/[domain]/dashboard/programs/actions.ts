@@ -317,7 +317,8 @@ export async function updateWorkoutExercise(
       sets: isCardio ? 1 : (data.sets ?? (switchedFromCardio ? 3 : we.sets)),
       reps: isCardio ? "-" : (data.reps ?? (switchedFromCardio ? "10" : we.reps)),
       restSeconds: isCardio ? null : (data.restSeconds ?? (switchedFromCardio ? 60 : we.restSeconds)),
-      notes: data.notes ?? we.notes,
+      // Boş string = notu sil; alan hiç gönderilmediyse mevcut not korunur
+      notes: data.notes === undefined ? we.notes : (data.notes.trim() || null),
       durationMinutes: isCardio ? (data.durationMinutes ?? (switchedToCardio ? 20 : we.durationMinutes)) : null,
       intensity: isCardio ? (data.intensity ?? (switchedToCardio ? "MEDIUM" : we.intensity)) : null,
       cardioType: isCardio ? (data.cardioType ?? (switchedToCardio ? "LISS" : we.cardioType)) : null,

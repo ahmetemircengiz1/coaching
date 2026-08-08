@@ -407,7 +407,8 @@ export default function ProgramBuilder({
       sets: patch.sets,
       reps: patch.reps,
       restSeconds: patch.restSeconds ?? undefined,
-      notes: patch.notes ?? undefined,
+      // null = koç notu temizledi; undefined = alan hiç gönderilmedi
+      notes: patch.notes === undefined ? undefined : (patch.notes ?? ""),
       section: patch.section ? toWorkoutSection(patch.section) : undefined,
       durationMinutes: patch.durationMinutes ?? undefined,
       intensity: (patch.intensity as Intensity) ?? undefined,
