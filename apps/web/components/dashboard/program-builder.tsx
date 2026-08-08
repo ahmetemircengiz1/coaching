@@ -234,7 +234,12 @@ export default function ProgramBuilder({
       weekNumber: selectedWeek,
       dayOfWeek: newWorkoutDay,
       name: newWorkoutName.trim(),
-    }).then(() => {
+    }).then((result) => {
+      // Sunucu reddederse optimistic gün sessizce kaybolmasın — koç neden
+      // eklenmediğini görsün
+      if (result && !result.success) {
+        toast.error(("error" in result && result.error) || "Antrenman günü eklenemedi");
+      }
       refreshWithStatus();
     });
   };

@@ -163,7 +163,7 @@ export const createProgramSchema = z.object({
 
 export const addWorkoutSchema = z.object({
   weekNumber: z.number().int().min(1).max(52),
-  dayOfWeek: z.number().int().min(0).max(6),
+  dayOfWeek: z.number().int().min(1).max(7), // 1 = Pazartesi ... 7 = Pazar
   name: z.string().min(1).max(200).trim(),
 });
 
