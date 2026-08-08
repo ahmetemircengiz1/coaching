@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { EmptyState, EmptySearchState } from "./empty-state";
 import { StudentCodesSection, type CodeItem, type PackageOption } from "./student-codes-section";
+import { ENDING_SOON_DAYS } from "@/lib/student-package";
 
 type StudentItem = {
   id: string;
@@ -82,7 +83,7 @@ export function StudentsPageClient({
       result = result.filter((s) => {
         if (!s.endDate) return false;
         const diff = new Date(s.endDate).getTime() - now;
-        return diff >= 0 && diff <= 7 * DAY_MS;
+        return diff >= 0 && diff <= ENDING_SOON_DAYS * DAY_MS;
       });
     } else if (statusFilter === "expired") {
       result = result.filter((s) => {
@@ -122,7 +123,7 @@ export function StudentsPageClient({
       if (s.endDate) {
         const t = new Date(s.endDate).getTime();
         if (t < now) counts.expired++;
-        else if (t - now <= 7 * DAY_MS) counts.endingSoon++;
+        else if (t - now <= ENDING_SOON_DAYS * DAY_MS) counts.endingSoon++;
       }
     }
     return counts;
@@ -224,7 +225,7 @@ export function StudentsPageClient({
                 { key: "all" as StatusFilter, label: "Tümü" },
                 { key: "active" as StatusFilter, label: "Aktif" },
                 { key: "inactive" as StatusFilter, label: "Pasif" },
-                { key: "endingSoon" as StatusFilter, label: "Bitiyor ≤7g" },
+                { key: "endingSoon" as StatusFilter, label: `Bitiyor ≤${ENDING_SOON_DAYS}g` },
                 { key: "expired" as StatusFilter, label: "Süresi Doldu" },
               ]).map((f) => (
                 <button

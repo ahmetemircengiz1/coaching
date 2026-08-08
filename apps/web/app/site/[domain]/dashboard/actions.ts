@@ -14,6 +14,7 @@ import {
   getLandingFeatures,
 } from "@/src/lib/plan";
 import { updateCoachSettingsSchema, updatePaymentSettingsSchema } from "@/lib/validation/schemas";
+import { resolvePackageWindow } from "@/lib/student-package";
 import {
   resolveLandingThemeId,
   toLegacyLandingTemplateId,
@@ -169,7 +170,7 @@ export async function getStudentsList(domain: string) {
     prisma.student.findMany({
       where: { coachId: coach.id },
       include: {
-        coachPackage: { select: { name: true } },
+        coachPackage: { select: { name: true, duration: true } },
         checkIns: {
           orderBy: { date: "desc" },
           take: 1,
@@ -203,7 +204,13 @@ export async function getStudentsList(domain: string) {
       lastCheckIn: s.checkIns[0]?.date.toISOString() || null,
       startDate: s.startDate.toISOString(),
       currentProgram: s.trainingPlans[0]?.program?.name || null,
-      endDate: s.endDate?.toISOString() || null,
+      // endDate DB'de yalnızca paket atandığında/uzatıldığında yazılıyor; daha eski
+      // kayıtlarda paket süresinden türetilir (aksi halde liste hep "-" gösterirdi)
+      endDate: resolvePackageWindow({
+        startDate: s.startDate,
+        endDate: s.endDate,
+        packageDurationWeeks: s.coachPackage?.duration ?? null,
+      }).endDate?.toISOString() || null,
     })),
   };
 }

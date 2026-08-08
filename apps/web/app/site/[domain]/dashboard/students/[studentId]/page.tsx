@@ -19,6 +19,8 @@ import { MealLogCoachView } from "@/components/dashboard/meal-log-coach-view";
 import { getStudentMealLogForCoach } from "../meal-log-actions";
 import { signPhotoUrls } from "@/lib/supabase/signed-url";
 import { StudentSwitcherRail } from "@/components/dashboard/student-switcher-rail";
+import { StudentPackageSection } from "@/components/dashboard/student-package-section";
+import { resolvePackageWindow, formatRemaining } from "@/lib/student-package";
 
 const cardStyle = { backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)" };
 
@@ -101,7 +103,7 @@ export default async function StudentDetailPage({
   // Sadece sayfanın "çekirdeği" (header, program, beslenme, grafikler) için gereken
   // sorgular burada bloke eder. Yemek fotoğrafları bölümü
   // aşağıda <Suspense> ile stream edilir → sayfa kabuğu onları beklemeden açılır.
-  const [student, coachPrograms, libraryNutritionPlans, allStudents] = await Promise.all([
+  const [student, coachPrograms, libraryNutritionPlans, allStudents, packageRows] = await Promise.all([
     prisma.student.findUnique({
       where: { id: studentId },
       include: {
@@ -208,6 +210,11 @@ export default async function StudentDetailPage({
       select: { id: true, name: true, status: true },
       orderBy: [{ status: "asc" }, { name: "asc" }],
     }),
+    prisma.coachPackage.findMany({
+      where: { coachId: coach.id, isActive: true },
+      select: { id: true, name: true, duration: true, price: true, currency: true },
+      orderBy: { orderIndex: "asc" },
+    }),
   ]);
 
   if (!student || student.coachId !== coach.id) {
@@ -219,6 +226,20 @@ export default async function StudentDetailPage({
     name: p.name,
     weeks: p.weeks,
   }));
+
+  const coachPackages = packageRows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    duration: p.duration,
+    price: Number(p.price),
+    currency: p.currency,
+  }));
+
+  const packageWindow = resolvePackageWindow({
+    startDate: student.startDate,
+    endDate: student.endDate,
+    packageDurationWeeks: student.coachPackage?.duration ?? null,
+  });
 
   const nutritionPlanOptions = libraryNutritionPlans.map((p) => ({
     id: p.id,
@@ -366,6 +387,22 @@ export default async function StudentDetailPage({
             <h1 className="font-heading text-xl font-bold">{student.name}</h1>
             <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>
               {student.coachPackage?.name || "Paket atanmamış"}
+              {packageWindow.state !== "none" && (
+                <span
+                  className="ml-2"
+                  style={{
+                    color:
+                      packageWindow.state === "expired"
+                        ? "#f87171"
+                        : packageWindow.state === "endingSoon"
+                          ? "#facc15"
+                          : undefined,
+                  }}
+                >
+                  · {formatRemaining(packageWindow)}
+                  {packageWindow.state !== "expired" && " kaldı"}
+                </span>
+              )}
             </p>
           </div>
           <Badge variant={student.status === "active" ? "default" : "secondary"}>
@@ -685,42 +722,23 @@ export default async function StudentDetailPage({
       </AccordionSection>
 
       {/* Paket Bilgisi */}
-      <AccordionSection title="Paket Bilgisi">
-        {student.coachPackage ? (() => {
-          const durationWeeks = student.coachPackage.duration;
-          const startDate = new Date(student.startDate);
-          const endDate = new Date(startDate);
-          endDate.setDate(endDate.getDate() + durationWeeks * 7);
-          const now = new Date();
-          const remainingMs = endDate.getTime() - now.getTime();
-          const remainingWeeks = Math.max(0, Math.ceil(remainingMs / (7 * 24 * 60 * 60 * 1000)));
-          const isExpired = remainingMs <= 0;
-
-          return (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Paket</p>
-                <p className="text-sm font-semibold mt-1">{student.coachPackage.name}</p>
-              </div>
-              <div>
-                <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Başlangıç</p>
-                <p className="text-sm font-semibold mt-1">{startDate.toLocaleDateString("tr-TR")}</p>
-              </div>
-              <div>
-                <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Bitiş</p>
-                <p className="text-sm font-semibold mt-1">{endDate.toLocaleDateString("tr-TR")}</p>
-              </div>
-              <div>
-                <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Kalan Süre</p>
-                <p className={`text-sm font-semibold mt-1 ${isExpired ? "text-red-400" : remainingWeeks <= 2 ? "text-yellow-400" : ""}`}>
-                  {isExpired ? "Süresi doldu" : `${remainingWeeks} hafta`}
-                </p>
-              </div>
-            </div>
-          );
-        })() : (
-          <p className="text-sm" style={{ color: "var(--dashboard-main-text-muted)" }}>Henüz paket atanmamış</p>
-        )}
+      <AccordionSection title="Paket Bilgisi" defaultOpen={packageWindow.state === "endingSoon" || packageWindow.state === "expired"}>
+        <StudentPackageSection
+          domain={domain}
+          studentId={studentId}
+          packages={coachPackages}
+          current={
+            student.coachPackage && student.coachPackageId
+              ? {
+                id: student.coachPackageId,
+                name: student.coachPackage.name,
+                duration: student.coachPackage.duration,
+              }
+              : null
+          }
+          startDate={student.startDate.toISOString()}
+          endDate={student.endDate?.toISOString() ?? null}
+        />
       </AccordionSection>
       </div>
     </div>

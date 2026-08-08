@@ -154,6 +154,16 @@ export const updatePaymentSettingsSchema = z.object({
   iyzicoSecretKey: z.string().max(200).optional(),
 });
 
+// ─── Öğrenci paketi ───
+export const updateStudentPackageSchema = z.object({
+  coachPackageId: cuid,
+  startDate: z.string().datetime().optional(),
+});
+
+export const extendStudentPackageSchema = z.object({
+  weeks: z.number().int().min(1).max(104),
+});
+
 // ─── Programs ───
 export const createProgramSchema = z.object({
   name: z.string().min(1, "Program adı zorunlu").max(200).trim(),

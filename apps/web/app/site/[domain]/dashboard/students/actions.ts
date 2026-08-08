@@ -5,8 +5,15 @@ import { getAuthUser } from "@/lib/supabase/server";
 import prisma from "@coach-os/database";
 import { redirect } from "next/navigation";
 import { checkRateLimitAsync, ACTION_LIMIT } from "@/lib/rate-limit";
-import { createStudentInviteSchema, createRegistrationCodeSchema } from "@/lib/validation/schemas";
+import {
+  createStudentInviteSchema,
+  createRegistrationCodeSchema,
+  updateStudentPackageSchema,
+  extendStudentPackageSchema,
+} from "@/lib/validation/schemas";
 import { generateInviteToken, buildInviteUrl } from "@/lib/invites/tokens";
+import { addWeeks, resolvePackageWindow } from "@/lib/student-package";
+import { revalidatePath } from "next/cache";
 import { randomBytes } from "crypto";
 
 function generateRegistrationCode(): string {
@@ -471,6 +478,95 @@ export async function updateStudentStatus(
     data: { status },
   });
 
+  return { success: true };
+}
+
+// ─── Öğrencinin paketini ata / değiştir ───
+// Kayıt anında (davet veya kayıt kodu üzerinden) paket seçilmemişse öğrenci
+// paketsiz kalıyordu ve düzeltmenin yolu yoktu. Bitiş tarihi burada DB'ye
+// yazılır — öğrenci listesindeki "Bitiş" sütunu ve süre filtreleri bu alanı okur.
+export async function updateStudentPackage(
+  domain: string,
+  studentId: string,
+  input: { coachPackageId: string; startDate?: string }
+) {
+  const coach = await getAuthenticatedCoach(domain);
+
+  const parsed = updateStudentPackageSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Geçersiz veri." };
+  }
+
+  const [student, pkg] = await Promise.all([
+    prisma.student.findUnique({ where: { id: studentId }, select: { coachId: true, startDate: true } }),
+    prisma.coachPackage.findUnique({
+      where: { id: parsed.data.coachPackageId },
+      select: { coachId: true, duration: true },
+    }),
+  ]);
+
+  if (!student || student.coachId !== coach.id) {
+    return { error: "Öğrenci bulunamadı." };
+  }
+  if (!pkg || pkg.coachId !== coach.id) {
+    return { error: "Paket bulunamadı." };
+  }
+
+  const startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : student.startDate;
+
+  await prisma.student.update({
+    where: { id: studentId },
+    data: {
+      coachPackageId: parsed.data.coachPackageId,
+      startDate,
+      endDate: addWeeks(startDate, pkg.duration),
+    },
+  });
+
+  revalidatePath(`/site/${domain}/dashboard/students/${studentId}`);
+  revalidatePath(`/site/${domain}/dashboard/students`);
+  return { success: true };
+}
+
+// ─── Paket süresini uzat (yenileme) ───
+export async function extendStudentPackage(domain: string, studentId: string, weeks: number) {
+  const coach = await getAuthenticatedCoach(domain);
+
+  const parsed = extendStudentPackageSchema.safeParse({ weeks });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Geçersiz süre." };
+  }
+
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    select: { coachId: true, startDate: true, endDate: true, coachPackage: { select: { duration: true } } },
+  });
+
+  if (!student || student.coachId !== coach.id) {
+    return { error: "Öğrenci bulunamadı." };
+  }
+
+  const current = resolvePackageWindow({
+    startDate: student.startDate,
+    endDate: student.endDate,
+    packageDurationWeeks: student.coachPackage?.duration ?? null,
+  });
+
+  if (!current.endDate) {
+    return { error: "Önce bir paket atamalısın." };
+  }
+
+  // Süresi dolmuşsa bugünden, dolmamışsa mevcut bitişten uzat — böylece
+  // gecikmeli yenilemede koç kaybettiği günleri öğrenciye bağışlamış olmaz.
+  const base = current.state === "expired" ? new Date() : current.endDate;
+
+  await prisma.student.update({
+    where: { id: studentId },
+    data: { endDate: addWeeks(base, parsed.data.weeks) },
+  });
+
+  revalidatePath(`/site/${domain}/dashboard/students/${studentId}`);
+  revalidatePath(`/site/${domain}/dashboard/students`);
   return { success: true };
 }
 
