@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WORKOUT_SECTIONS, INTENSITIES, CARDIO_TYPES } from "@/lib/constants/workout-sections";
 
 // ─── Ortak ───
 const cuid = z.string().min(1).max(30);
@@ -177,20 +178,47 @@ export const addWorkoutSchema = z.object({
   name: z.string().min(1).max(200).trim(),
 });
 
-export const addExerciseToWorkoutSchema = z.object({
-  exerciseId: cuid,
-  sets: z.number().int().min(1).max(100),
-  reps: z.string().min(1).max(50).trim(),
+// Gün içi bölüm + kardiyo alanları. Kardiyo satırlarında set/tekrar yerine
+// süre-tip-yoğunluk girilir; superRefine hangisinin zorunlu olduğunu belirler.
+const workoutExerciseFields = {
+  sets: z.number().int().min(1).max(100).optional(),
+  reps: z.string().min(1).max(50).trim().optional(),
   restSeconds: z.number().int().min(0).max(600).optional(),
   notes: z.string().max(500).trim().optional(),
-});
+  section: z.enum(WORKOUT_SECTIONS).optional(),
+  durationMinutes: z.number().int().min(1).max(300).optional(),
+  intensity: z.enum(INTENSITIES).optional(),
+  cardioType: z.enum(CARDIO_TYPES).optional(),
+};
 
-export const updateWorkoutExerciseSchema = z.object({
-  sets: z.number().int().min(1).max(100),
-  reps: z.string().min(1).max(50).trim(),
-  restSeconds: z.number().int().min(0).max(600).optional(),
-  notes: z.string().max(500).trim().optional(),
-});
+function refineWorkoutExercise(
+  data: { section?: string; sets?: number; reps?: string; durationMinutes?: number },
+  ctx: z.RefinementCtx
+) {
+  if (data.section === "CARDIO") {
+    if (!data.durationMinutes) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["durationMinutes"], message: "Kardiyo için süre zorunlu" });
+    }
+    return;
+  }
+  if (data.sets == null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sets"], message: "Set sayısı zorunlu" });
+  }
+  if (!data.reps) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["reps"], message: "Tekrar zorunlu" });
+  }
+}
+
+export const addExerciseToWorkoutSchema = z
+  .object({ exerciseId: cuid, ...workoutExerciseFields })
+  .superRefine(refineWorkoutExercise);
+
+// Kısmi güncelleme: yalnızca gönderilen alanlar değişir, bu yüzden set/tekrar
+// zorunluluğu ancak bölüm de birlikte gönderildiğinde denetlenir.
+export const updateWorkoutExerciseSchema = z.object(workoutExerciseFields);
+
+export const programCoachNotesSchema = z.string().max(5000).trim();
+export const workoutNotesSchema = z.string().max(2000).trim();
 
 // ─── Nutrition ───
 const foodSchema = z.object({

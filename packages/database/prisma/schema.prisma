@@ -359,7 +359,8 @@ model Program {
   coachId     String
   coach       Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
   name        String
-  description String?  @db.Text
+  description String?  @db.Text // Koçun kütüphane notu — öğrenciye GÖSTERİLMEZ
+  coachNotes  String?  @db.Text // Öğrenciye gösterilen program notu (NutritionPlan.coachNotes karşılığı)
   weeks       Int
   isTemplate  Boolean  @default(true)
 
@@ -379,6 +380,7 @@ model ProgramWorkout {
   dayOfWeek   Int      // 1-7
   weekNumber  Int
   name        String
+  notes       String?  @db.Text // Bu güne özel koç notu (öğrenciye gösterilir)
 
   exercises   WorkoutExercise[]
 
@@ -391,11 +393,21 @@ model WorkoutExercise {
   workout         ProgramWorkout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exerciseId      String
   exercise        Exercise       @relation(fields: [exerciseId], references: [id])
+  // KARDİYO satırlarında set/tekrar anlamsızdır; alanları nullable yapmak tüm
+  // okuma yollarını kırardı, bu yüzden sets=1 / reps="-" sentinel'i yazılır ve
+  // hiçbir ekranda gösterilmez (bkz. section === "CARDIO" dalları).
   sets            Int
   reps            String         // "8-12" veya "AMRAP"
   restSeconds     Int?
   notes           String?
   orderIndex      Int
+
+  // Gün içi bölüm: MAIN (ana antrenman) | CORE (karın) | CARDIO (kardiyo)
+  section         String         @default("MAIN")
+  // Yalnızca CARDIO bölümünde kullanılır
+  durationMinutes Int?
+  intensity       String?        // LOW | MEDIUM | HIGH
+  cardioType      String?        // LISS | HIIT | INTERVAL | STEADY
 
   // Öğrenci günlük logları (her gün için 1 kayıt)
   logs            ExerciseLog[]

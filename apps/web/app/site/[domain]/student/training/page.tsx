@@ -58,12 +58,18 @@ export default async function StudentTrainingPage({
       id: w.id,
       name: w.name,
       dayOfWeek: w.dayOfWeek,
+      notes: w.notes,
       exercises: w.exercises.map((we) => ({
         id: we.id,
         name: we.exercise.name,
         sets: we.sets,
         reps: we.reps,
         restSeconds: we.restSeconds,
+        notes: we.notes,
+        section: we.section,
+        durationMinutes: we.durationMinutes,
+        intensity: we.intensity,
+        cardioType: we.cardioType,
         alternatives: we.alternatives.map((a) => a.alternativeExercise.name),
       })),
     });
@@ -84,6 +90,17 @@ export default async function StudentTrainingPage({
           {program.name}
         </p>
       </div>
+
+      {program.coachNotes && (
+        <Card style={cardStyle}>
+          <CardContent className="py-4">
+            <p className="text-sm font-semibold mb-1" style={{ color: "var(--dashboard-main-text)" }}>Koç Notları</p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed" style={{ color: "var(--dashboard-main-text)", opacity: 0.85 }}>
+              {program.coachNotes}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {displayWeeks.length === 0 ? (
         <Card style={cardStyle}>

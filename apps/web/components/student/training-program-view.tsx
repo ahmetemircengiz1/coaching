@@ -1,6 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  WORKOUT_SECTIONS,
+  SECTION_META,
+  toWorkoutSection,
+  formatCardio,
+} from "@/lib/constants/workout-sections";
 
 export type ViewExercise = {
   id: string;
@@ -8,6 +14,11 @@ export type ViewExercise = {
   sets: number;
   reps: string;
   restSeconds: number | null;
+  notes: string | null;
+  section: string;
+  durationMinutes: number | null;
+  intensity: string | null;
+  cardioType: string | null;
   alternatives: string[];
 };
 
@@ -15,6 +26,7 @@ export type ViewWorkout = {
   id: string;
   name: string;
   dayOfWeek: number;
+  notes: string | null;
   exercises: ViewExercise[];
 };
 
@@ -123,31 +135,81 @@ export function TrainingProgramView({ weeks }: { weeks: ViewWeek[] }) {
                 {DAY_LONG[workout.dayOfWeek]}
               </span>
             </div>
-            <ul className="divide-y px-4" style={{ borderColor: "var(--dashboard-card-border)" }}>
-              {workout.exercises.map((ex) => (
-                <li key={ex.id} className="py-2.5 first:pt-3 last:pb-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-sm font-medium" style={{ color: "var(--dashboard-main-text)" }}>
-                      {ex.name}
-                    </p>
-                    <span className="shrink-0 text-xs font-semibold" style={{ color: "var(--dashboard-main-text-muted)" }}>
-                      {ex.sets} × {ex.reps}
-                    </span>
+            {workout.notes && (
+              <p
+                className="px-4 py-2.5 text-xs italic"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 6%, transparent)",
+                  color: "var(--dashboard-main-text)",
+                  borderBottom: "1px solid var(--dashboard-card-border)",
+                }}
+              >
+                📌 {workout.notes}
+              </p>
+            )}
+
+            {/* Bölümler: ana antrenman / karın / kardiyo — boş olan gösterilmez */}
+            {(() => {
+              const filled = WORKOUT_SECTIONS.filter((s) =>
+                workout.exercises.some((e) => toWorkoutSection(e.section) === s)
+              );
+              // Tek bölüm ve o da ana antrenmansa başlık gösterme (sade görünüm korunur)
+              const showHeaders = filled.length > 1 || (filled.length === 1 && filled[0] !== "MAIN");
+
+              return filled.map((sec) => {
+                const list = workout.exercises.filter((e) => toWorkoutSection(e.section) === sec);
+                const isCardio = sec === "CARDIO";
+                return (
+                  <div key={sec}>
+                    {showHeaders && (
+                      <p
+                        className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider"
+                        style={{
+                          color: "var(--dashboard-main-text-muted)",
+                          backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 4%, transparent)",
+                        }}
+                      >
+                        {SECTION_META[sec].icon} {SECTION_META[sec].label}
+                      </p>
+                    )}
+                    <ul className="divide-y px-4" style={{ borderColor: "var(--dashboard-card-border)" }}>
+                      {list.map((ex) => (
+                        <li key={ex.id} className="py-2.5 first:pt-3 last:pb-3">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <p className="text-sm font-medium" style={{ color: "var(--dashboard-main-text)" }}>
+                              {ex.name}
+                            </p>
+                            <span className="shrink-0 text-xs font-semibold" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                              {isCardio ? `${ex.durationMinutes ?? "-"} dk` : `${ex.sets} × ${ex.reps}`}
+                            </span>
+                          </div>
+                          {isCardio ? (
+                            <p className="text-xs mt-0.5" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>
+                              {formatCardio({ cardioType: ex.cardioType, intensity: ex.intensity })}
+                            </p>
+                          ) : ex.restSeconds ? (
+                            <p className="text-xs mt-0.5" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>
+                              {ex.restSeconds}s dinlenme
+                            </p>
+                          ) : null}
+                          {ex.notes && (
+                            <p className="text-xs mt-1 italic" style={{ color: "var(--dashboard-main-text)", opacity: 0.8 }}>
+                              {ex.notes}
+                            </p>
+                          )}
+                          {ex.alternatives.length > 0 && (
+                            <p className="text-xs mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                              <span style={{ opacity: 0.7 }}>Alternatif: </span>
+                              {ex.alternatives.join(", ")}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  {ex.restSeconds ? (
-                    <p className="text-xs mt-0.5" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.7 }}>
-                      {ex.restSeconds}s dinlenme
-                    </p>
-                  ) : null}
-                  {ex.alternatives.length > 0 && (
-                    <p className="text-xs mt-1" style={{ color: "var(--dashboard-main-text-muted)" }}>
-                      <span style={{ opacity: 0.7 }}>Alternatif: </span>
-                      {ex.alternatives.join(", ")}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
+                );
+              });
+            })()}
           </div>
         ))}
         {dayWorkouts.length === 0 && (

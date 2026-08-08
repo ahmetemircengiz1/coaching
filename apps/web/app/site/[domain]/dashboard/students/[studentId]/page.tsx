@@ -154,6 +154,10 @@ export default async function StudentDetailPage({
                       select: {
                         sets: true,
                         reps: true,
+                        section: true,
+                        durationMinutes: true,
+                        intensity: true,
+                        cardioType: true,
                         exercise: { select: { name: true, category: true } },
                       },
                     },
@@ -298,6 +302,10 @@ export default async function StudentDetailPage({
             sets: we.sets,
             reps: we.reps,
             restSeconds: we.restSeconds,
+            section: we.section,
+            durationMinutes: we.durationMinutes,
+            intensity: we.intensity,
+            cardioType: we.cardioType,
           })),
         })),
       };

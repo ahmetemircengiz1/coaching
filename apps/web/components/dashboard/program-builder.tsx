@@ -15,8 +15,24 @@ import {
   cloneWeekTo,
   setExerciseAlternatives,
   updateProgram,
+  updateProgramNotes,
+  updateWorkoutNotes,
 } from "@/app/site/[domain]/dashboard/programs/actions";
 import { createExercise } from "@/app/site/[domain]/dashboard/exercises/actions";
+import {
+  WORKOUT_SECTIONS,
+  SECTION_META,
+  CARDIO_TYPES,
+  CARDIO_TYPE_LABELS,
+  INTENSITIES,
+  INTENSITY_LABELS,
+  suggestSection,
+  toWorkoutSection,
+  formatCardio,
+  type WorkoutSection,
+  type Intensity,
+  type CardioType,
+} from "@/lib/constants/workout-sections";
 import { Pencil } from "lucide-react";
 import { ConfirmDialog, useConfirmDialog } from "@/components/dashboard/confirm-dialog";
 import { AssignToStudentsModal } from "@/components/dashboard/assign-to-students-modal";
@@ -37,6 +53,10 @@ interface WorkoutExerciseData {
   restSeconds: number | null;
   notes: string | null;
   orderIndex: number;
+  section: string;
+  durationMinutes: number | null;
+  intensity: string | null;
+  cardioType: string | null;
   exercise: { id: string; name: string; category: string };
   alternatives?: {
     id: string;
@@ -49,6 +69,7 @@ interface Workout {
   weekNumber: number;
   dayOfWeek: number;
   name: string;
+  notes: string | null;
   exercises: WorkoutExerciseData[];
 }
 
@@ -56,6 +77,7 @@ interface Program {
   id: string;
   name: string;
   description: string | null;
+  coachNotes: string | null;
   weeks: number;
   workouts: Workout[];
 }
@@ -83,7 +105,16 @@ export default function ProgramBuilder({
   const [showAddWorkout, setShowAddWorkout] = useState(false);
   const [newWorkoutDay, setNewWorkoutDay] = useState(1);
   const [newWorkoutName, setNewWorkoutName] = useState("");
-  const [addingExerciseTo, setAddingExerciseTo] = useState<string | null>(null);
+  // Egzersiz ekleme paneli artık hangi bölüme eklendiğini de tutar
+  const [addingExerciseTo, setAddingExerciseTo] = useState<{ workoutId: string; section: WorkoutSection } | null>(null);
+  // Koç bölüm chip'ine elle dokunduysa otomatik öneri devreye girmez
+  const [sectionTouched, setSectionTouched] = useState(false);
+  const [newDuration, setNewDuration] = useState(20);
+  const [newCardioType, setNewCardioType] = useState<CardioType>("LISS");
+  const [newIntensity, setNewIntensity] = useState<Intensity>("MEDIUM");
+  // Koç notları (program + gün seviyesi tek çift state paylaşır; id'ler tekil)
+  const [editingNotesFor, setEditingNotesFor] = useState<string | null>(null);
+  const [notesText, setNotesText] = useState("");
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showCloneWeek, setShowCloneWeek] = useState(false);
   const [cloneTargets, setCloneTargets] = useState<Set<number>>(new Set());
@@ -205,7 +236,7 @@ export default function ProgramBuilder({
     };
     setLocalExercises((prev) => [...prev, newEx]);
     setCreatingExercise(false);
-    await handleAddExercise(workoutId, newEx.id);
+    await handleAddExercise(workoutId, newEx.id, addingExerciseTo?.section ?? "MAIN");
   };
 
   const handleAddWorkout = async () => {
@@ -218,6 +249,7 @@ export default function ProgramBuilder({
       weekNumber: selectedWeek,
       dayOfWeek: newWorkoutDay,
       name: newWorkoutName.trim(),
+      notes: null,
       exercises: [],
     };
 
@@ -265,7 +297,7 @@ export default function ProgramBuilder({
     });
   };
 
-  const handleAddExercise = async (workoutId: string, exerciseId: string) => {
+  const handleAddExercise = async (workoutId: string, exerciseId: string, section: WorkoutSection) => {
     setLoading(true);
 
     const exObj = localExercises.find((e) => e.id === exerciseId);
@@ -274,14 +306,21 @@ export default function ProgramBuilder({
       return;
     }
 
+    const isCardio = section === "CARDIO";
     const tempId = `temp-${Date.now()}`;
+    const workout = localProgram.workouts.find((w) => w.id === workoutId);
     const newEx: WorkoutExerciseData = {
       id: tempId,
-      sets: newSets,
-      reps: newReps,
-      restSeconds: newRest,
+      sets: isCardio ? 1 : newSets,
+      reps: isCardio ? "-" : newReps,
+      restSeconds: isCardio ? null : newRest,
       notes: null,
-      orderIndex: 0,
+      // Sunucu son orderIndex + 1 atıyor; optimistic satır da sona düşsün
+      orderIndex: Math.max(0, ...(workout?.exercises.map((e) => e.orderIndex) ?? [0])) + 1,
+      section,
+      durationMinutes: isCardio ? newDuration : null,
+      intensity: isCardio ? newIntensity : null,
+      cardioType: isCardio ? newCardioType : null,
       exercise: { id: exObj.id, name: exObj.name, category: exObj.category }
     };
 
@@ -293,6 +332,7 @@ export default function ProgramBuilder({
     }));
 
     setAddingExerciseTo(null);
+    setSectionTouched(false);
     setExerciseSearch("");
     setNewSets(3);
     setNewReps("10");
@@ -301,10 +341,14 @@ export default function ProgramBuilder({
 
     addExerciseToWorkout(domain, workoutId, {
       exerciseId,
-      sets: newSets,
-      reps: newReps,
-      restSeconds: newRest,
-    }).then(() => {
+      section,
+      ...(isCardio
+        ? { durationMinutes: newDuration, intensity: newIntensity, cardioType: newCardioType }
+        : { sets: newSets, reps: newReps, restSeconds: newRest }),
+    }).then((result) => {
+      if (result && !result.success) {
+        toast.error(("error" in result && result.error) || "Egzersiz eklenemedi");
+      }
       refreshWithStatus();
     });
   };
@@ -346,24 +390,64 @@ export default function ProgramBuilder({
     });
   };
 
-  const handleUpdateExercise = async (weId: string, sets: number, reps: string, rest: number) => {
+  const handleUpdateExercise = async (weId: string, patch: Partial<WorkoutExerciseData>) => {
     setLoading(true);
 
     setLocalProgram((prev) => ({
       ...prev,
       workouts: prev.workouts.map((w) => ({
         ...w,
-        exercises: w.exercises.map((e) =>
-          e.id === weId ? { ...e, sets, reps, restSeconds: rest } : e
-        )
+        exercises: w.exercises.map((e) => (e.id === weId ? { ...e, ...patch } : e))
       }))
     }));
 
     setEditingWE(null);
     setLoading(false);
-    updateWorkoutExercise(domain, weId, { sets, reps, restSeconds: rest }).then(() => {
+    updateWorkoutExercise(domain, weId, {
+      sets: patch.sets,
+      reps: patch.reps,
+      restSeconds: patch.restSeconds ?? undefined,
+      notes: patch.notes ?? undefined,
+      section: patch.section ? toWorkoutSection(patch.section) : undefined,
+      durationMinutes: patch.durationMinutes ?? undefined,
+      intensity: (patch.intensity as Intensity) ?? undefined,
+      cardioType: (patch.cardioType as CardioType) ?? undefined,
+    }).then((result) => {
+      if (result && !result.success) {
+        toast.error(("error" in result && result.error) || "Egzersiz güncellenemedi");
+      }
       refreshWithStatus();
     });
+  };
+
+  // ─── Koç notları ───
+  const handleSaveProgramNotes = async () => {
+    setLoading(true);
+    const text = notesText;
+    setLocalProgram((prev) => ({ ...prev, coachNotes: text.trim() || null }));
+    setEditingNotesFor(null);
+    const result = await updateProgramNotes(domain, localProgram.id, text);
+    setLoading(false);
+    if (!result.success) {
+      toast.error(("error" in result && result.error) || "Not kaydedilemedi");
+    }
+    refreshWithStatus();
+  };
+
+  const handleSaveWorkoutNotes = async (workoutId: string) => {
+    setLoading(true);
+    const text = notesText;
+    setLocalProgram((prev) => ({
+      ...prev,
+      workouts: prev.workouts.map((w) => (w.id === workoutId ? { ...w, notes: text.trim() || null } : w)),
+    }));
+    setEditingNotesFor(null);
+    const result = await updateWorkoutNotes(domain, workoutId, text);
+    setLoading(false);
+    if (!result.success) {
+      toast.error(("error" in result && result.error) || "Not kaydedilemedi");
+    }
+    refreshWithStatus();
   };
 
   return (
@@ -433,6 +517,59 @@ export default function ProgramBuilder({
           </Button>
         </div>
       </div>
+
+      {/* Program Koç Notu — öğrencinin antrenman sayfasında görünür */}
+      <Card style={{ backgroundColor: "var(--dashboard-card-bg)", borderColor: "var(--dashboard-card-border)" }}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "var(--dashboard-main-text)" }}>Koç Notları</p>
+              <p className="text-[11px]" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                Bu programın atandığı tüm öğrenciler görür.
+              </p>
+            </div>
+            {editingNotesFor !== localProgram.id && (
+              <button
+                onClick={() => { setNotesText(localProgram.coachNotes || ""); setEditingNotesFor(localProgram.id); }}
+                className="text-xs"
+                style={{ color: "var(--dashboard-accent)" }}
+              >
+                {localProgram.coachNotes ? "Düzenle" : "+ Not Ekle"}
+              </button>
+            )}
+          </div>
+
+          {editingNotesFor === localProgram.id ? (
+            <div className="mt-2 space-y-2">
+              <textarea
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+                rows={3}
+                placeholder="Programın nasıl uygulanacağı, ısınma, ilerleme kuralı..."
+                className="w-full rounded-md px-3 py-2 text-sm"
+                style={{ ...inputStyle, border: "1px solid var(--dashboard-card-border)" }}
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleSaveProgramNotes} disabled={loading}
+                  className="text-xs font-semibold h-8 hover:opacity-90"
+                  style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}>
+                  Kaydet
+                </Button>
+                <Button onClick={() => setEditingNotesFor(null)}
+                  className="border rounded-md px-3 text-xs h-8"
+                  style={{ backgroundColor: "transparent", borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text)" }}>
+                  İptal
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 whitespace-pre-wrap text-sm"
+              style={{ color: "var(--dashboard-main-text)", opacity: localProgram.coachNotes ? 0.85 : 0.5 }}>
+              {localProgram.coachNotes || "Henüz not eklenmedi"}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Hafta Seçici + Klonlama */}
       <div className="space-y-2">
@@ -562,7 +699,20 @@ export default function ProgramBuilder({
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        setAddingExerciseTo(addingExerciseTo === workout.id ? null : workout.id);
+                        setNotesText(workout.notes || "");
+                        setEditingNotesFor(editingNotesFor === workout.id ? null : workout.id);
+                      }}
+                      className="text-xs px-3 py-1 rounded-md border"
+                      style={{ borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text-muted)" }}
+                    >
+                      {workout.notes ? "Notu Düzenle" : "+ Not"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSectionTouched(false);
+                        setAddingExerciseTo(
+                          addingExerciseTo?.workoutId === workout.id ? null : { workoutId: workout.id, section: "MAIN" }
+                        );
                       }}
                       className="text-xs px-3 py-1 rounded-md font-semibold"
                       style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
@@ -578,10 +728,73 @@ export default function ProgramBuilder({
                   </div>
                 </div>
 
-                {/* Egzersiz Listesi */}
-                {workout.exercises.length > 0 && (
-                  <div className="space-y-2 mb-3">
-                    {workout.exercises.map((we, idx) => (
+                {/* Gün notu */}
+                {editingNotesFor === workout.id ? (
+                  <div className="mb-3 space-y-2">
+                    <textarea
+                      value={notesText}
+                      onChange={(e) => setNotesText(e.target.value)}
+                      rows={2}
+                      placeholder="Bu güne özel not (ör: ağırlıkları geçen haftaya göre %5 artır)"
+                      className="w-full rounded-md px-3 py-2 text-sm"
+                      style={{ ...inputStyle, border: "1px solid var(--dashboard-card-border)" }}
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleSaveWorkoutNotes(workout.id)} disabled={loading}
+                        className="text-xs font-semibold h-8 hover:opacity-90"
+                        style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}>
+                        Kaydet
+                      </Button>
+                      <Button onClick={() => setEditingNotesFor(null)}
+                        className="border rounded-md px-3 text-xs h-8"
+                        style={{ backgroundColor: "transparent", borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text)" }}>
+                        İptal
+                      </Button>
+                    </div>
+                  </div>
+                ) : workout.notes ? (
+                  <p className="mb-3 rounded-md px-3 py-2 text-xs italic"
+                    style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 6%, transparent)", color: "var(--dashboard-main-text)", opacity: 0.85 }}>
+                    📌 {workout.notes}
+                  </p>
+                ) : null}
+
+                {/* Egzersiz Listesi — gün içi bölümlere ayrılmış (boş bölüm gizlenir) */}
+                {WORKOUT_SECTIONS.map((sec) => {
+                  const sectionExercises = workout.exercises
+                    .filter((e) => toWorkoutSection(e.section) === sec)
+                    .sort((a, b) => a.orderIndex - b.orderIndex);
+                  if (sectionExercises.length === 0) return null;
+
+                  // Tek dolu bölüm ANA ise başlık göstermeyerek eski sade görünümü koru
+                  const filledSections = WORKOUT_SECTIONS.filter((s) =>
+                    workout.exercises.some((e) => toWorkoutSection(e.section) === s)
+                  );
+                  const showHeader = filledSections.length > 1 || sec !== "MAIN";
+
+                  return (
+                    <div key={sec} className="mb-3">
+                      {showHeader && (
+                        <div className="mb-1.5 flex items-center justify-between">
+                          <span className="text-[11px] font-semibold uppercase tracking-wider"
+                            style={{ color: "var(--dashboard-main-text-muted)" }}>
+                            {SECTION_META[sec].icon} {SECTION_META[sec].label}
+                            <span className="ml-1 opacity-60">({sectionExercises.length})</span>
+                          </span>
+                          <button
+                            onClick={() => {
+                              setSectionTouched(true);
+                              setAddingExerciseTo({ workoutId: workout.id, section: sec });
+                            }}
+                            className="text-[11px]"
+                            style={{ color: "var(--dashboard-accent)" }}
+                          >
+                            + Ekle
+                          </button>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {sectionExercises.map((we, idx) => (
                       <div
                         key={we.id}
                         className="rounded-lg"
@@ -600,7 +813,7 @@ export default function ProgramBuilder({
                             </button>
                             <button
                               onClick={() => handleReorder(workout.id, we.id, "down")}
-                              disabled={idx === workout.exercises.length - 1}
+                              disabled={idx === sectionExercises.length - 1}
                               className="text-[10px] px-1 py-0 rounded transition disabled:opacity-20"
                               style={{ color: "var(--dashboard-main-text-muted)" }}
                               aria-label="Aşağı taşı"
@@ -612,18 +825,29 @@ export default function ProgramBuilder({
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate" style={{ color: "var(--dashboard-main-text)" }}>{we.exercise.name}</p>
                             <p className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>{we.exercise.category}</p>
+                            {we.notes && (
+                              <p className="text-[11px] italic" style={{ color: "var(--dashboard-main-text-muted)", opacity: 0.9 }}>
+                                {we.notes}
+                              </p>
+                            )}
                           </div>
                           {editingWE === we.id ? (
                             <EditExerciseInline
                               we={we}
-                              onSave={(s, r, rest) => handleUpdateExercise(we.id, s, r, rest)}
+                              onSave={(patch) => handleUpdateExercise(we.id, patch)}
                               onCancel={() => setEditingWE(null)}
                             />
                           ) : (
                             <>
                               <div className="text-xs flex gap-3" style={{ color: "var(--dashboard-main-text-muted)" }}>
-                                <span>{we.sets}x{we.reps}</span>
-                                <span>{we.restSeconds ?? 60}s</span>
+                                {toWorkoutSection(we.section) === "CARDIO" ? (
+                                  <span>{formatCardio(we)}</span>
+                                ) : (
+                                  <>
+                                    <span>{we.sets}x{we.reps}</span>
+                                    <span>{we.restSeconds ?? 60}s</span>
+                                  </>
+                                )}
                               </div>
                               <button
                                 onClick={() => setEditingWE(we.id)}
@@ -643,20 +867,25 @@ export default function ProgramBuilder({
                             </>
                           )}
                         </div>
-                        <ExerciseAlternativesEditor
-                          domain={domain}
-                          workoutExerciseId={we.id}
-                          ownExerciseId={we.exercise.id}
-                          allExercises={exercises}
-                          initialAlternatives={we.alternatives ?? []}
-                        />
+                        {/* Kardiyoda alternatif egzersiz anlamsız */}
+                        {toWorkoutSection(we.section) !== "CARDIO" && (
+                          <ExerciseAlternativesEditor
+                            domain={domain}
+                            workoutExerciseId={we.id}
+                            ownExerciseId={we.exercise.id}
+                            allExercises={exercises}
+                            initialAlternatives={we.alternatives ?? []}
+                          />
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
 
                 {/* Egzersiz Ekleme Paneli */}
-                {addingExerciseTo === workout.id && (
+                {addingExerciseTo?.workoutId === workout.id && (
                   <div className="pt-3 mt-3 space-y-3" style={{ borderTop: "1px solid var(--dashboard-card-border)" }}>
                     <div className="flex items-center gap-2">
                       <Input
@@ -675,41 +904,110 @@ export default function ProgramBuilder({
                         Kütüphaneyi aç
                       </a>
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                      <div className="flex items-center gap-1">
-                        <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Set:</label>
-                        <Input
-                          type="number"
-                          value={newSets}
-                          onChange={(e) => setNewSets(Number(e.target.value))}
-                          className="w-16 text-sm"
-                          style={inputStyle}
-                          min={1}
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Tekrar:</label>
-                        <Input
-                          value={newReps}
-                          onChange={(e) => setNewReps(e.target.value)}
-                          className="w-20 text-sm"
-                          style={inputStyle}
-                          placeholder="10"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Din.(s):</label>
-                        <Input
-                          type="number"
-                          value={newRest}
-                          onChange={(e) => setNewRest(Number(e.target.value))}
-                          className="w-20 text-sm"
-                          style={inputStyle}
-                          min={0}
-                          step={15}
-                        />
-                      </div>
+                    {/* Bölüm seçimi */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Bölüm:</span>
+                      {WORKOUT_SECTIONS.map((sec) => {
+                        const active = addingExerciseTo.section === sec;
+                        return (
+                          <button
+                            key={sec}
+                            onClick={() => {
+                              setSectionTouched(true);
+                              setAddingExerciseTo({ workoutId: workout.id, section: sec });
+                            }}
+                            className="rounded-full px-3 py-1 text-xs font-medium transition"
+                            style={{
+                              backgroundColor: active
+                                ? "color-mix(in srgb, var(--dashboard-accent) 20%, transparent)"
+                                : "transparent",
+                              color: active ? "var(--dashboard-accent)" : "var(--dashboard-main-text-muted)",
+                              border: `1px solid ${active ? "var(--dashboard-accent)" : "var(--dashboard-card-border)"}`,
+                            }}
+                          >
+                            {SECTION_META[sec].icon} {SECTION_META[sec].label}
+                          </button>
+                        );
+                      })}
                     </div>
+
+                    {addingExerciseTo.section === "CARDIO" ? (
+                      <div className="flex flex-wrap gap-3">
+                        <div className="flex items-center gap-1">
+                          <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Süre (dk):</label>
+                          <Input
+                            type="number"
+                            value={newDuration}
+                            onChange={(e) => setNewDuration(Number(e.target.value))}
+                            className="w-16 text-sm"
+                            style={inputStyle}
+                            min={1}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Tip:</label>
+                          <select
+                            value={newCardioType}
+                            onChange={(e) => setNewCardioType(e.target.value as CardioType)}
+                            className="rounded-md px-2 py-1.5 text-sm"
+                            style={{ ...inputStyle, border: "1px solid var(--dashboard-card-border)" }}
+                          >
+                            {CARDIO_TYPES.map((t) => (
+                              <option key={t} value={t}>{CARDIO_TYPE_LABELS[t]}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Yoğunluk:</label>
+                          <select
+                            value={newIntensity}
+                            onChange={(e) => setNewIntensity(e.target.value as Intensity)}
+                            className="rounded-md px-2 py-1.5 text-sm"
+                            style={{ ...inputStyle, border: "1px solid var(--dashboard-card-border)" }}
+                          >
+                            {INTENSITIES.map((i) => (
+                              <option key={i} value={i}>{INTENSITY_LABELS[i]}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-3">
+                        <div className="flex items-center gap-1">
+                          <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Set:</label>
+                          <Input
+                            type="number"
+                            value={newSets}
+                            onChange={(e) => setNewSets(Number(e.target.value))}
+                            className="w-16 text-sm"
+                            style={inputStyle}
+                            min={1}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Tekrar:</label>
+                          <Input
+                            value={newReps}
+                            onChange={(e) => setNewReps(e.target.value)}
+                            className="w-20 text-sm"
+                            style={inputStyle}
+                            placeholder="10"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <label className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>Din.(s):</label>
+                          <Input
+                            type="number"
+                            value={newRest}
+                            onChange={(e) => setNewRest(Number(e.target.value))}
+                            className="w-20 text-sm"
+                            style={inputStyle}
+                            min={0}
+                            step={15}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className="max-h-48 overflow-y-auto space-y-1">
                       {filteredExercises.length === 0 && !showCustomCreate ? (
                         <p className="text-xs text-center py-4" style={{ color: "var(--dashboard-main-text-muted)" }}>
@@ -718,18 +1016,29 @@ export default function ProgramBuilder({
                             : "Aramaya devam et"}
                         </p>
                       ) : (
-                        filteredExercises.map((ex) => (
-                          <button
-                            key={ex.id}
-                            onClick={() => handleAddExercise(workout.id, ex.id)}
-                            disabled={loading}
-                            className="w-full flex items-center gap-3 px-3 py-2 text-left rounded-lg transition text-sm"
-                            style={{ color: "var(--dashboard-main-text)" }}
-                          >
-                            <span className="flex-1">{ex.name}</span>
-                            <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>{ex.category}</span>
-                          </button>
-                        ))
+                        filteredExercises.map((ex) => {
+                          // Koç bölüm chip'ine dokunmadıysa egzersizin kategorisi karar verir
+                          const suggested = suggestSection(ex.category);
+                          const target = sectionTouched ? addingExerciseTo.section : suggested;
+                          return (
+                            <button
+                              key={ex.id}
+                              onClick={() => handleAddExercise(workout.id, ex.id, target)}
+                              disabled={loading}
+                              className="w-full flex items-center gap-3 px-3 py-2 text-left rounded-lg transition text-sm"
+                              style={{ color: "var(--dashboard-main-text)" }}
+                            >
+                              <span className="flex-1">{ex.name}</span>
+                              {target !== addingExerciseTo.section && (
+                                <span className="text-[10px] rounded-full px-1.5 py-0.5"
+                                  style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 15%, transparent)", color: "var(--dashboard-accent)" }}>
+                                  → {SECTION_META[target].label}
+                                </span>
+                              )}
+                              <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>{ex.category}</span>
+                            </button>
+                          );
+                        })
                       )}
                       {/* Custom egzersiz öner — listede yoksa "+ '<ad>' egzersizini oluştur ve ekle" */}
                       {showCustomCreate && (
@@ -826,60 +1135,95 @@ export default function ProgramBuilder({
   );
 }
 
-// Inline düzenleme bileşeni
+// Inline düzenleme bileşeni — bölüm, set/tekrar veya kardiyo alanları ve not
 function EditExerciseInline({
   we,
   onSave,
   onCancel,
 }: {
   we: WorkoutExerciseData;
-  onSave: (sets: number, reps: string, rest: number) => void;
+  onSave: (patch: Partial<WorkoutExerciseData>) => void;
   onCancel: () => void;
 }) {
+  const [section, setSection] = useState<WorkoutSection>(toWorkoutSection(we.section));
   const [sets, setSets] = useState(we.sets);
   const [reps, setReps] = useState(we.reps);
   const [rest, setRest] = useState(we.restSeconds ?? 60);
+  const [duration, setDuration] = useState(we.durationMinutes ?? 20);
+  const [cardioType, setCardioType] = useState<CardioType>((we.cardioType as CardioType) ?? "LISS");
+  const [intensity, setIntensity] = useState<Intensity>((we.intensity as Intensity) ?? "MEDIUM");
+  const [notes, setNotes] = useState(we.notes ?? "");
+
+  const fieldStyle = {
+    backgroundColor: "var(--dashboard-card-bg)",
+    borderColor: "var(--dashboard-card-border)",
+    color: "var(--dashboard-main-text)",
+  };
+
+  const handleSave = () => {
+    onSave(
+      section === "CARDIO"
+        ? { section, durationMinutes: duration, cardioType, intensity, notes: notes.trim() || null }
+        : { section, sets, reps, restSeconds: rest, notes: notes.trim() || null }
+    );
+  };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {WORKOUT_SECTIONS.map((sec) => (
+          <button
+            key={sec}
+            onClick={() => setSection(sec)}
+            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+            style={{
+              backgroundColor: section === sec ? "color-mix(in srgb, var(--dashboard-accent) 20%, transparent)" : "transparent",
+              color: section === sec ? "var(--dashboard-accent)" : "var(--dashboard-main-text-muted)",
+              border: `1px solid ${section === sec ? "var(--dashboard-accent)" : "var(--dashboard-card-border)"}`,
+            }}
+          >
+            {SECTION_META[sec].label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {section === "CARDIO" ? (
+          <>
+            <Input type="number" value={duration} onChange={(e) => setDuration(Number(e.target.value))}
+              className="w-16 text-xs h-7" style={fieldStyle} min={1} aria-label="Süre (dk)" />
+            <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>dk</span>
+            <select value={cardioType} onChange={(e) => setCardioType(e.target.value as CardioType)}
+              className="rounded-md px-2 py-1 text-xs h-7" style={{ ...fieldStyle, border: "1px solid var(--dashboard-card-border)" }}>
+              {CARDIO_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select value={intensity} onChange={(e) => setIntensity(e.target.value as Intensity)}
+              className="rounded-md px-2 py-1 text-xs h-7" style={{ ...fieldStyle, border: "1px solid var(--dashboard-card-border)" }}>
+              {INTENSITIES.map((i) => <option key={i} value={i}>{INTENSITY_LABELS[i]}</option>)}
+            </select>
+          </>
+        ) : (
+          <>
+            <Input type="number" value={sets} onChange={(e) => setSets(Number(e.target.value))}
+              className="w-14 text-xs h-7" style={fieldStyle} min={1} aria-label="Set" />
+            <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>x</span>
+            <Input value={reps} onChange={(e) => setReps(e.target.value)}
+              className="w-16 text-xs h-7" style={fieldStyle} aria-label="Tekrar" />
+            <Input type="number" value={rest} onChange={(e) => setRest(Number(e.target.value))}
+              className="w-16 text-xs h-7" style={fieldStyle} min={0} step={15} aria-label="Dinlenme (sn)" />
+          </>
+        )}
+        <button onClick={handleSave} className="text-xs text-green-400 px-1">✓</button>
+        <button onClick={onCancel} className="text-xs px-1" style={{ color: "var(--dashboard-main-text-muted)" }}>✕</button>
+      </div>
+
       <Input
-        type="number"
-        value={sets}
-        onChange={(e) => setSets(Number(e.target.value))}
-        className="w-14 text-xs h-7"
-        style={{
-          backgroundColor: "var(--dashboard-card-bg)",
-          borderColor: "var(--dashboard-card-border)",
-          color: "var(--dashboard-main-text)",
-        }}
-        min={1}
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Egzersiz notu (ör: dirsekleri sabit tut, negatifi 3 sn)"
+        className="text-xs h-7"
+        style={fieldStyle}
       />
-      <span className="text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>x</span>
-      <Input
-        value={reps}
-        onChange={(e) => setReps(e.target.value)}
-        className="w-16 text-xs h-7"
-        style={{
-          backgroundColor: "var(--dashboard-card-bg)",
-          borderColor: "var(--dashboard-card-border)",
-          color: "var(--dashboard-main-text)",
-        }}
-      />
-      <Input
-        type="number"
-        value={rest}
-        onChange={(e) => setRest(Number(e.target.value))}
-        className="w-16 text-xs h-7"
-        style={{
-          backgroundColor: "var(--dashboard-card-bg)",
-          borderColor: "var(--dashboard-card-border)",
-          color: "var(--dashboard-main-text)",
-        }}
-        min={0}
-        step={15}
-      />
-      <button onClick={() => onSave(sets, reps, rest)} className="text-xs text-green-400 px-1">✓</button>
-      <button onClick={onCancel} className="text-xs px-1" style={{ color: "var(--dashboard-main-text-muted)" }}>✕</button>
     </div>
   );
 }

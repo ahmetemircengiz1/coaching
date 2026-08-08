@@ -9,6 +9,7 @@ import {
   addCheckInFeedback,
   updateCheckInMeasurements,
 } from "@/app/site/[domain]/dashboard/students/assign-actions";
+import { SECTION_META, toWorkoutSection, formatCardio } from "@/lib/constants/workout-sections";
 import { useRouter } from "next/navigation";
 
 interface ProgramOption {
@@ -48,6 +49,10 @@ interface ProgramExercise {
   sets: number;
   reps: string;
   restSeconds: number | null;
+  section?: string | null;
+  durationMinutes?: number | null;
+  intensity?: string | null;
+  cardioType?: string | null;
 }
 
 interface ProgramWorkout {
@@ -185,11 +190,23 @@ export function AssignProgramSection({
                         {dayNames[w.dayOfWeek - 1] || `Gün ${w.dayOfWeek}`} — {w.name}
                       </p>
                       <div className="ml-3 mt-1 space-y-0.5">
-                        {w.exercises.map((ex, i) => (
+                        {w.exercises.map((ex, i) => {
+                          const section = toWorkoutSection(ex.section);
+                          const isCardio = section === "CARDIO";
+                          return (
                           <div key={i} className="flex items-center gap-2 text-xs" style={{ color: "var(--dashboard-main-text-muted)" }}>
+                            {section !== "MAIN" && (
+                              <span className="text-[10px]">{SECTION_META[section].icon}</span>
+                            )}
                             <span style={{ color: "var(--dashboard-main-text)" }}>{ex.name}</span>
-                            <span>{ex.sets} x {ex.reps}</span>
-                            {ex.restSeconds && <span>({ex.restSeconds}s dinlenme)</span>}
+                            {isCardio ? (
+                              <span>{formatCardio(ex)}</span>
+                            ) : (
+                              <>
+                                <span>{ex.sets} x {ex.reps}</span>
+                                {ex.restSeconds && <span>({ex.restSeconds}s dinlenme)</span>}
+                              </>
+                            )}
                             {ex.muscleGroup && (
                               <span className="px-1.5 py-0.5 rounded-full text-[10px]"
                                 style={{ backgroundColor: "var(--dashboard-card-bg)" }}>
@@ -197,7 +214,8 @@ export function AssignProgramSection({
                               </span>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ))}

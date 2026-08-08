@@ -4,7 +4,22 @@ import { getCoachAuth } from "../actions";
 import prisma from "@coach-os/database";
 import { revalidatePath } from "next/cache";
 import { PROGRAM_TEMPLATES, type ProgramTemplate } from "@/lib/data/program-templates";
-import { createProgramSchema, addWorkoutSchema, addExerciseToWorkoutSchema, updateWorkoutExerciseSchema } from "@/lib/validation/schemas";
+import {
+  createProgramSchema,
+  addWorkoutSchema,
+  addExerciseToWorkoutSchema,
+  updateWorkoutExerciseSchema,
+  programCoachNotesSchema,
+  workoutNotesSchema,
+} from "@/lib/validation/schemas";
+import {
+  suggestSection,
+  isWorkoutSection,
+  toWorkoutSection,
+  type WorkoutSection,
+  type Intensity,
+  type CardioType,
+} from "@/lib/constants/workout-sections";
 
 // Program detayını getir
 export async function getProgram(domain: string, programId: string) {
@@ -181,10 +196,14 @@ export async function addExerciseToWorkout(
   workoutId: string,
   data: {
     exerciseId: string;
-    sets: number;
-    reps: string;
+    sets?: number;
+    reps?: string;
     restSeconds?: number;
     notes?: string;
+    section?: WorkoutSection;
+    durationMinutes?: number;
+    intensity?: Intensity;
+    cardioType?: CardioType;
   }
 ) {
   const parsed = addExerciseToWorkoutSchema.safeParse(data);
@@ -209,15 +228,23 @@ export async function addExerciseToWorkout(
 
   const orderIndex = (lastExercise?.orderIndex || 0) + 1;
 
+  const section = data.section ?? "MAIN";
+  const isCardio = section === "CARDIO";
+
   await prisma.workoutExercise.create({
     data: {
       workoutId,
       exerciseId: data.exerciseId,
-      sets: data.sets,
-      reps: data.reps,
-      restSeconds: data.restSeconds || 60,
+      // Kardiyoda set/tekrar anlamsız — sentinel yazılır, hiçbir ekranda gösterilmez
+      sets: isCardio ? 1 : (data.sets ?? 3),
+      reps: isCardio ? "-" : (data.reps ?? "10"),
+      restSeconds: isCardio ? null : (data.restSeconds || 60),
       orderIndex,
       notes: data.notes || null,
+      section,
+      durationMinutes: isCardio ? (data.durationMinutes ?? null) : null,
+      intensity: isCardio ? (data.intensity ?? null) : null,
+      cardioType: isCardio ? (data.cardioType ?? null) : null,
     },
   });
 
@@ -247,11 +274,20 @@ export async function removeExerciseFromWorkout(
   return { success: true };
 }
 
-// Workout egzersiz güncelle (set/tekrar/dinlenme)
+// Workout egzersiz güncelle — kısmi: yalnızca gönderilen alanlar değişir
 export async function updateWorkoutExercise(
   domain: string,
   workoutExerciseId: string,
-  data: { sets: number; reps: string; restSeconds?: number; notes?: string }
+  data: {
+    sets?: number;
+    reps?: string;
+    restSeconds?: number;
+    notes?: string;
+    section?: WorkoutSection;
+    durationMinutes?: number;
+    intensity?: Intensity;
+    cardioType?: CardioType;
+  }
 ) {
   const parsed = updateWorkoutExerciseSchema.safeParse(data);
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message || "Geçersiz veri" };
@@ -267,17 +303,78 @@ export async function updateWorkoutExercise(
     return { success: false, error: "Egzersiz bulunamadı" };
   }
 
+  const section = data.section ?? toWorkoutSection(we.section);
+  const isCardio = section === "CARDIO";
+  // Bölüm değişince karşı tarafın alanları temizlenir; aksi halde kardiyodan
+  // çıkarılan bir satır eski süresini taşımaya devam eder
+  const switchedToCardio = isCardio && we.section !== "CARDIO";
+  const switchedFromCardio = !isCardio && we.section === "CARDIO";
+
   await prisma.workoutExercise.update({
     where: { id: workoutExerciseId },
     data: {
-      sets: data.sets,
-      reps: data.reps,
-      restSeconds: data.restSeconds ?? we.restSeconds,
+      section,
+      sets: isCardio ? 1 : (data.sets ?? (switchedFromCardio ? 3 : we.sets)),
+      reps: isCardio ? "-" : (data.reps ?? (switchedFromCardio ? "10" : we.reps)),
+      restSeconds: isCardio ? null : (data.restSeconds ?? (switchedFromCardio ? 60 : we.restSeconds)),
       notes: data.notes ?? we.notes,
+      durationMinutes: isCardio ? (data.durationMinutes ?? (switchedToCardio ? 20 : we.durationMinutes)) : null,
+      intensity: isCardio ? (data.intensity ?? (switchedToCardio ? "MEDIUM" : we.intensity)) : null,
+      cardioType: isCardio ? (data.cardioType ?? (switchedToCardio ? "LISS" : we.cardioType)) : null,
     },
   });
 
   revalidatePath(`/site/${domain}/dashboard`);
+  return { success: true };
+}
+
+// ─── Koç notları (beslenmedeki updatePlanNotes deseni) ───
+
+export async function updateProgramNotes(domain: string, programId: string, coachNotes: string) {
+  const parsed = programCoachNotesSchema.safeParse(coachNotes);
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message || "Geçersiz not" };
+
+  const coach = await getCoachAuth(domain);
+
+  const program = await prisma.program.findUnique({
+    where: { id: programId },
+    select: { coachId: true },
+  });
+
+  if (!program || program.coachId !== coach.id) {
+    return { success: false, error: "Program bulunamadı" };
+  }
+
+  await prisma.program.update({
+    where: { id: programId },
+    data: { coachNotes: parsed.data || null },
+  });
+
+  revalidatePath(`/site/${domain}/dashboard/programs/${programId}`);
+  return { success: true };
+}
+
+export async function updateWorkoutNotes(domain: string, workoutId: string, notes: string) {
+  const parsed = workoutNotesSchema.safeParse(notes);
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message || "Geçersiz not" };
+
+  const coach = await getCoachAuth(domain);
+
+  const workout = await prisma.programWorkout.findUnique({
+    where: { id: workoutId },
+    include: { program: { select: { coachId: true, id: true } } },
+  });
+
+  if (!workout || workout.program.coachId !== coach.id) {
+    return { success: false, error: "Antrenman günü bulunamadı" };
+  }
+
+  await prisma.programWorkout.update({
+    where: { id: workoutId },
+    data: { notes: parsed.data || null },
+  });
+
+  revalidatePath(`/site/${domain}/dashboard/programs/${workout.program.id}`);
   return { success: true };
 }
 
@@ -298,7 +395,8 @@ export async function reorderWorkoutExercise(
     return { success: false, error: "Egzersiz bulunamadı" };
   }
 
-  const exercises = we.workout.exercises;
+  // Sıralama bölüm içinde: ok tuşu karın hareketini kardiyo bloğuna taşımasın
+  const exercises = we.workout.exercises.filter((e) => e.section === we.section);
   const currentIndex = exercises.findIndex((e) => e.id === workoutExerciseId);
   const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
 
@@ -348,6 +446,7 @@ export async function duplicateProgram(domain: string, programId: string) {
       coachId: coach.id,
       name: `${program.name} (Kopya)`,
       description: program.description,
+      coachNotes: program.coachNotes,
       weeks: program.weeks,
       isTemplate: true,
     },
@@ -360,6 +459,7 @@ export async function duplicateProgram(domain: string, programId: string) {
         weekNumber: workout.weekNumber,
         dayOfWeek: workout.dayOfWeek,
         name: workout.name,
+        notes: workout.notes,
       },
     });
 
@@ -373,6 +473,10 @@ export async function duplicateProgram(domain: string, programId: string) {
           restSeconds: ex.restSeconds,
           orderIndex: ex.orderIndex,
           notes: ex.notes,
+          section: ex.section,
+          durationMinutes: ex.durationMinutes,
+          intensity: ex.intensity,
+          cardioType: ex.cardioType,
         },
       });
     }
@@ -441,6 +545,7 @@ export async function cloneWeekTo(
           weekNumber: targetWeek,
           dayOfWeek: sw.dayOfWeek,
           name: sw.name,
+          notes: sw.notes,
         },
       });
 
@@ -566,7 +671,7 @@ export async function importTemplateProgram(domain: string, templateId: string) 
     },
   });
 
-  const exerciseMap = new Map(exercises.map((e) => [e.name, e.id]));
+  const exerciseMap = new Map(exercises.map((e) => [e.name, { id: e.id, category: e.category }]));
 
   // Programı oluştur
   const program = await prisma.program.create({
@@ -594,17 +699,20 @@ export async function importTemplateProgram(domain: string, templateId: string) 
       // Egzersizleri ekle
       for (let i = 0; i < workout.exercises.length; i++) {
         const ex = workout.exercises[i];
-        const exerciseId = exerciseMap.get(ex.exerciseName);
+        const match = exerciseMap.get(ex.exerciseName);
 
-        if (exerciseId) {
+        if (match) {
           await prisma.workoutExercise.create({
             data: {
               workoutId: createdWorkout.id,
-              exerciseId,
+              exerciseId: match.id,
               sets: ex.sets,
               reps: ex.reps,
               restSeconds: ex.restSeconds,
               orderIndex: i + 1,
+              // Şablonlarda bölüm bilgisi yok; egzersizin kategorisinden çıkarılır
+              // (ör. "Plank" → Karın bölümüne düşer)
+              section: suggestSection(match.category),
             },
           });
         }
@@ -621,17 +729,23 @@ export async function importTemplateProgram(domain: string, templateId: string) 
 export interface ImportProgramData {
   name: string;
   description?: string;
+  coachNotes?: string;
   weeks: number;
   workouts: {
     weekNumber: number;
     dayOfWeek: number;
     name: string;
+    notes?: string;
     exercises: {
       name: string;
       sets: number;
       reps: string;
       restSeconds?: number;
       notes?: string;
+      section?: string;
+      durationMinutes?: number;
+      intensity?: string;
+      cardioType?: string;
     }[];
   }[];
 }
@@ -687,14 +801,16 @@ export async function importProgramFromFile(domain: string, raw: string) {
       OR: [{ isSystem: true }, { coachId: coach.id }],
     },
   });
-  const exerciseMap = new Map(existingExercises.map((e) => [e.name, e.id]));
+  const exerciseMap = new Map(
+    existingExercises.map((e) => [e.name, { id: e.id, category: e.category }])
+  );
 
   for (const eName of allNames) {
     if (!exerciseMap.has(eName)) {
       const created = await prisma.exercise.create({
         data: { coachId: coach.id, name: eName, isSystem: false, category: "other" },
       });
-      exerciseMap.set(eName, created.id);
+      exerciseMap.set(eName, { id: created.id, category: created.category });
     }
   }
 
@@ -703,6 +819,7 @@ export async function importProgramFromFile(domain: string, raw: string) {
       coachId: coach.id,
       name: data.name.trim().slice(0, 200),
       description: data.description?.trim().slice(0, 500) || null,
+      coachNotes: data.coachNotes?.trim().slice(0, 5000) || null,
       weeks: data.weeks,
       isTemplate: true,
     },
@@ -715,22 +832,30 @@ export async function importProgramFromFile(domain: string, raw: string) {
         weekNumber: w.weekNumber,
         dayOfWeek: w.dayOfWeek,
         name: w.name.trim().slice(0, 200),
+        notes: w.notes?.trim().slice(0, 2000) || null,
       },
     });
 
     for (let i = 0; i < w.exercises.length; i++) {
       const ex = w.exercises[i];
-      const exerciseId = exerciseMap.get(ex.name.trim());
-      if (exerciseId) {
+      const match = exerciseMap.get(ex.name.trim());
+      if (match) {
+        // Dosyada bölüm belirtilmişse ona, yoksa egzersizin kategorisine güven
+        const section = isWorkoutSection(ex.section) ? ex.section : suggestSection(match.category);
+        const isCardio = section === "CARDIO";
         await prisma.workoutExercise.create({
           data: {
             workoutId: workout.id,
-            exerciseId,
-            sets: ex.sets,
-            reps: String(ex.reps),
-            restSeconds: ex.restSeconds || 60,
+            exerciseId: match.id,
+            sets: isCardio ? 1 : ex.sets,
+            reps: isCardio ? "-" : String(ex.reps),
+            restSeconds: isCardio ? null : (ex.restSeconds || 60),
             notes: ex.notes?.trim().slice(0, 200) || null,
             orderIndex: i + 1,
+            section,
+            durationMinutes: isCardio ? (ex.durationMinutes ?? 20) : null,
+            intensity: isCardio ? (ex.intensity ?? "MEDIUM") : null,
+            cardioType: isCardio ? (ex.cardioType ?? "LISS") : null,
           },
         });
       }
