@@ -57,6 +57,27 @@ function AccordionSection({
   );
 }
 
+/** Bölüm içi boş durum — bölümün var olduğunu ve ne zaman dolacağını anlatır. */
+function EmptyState({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="py-6 text-center">
+      <p className="text-sm font-medium" style={{ color: "var(--dashboard-main-text)" }}>{title}</p>
+      <p className="mx-auto mt-1.5 max-w-lg text-xs leading-relaxed" style={{ color: "var(--dashboard-main-text-muted)" }}>
+        {description}
+      </p>
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
 export default async function StudentDetailPage({
   params,
 }: {
@@ -301,6 +322,14 @@ export default async function StudentDetailPage({
       photos,
     };
   });
+
+  // Check-in hatırlatması için WhatsApp linki (öğrencinin telefonu kayıtlıysa)
+  const studentPhoneDigits = student.phone?.replace(/\D/g, "") || "";
+  const whatsappReminderUrl = studentPhoneDigits
+    ? `https://wa.me/${studentPhoneDigits}?text=${encodeURIComponent(
+      `Merhaba ${student.name}, bu haftanın check-in'ini panelinden gönderebilir misin? Ölçümlerini ve fotoğraflarını görünce programını buna göre güncelleyeceğim.`
+    )}`
+    : null;
 
   // Grafik verileri için eski format (sadece ölçümler)
   const checkInsData = weekCheckIns.map((c) => ({
@@ -570,16 +599,48 @@ export default async function StudentDetailPage({
         <MealPhotosSection domain={domain} studentId={studentId} />
       </Suspense>
 
-      {/* Check-in & Fotoğraflar (haftalık görünüm) — #10: aktiviteyle birlikte default açık */}
-      {weekCheckIns.length > 0 && (
-        <AccordionSection title="Check-in & Fotoğraflar" count={weekCheckIns.length} defaultOpen>
+      {/* Check-in & Fotoğraflar (haftalık görünüm) — hiç check-in yokken de görünür kalır
+          ki koç bölümün var olduğunu görsün (koçlardan gelen geri bildirim) */}
+      <AccordionSection
+        title="Check-in & Fotoğraflar"
+        count={weekCheckIns.length || undefined}
+        defaultOpen={weekCheckIns.length > 0}
+      >
+        {weekCheckIns.length > 0 ? (
           <CheckInWeekView domain={domain} weeks={weekCheckIns} />
-        </AccordionSection>
-      )}
+        ) : (
+          <EmptyState
+            title="Henüz check-in gönderilmedi"
+            description="Öğrenciler kendi panellerinden haftalık ölçüm (kilo, yağ oranı, çevre ölçüleri) ve fotoğraf gönderir. İlk check-in geldiğinde burada hafta hafta listelenir; ölçümleri düzeltebilir ve her haftaya geri bildirim yazabilirsin."
+            action={
+              whatsappReminderUrl ? (
+                <a
+                  href={whatsappReminderUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-semibold"
+                  style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
+                >
+                  WhatsApp&apos;tan hatırlat
+                </a>
+              ) : null
+            }
+          />
+        )}
+      </AccordionSection>
 
-      {/* İlerleme Grafikleri */}
-      {checkInsData.length >= 2 && (
-        <AccordionSection title="İlerleme Grafikleri">
+      {/* İlerleme Grafikleri — 2 check-in'den önce de görünür (boş durum açıklamasıyla) */}
+      <AccordionSection title="İlerleme Grafikleri">
+        {checkInsData.length < 2 ? (
+          <EmptyState
+            title="Grafikler için en az 2 check-in gerekli"
+            description={
+              checkInsData.length === 0
+                ? "İlk iki check-in geldiğinde kilo değişimi ve vücut ölçüleri grafikleri burada otomatik oluşur."
+                : "Bir check-in daha geldiğinde kilo değişimi ve vücut ölçüleri grafikleri burada otomatik oluşur."
+            }
+          />
+        ) : (
           <div className="space-y-6">
             {checkInsData.filter((c) => c.weight != null).length >= 2 && (
               <div>
@@ -610,8 +671,8 @@ export default async function StudentDetailPage({
               />
             </div>
           </div>
-        </AccordionSection>
-      )}
+        )}
+      </AccordionSection>
 
       {/* Koç Notları */}
       <AccordionSection title="Koç Notları">
