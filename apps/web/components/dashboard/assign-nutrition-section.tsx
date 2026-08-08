@@ -9,9 +9,13 @@ import {
   updateNutritionPlan,
   addMeal,
   deleteMeal,
+  updatePlanNotes,
 } from "@/app/site/[domain]/dashboard/nutrition/actions";
 import FoodSearch from "./food-search";
 import type { FoodData } from "@/lib/data/food-database";
+import { MealEditor } from "./meal-editor";
+import { foodDataToItem, toFoodItems, type FoodItem } from "@/lib/nutrition/food-item";
+import { toast } from "sonner";
 import { Plus, Trash2, Edit3 } from "lucide-react";
 
 interface NutritionPlanOption {
@@ -38,24 +42,6 @@ interface CurrentNutritionData {
   targetFat: number | null;
   coachNotes: string | null;
   meals: MealData[];
-}
-
-interface FoodItem {
-  name: string;
-  portion: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  sugar?: number;
-  fiber?: number;
-  grams?: number;
-  caloriesPer100g?: number;
-  proteinPer100g?: number;
-  carbsPer100g?: number;
-  fatPer100g?: number;
-  sugarPer100g?: number;
-  fiberPer100g?: number;
 }
 
 const inputStyle = {
@@ -92,6 +78,11 @@ export function AssignNutritionSection({
   const [editProtein, setEditProtein] = useState<number | "">("");
   const [editCarbs, setEditCarbs] = useState<number | "">("");
   const [editFat, setEditFat] = useState<number | "">("");
+
+  // Koç notu + öğün düzenleme
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesText, setNotesText] = useState("");
+  const [editingMealId, setEditingMealId] = useState<string | null>(null);
 
   // Add meal state
   const [addingMeal, setAddingMeal] = useState(false);
@@ -164,27 +155,7 @@ export function AssignNutritionSection({
   };
 
   const handleFoodSelect = (food: FoodData) => {
-    const ratio = food.portionGrams / 100;
-    setFoods([
-      ...foods,
-      {
-        name: food.name,
-        portion: `${food.portion} (${food.portionGrams}g)`,
-        grams: food.portionGrams,
-        calories: Math.round(food.calories * ratio),
-        protein: Math.round(food.protein * ratio * 10) / 10,
-        carbs: Math.round(food.carbs * ratio * 10) / 10,
-        fat: Math.round(food.fat * ratio * 10) / 10,
-        sugar: Math.round(food.sugar * ratio * 10) / 10,
-        fiber: Math.round(food.fiber * ratio * 10) / 10,
-        caloriesPer100g: food.calories,
-        proteinPer100g: food.protein,
-        carbsPer100g: food.carbs,
-        fatPer100g: food.fat,
-        sugarPer100g: food.sugar,
-        fiberPer100g: food.fiber,
-      },
-    ]);
+    setFoods([...foods, foodDataToItem(food)]);
   };
 
   const handleAddMeal = async () => {
@@ -218,6 +189,20 @@ export function AssignNutritionSection({
     }).then(() => {
       router.refresh();
     });
+  };
+
+  const handleSaveNotes = async () => {
+    if (!localCurrentNutrition) return;
+    setLoading(true);
+    const result = await updatePlanNotes(domain, localCurrentNutrition.id, notesText);
+    setLoading(false);
+    if (!result.success) {
+      toast.error(result.error || "Not kaydedilemedi");
+      return;
+    }
+    setLocalCurrentNutrition((prev) => prev ? { ...prev, coachNotes: notesText.trim() || null } : prev);
+    setEditingNotes(false);
+    router.refresh();
   };
 
   const handleDeleteMeal = async (mealId: string) => {
@@ -309,8 +294,32 @@ export function AssignNutritionSection({
               Ogunler ({localCurrentNutrition.meals.length})
             </p>
             {localCurrentNutrition.meals.map((meal) => {
-              const mealFoods = Array.isArray(meal.foods) ? (meal.foods as FoodItem[]) : [];
+              const mealFoods = toFoodItems(meal.foods);
               const totalCal = mealFoods.reduce((sum, f) => sum + (f.calories || 0), 0);
+
+              if (editingMealId === meal.id) {
+                return (
+                  <div key={meal.id} className="p-2 rounded"
+                    style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 3%, var(--dashboard-card-bg))" }}>
+                    <MealEditor
+                      domain={domain}
+                      mealId={meal.id}
+                      initial={{ name: meal.name, time: meal.time || "", foods: mealFoods }}
+                      onSaved={(updated) => {
+                        setLocalCurrentNutrition((prev) => prev ? {
+                          ...prev,
+                          meals: prev.meals.map((m) => m.id !== meal.id ? m : {
+                            ...m, name: updated.name, time: updated.time || null, foods: updated.foods,
+                          }),
+                        } : prev);
+                        setEditingMealId(null);
+                      }}
+                      onCancel={() => setEditingMealId(null)}
+                    />
+                  </div>
+                );
+              }
+
               return (
                 <div key={meal.id} className="flex items-center justify-between py-1.5 px-2 rounded text-sm"
                   style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 3%, var(--dashboard-card-bg))" }}>
@@ -321,15 +330,65 @@ export function AssignNutritionSection({
                       {totalCal} kcal • {mealFoods.length} besin
                     </span>
                   </div>
-                  <button onClick={() => handleDeleteMeal(meal.id)}
-                    className="text-[10px] text-red-400/50 hover:text-red-400">
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setEditingMealId(meal.id)}
+                      className="text-[10px]" style={{ color: "var(--dashboard-accent)" }}>
+                      Duzenle
+                    </button>
+                    <button onClick={() => handleDeleteMeal(meal.id)}
+                      className="text-[10px] text-red-400/50 hover:text-red-400">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
+
+        {/* Koç Notları — öğrencinin beslenme sayfasında görünür */}
+        <div className="pt-2" style={{ borderTop: "1px solid var(--dashboard-card-border)" }}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium" style={{ color: "var(--dashboard-main-text-muted)" }}>Koc Notlari</p>
+            {!editingNotes && (
+              <button
+                onClick={() => { setNotesText(localCurrentNutrition.coachNotes || ""); setEditingNotes(true); }}
+                className="text-[10px]"
+                style={{ color: "var(--dashboard-accent)" }}
+              >
+                {localCurrentNutrition.coachNotes ? "Duzenle" : "+ Not Ekle"}
+              </button>
+            )}
+          </div>
+          {editingNotes ? (
+            <div className="mt-1.5 space-y-2">
+              <textarea
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+                rows={3}
+                placeholder="Ogrenciye gosterilecek notlar (su tuketimi, ogun saatleri, serbest gun...)"
+                className="w-full rounded-md px-3 py-2 text-sm"
+                style={{ ...inputStyle, border: "1px solid var(--dashboard-card-border)" }}
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleSaveNotes} disabled={loading}
+                  style={{ backgroundColor: "var(--dashboard-accent)", color: "var(--dashboard-accent-text)" }}
+                  className="font-semibold text-xs h-8 hover:opacity-90">
+                  Kaydet
+                </Button>
+                <Button onClick={() => setEditingNotes(false)}
+                  className="border rounded-md px-3 text-xs h-8"
+                  style={{ backgroundColor: "transparent", borderColor: "var(--dashboard-card-border)", color: "var(--dashboard-main-text)" }}>
+                  Iptal
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-1 whitespace-pre-wrap text-xs" style={{ color: "var(--dashboard-main-text)", opacity: localCurrentNutrition.coachNotes ? 0.85 : 0.5 }}>
+              {localCurrentNutrition.coachNotes || "Henuz not eklenmedi"}
+            </p>
+          )}
+        </div>
 
         {/* Öğün Ekle */}
         {addingMeal ? (

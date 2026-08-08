@@ -264,6 +264,9 @@ export async function assignNutritionPlanToStudents(
             name: m.name,
             time: m.time,
             foods: m.foods as object,
+            // Koçun tanımladığı alternatif öğünler klonda atlanıyordu; öğrenci
+            // planı atandıktan sonra alternatiflerini göremiyordu
+            alternatives: m.alternatives ?? undefined,
             orderIndex: m.orderIndex,
           })),
         },

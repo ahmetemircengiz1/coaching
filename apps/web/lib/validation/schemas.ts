@@ -202,6 +202,16 @@ const foodSchema = z.object({
   fat: z.number().min(0).max(1000),
   sugar: z.number().min(0).max(1000).optional(),
   fiber: z.number().min(0).max(1000).optional(),
+  // Gramaj + 100g başına değerler: koç öğünü sonradan düzenlerken gramajı
+  // değiştirdiğinde makrolar bunlardan yeniden hesaplanır. Kaydedilmezse
+  // öğün bir kez kaydedildikten sonra gramaj düzenlenemez hale gelir.
+  grams: z.number().min(0).max(10000).optional(),
+  caloriesPer100g: z.number().min(0).max(10000).optional(),
+  proteinPer100g: z.number().min(0).max(1000).optional(),
+  carbsPer100g: z.number().min(0).max(1000).optional(),
+  fatPer100g: z.number().min(0).max(1000).optional(),
+  sugarPer100g: z.number().min(0).max(1000).optional(),
+  fiberPer100g: z.number().min(0).max(1000).optional(),
 });
 
 const supplementSchema = z.object({

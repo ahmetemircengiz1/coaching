@@ -24,26 +24,10 @@ import {
 import { ImportDialog, NUTRITION_FORMAT_EXAMPLE } from "@/components/dashboard/import-dialog";
 import { ConfirmDialog, useConfirmDialog } from "@/components/dashboard/confirm-dialog";
 import { AssignToStudentsModal } from "@/components/dashboard/assign-to-students-modal";
+import { MealEditor } from "@/components/dashboard/meal-editor";
+import { getMealTotals, updateFoodGrams, type FoodItem } from "@/lib/nutrition/food-item";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, ChevronDown, ChevronRight, Check, Pencil } from "lucide-react";
-
-interface FoodItem {
-  name: string;
-  portion: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  sugar: number;
-  fiber: number;
-  grams?: number;
-  caloriesPer100g?: number;
-  proteinPer100g?: number;
-  carbsPer100g?: number;
-  fatPer100g?: number;
-  sugarPer100g?: number;
-  fiberPer100g?: number;
-}
 
 interface SupplementItem {
   name: string;
@@ -133,31 +117,6 @@ function CollapsibleSection({
   );
 }
 
-// ─── Helper: update food grams ───
-function updateFoodGrams(foods: FoodItem[], idx: number, newGrams: number): FoodItem[] {
-  return foods.map((f, i) => {
-    if (i !== idx) return f;
-    const per100Cal = f.caloriesPer100g ?? 0;
-    const per100P = f.proteinPer100g ?? 0;
-    const per100C = f.carbsPer100g ?? 0;
-    const per100F = f.fatPer100g ?? 0;
-    const per100S = f.sugarPer100g ?? 0;
-    const per100Fib = f.fiberPer100g ?? 0;
-    const ratio = newGrams / 100;
-    return {
-      ...f,
-      grams: newGrams,
-      portion: `${newGrams}g`,
-      calories: Math.round(per100Cal * ratio),
-      protein: Math.round(per100P * ratio * 10) / 10,
-      carbs: Math.round(per100C * ratio * 10) / 10,
-      fat: Math.round(per100F * ratio * 10) / 10,
-      sugar: Math.round(per100S * ratio * 10) / 10,
-      fiber: Math.round(per100Fib * ratio * 10) / 10,
-    };
-  });
-}
-
 export default function NutritionPageClient({
   domain,
   plans,
@@ -241,6 +200,9 @@ export default function NutritionPageClient({
     }
   };
   const [notesText, setNotesText] = useState("");
+  // Kaydedilmiş öğünün / sihirbazdaki öğünün düzenleme modu
+  const [editingMealId, setEditingMealId] = useState<string | null>(null);
+  const [editingWizardMeal, setEditingWizardMeal] = useState<number | null>(null);
   const [addingSupTo, setAddingSupTo] = useState<string | null>(null);
   const [existingSupSearch, setExistingSupSearch] = useState("");
   const [existingSupCategory, setExistingSupCategory] = useState("");
@@ -252,19 +214,6 @@ export default function NutritionPageClient({
     color: "var(--dashboard-main-text)",
   };
   const selectStyle = "w-full rounded-md px-3 py-2 text-sm";
-
-  const getMealTotals = (mealFoods: FoodItem[]) => {
-    return mealFoods.reduce(
-      (acc, f) => ({
-        calories: acc.calories + (f.calories || 0),
-        protein: acc.protein + (f.protein || 0),
-        carbs: acc.carbs + (f.carbs || 0),
-        fat: acc.fat + (f.fat || 0),
-        sugar: acc.sugar + (f.sugar || 0),
-      }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 }
-    );
-  };
 
   const getAllMealsTotals = () => {
     const allFoods = wizardMeals.flatMap((m) => m.foods);
@@ -722,6 +671,23 @@ export default function NutritionPageClient({
               {/* Added meals */}
               {wizardMeals.map((meal, idx) => {
                 const mTotals = getMealTotals(meal.foods);
+
+                if (editingWizardMeal === idx) {
+                  return (
+                    <div key={idx} className="p-3 rounded-lg" style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 3%, var(--dashboard-card-bg))" }}>
+                      <MealEditor
+                        domain={domain}
+                        initial={meal}
+                        onSaved={(updated) => {
+                          setWizardMeals((prev) => prev.map((m, i) => (i === idx ? updated : m)));
+                          setEditingWizardMeal(null);
+                        }}
+                        onCancel={() => setEditingWizardMeal(null)}
+                      />
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={idx} className="p-3 rounded-lg" style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 3%, var(--dashboard-card-bg))" }}>
                     <div className="flex items-center justify-between mb-2">
@@ -732,10 +698,14 @@ export default function NutritionPageClient({
                           {mTotals.calories} kcal
                         </span>
                       </div>
-                      <button onClick={() => removeWizardMeal(idx)}
-                        className="text-xs text-red-400/50 hover:text-red-400 flex items-center gap-1">
-                        <Trash2 className="h-3 w-3" /> Kaldır
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => setEditingWizardMeal(idx)}
+                          className="text-xs" style={{ color: "var(--dashboard-accent)" }}>Düzenle</button>
+                        <button onClick={() => removeWizardMeal(idx)}
+                          className="text-xs text-red-400/50 hover:text-red-400 flex items-center gap-1">
+                          <Trash2 className="h-3 w-3" /> Kaldır
+                        </button>
+                      </div>
                     </div>
                     {renderFoodTable(meal.foods)}
                   </div>
@@ -1187,6 +1157,29 @@ export default function NutritionPageClient({
                     {plan.meals.map((meal) => {
                       const mealFoods = Array.isArray(meal.foods) ? (meal.foods as FoodItem[]) : [];
                       const totals = getMealTotals(mealFoods);
+
+                      if (editingMealId === meal.id) {
+                        return (
+                          <div key={meal.id} className="p-3 rounded-lg" style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 3%, var(--dashboard-card-bg))" }}>
+                            <MealEditor
+                              domain={domain}
+                              mealId={meal.id}
+                              initial={{ name: meal.name, time: meal.time || "", foods: mealFoods }}
+                              onSaved={(updated) => {
+                                setLocalPlans((prev) => prev.map((p) => p.id !== plan.id ? p : {
+                                  ...p,
+                                  meals: p.meals.map((m) => m.id !== meal.id ? m : {
+                                    ...m, name: updated.name, time: updated.time || null, foods: updated.foods,
+                                  }),
+                                }));
+                                setEditingMealId(null);
+                              }}
+                              onCancel={() => setEditingMealId(null)}
+                            />
+                          </div>
+                        );
+                      }
+
                       return (
                         <div key={meal.id} className="p-3 rounded-lg" style={{ backgroundColor: "color-mix(in srgb, var(--dashboard-accent) 3%, var(--dashboard-card-bg))" }}>
                           <div className="flex items-center justify-between mb-2">
@@ -1197,8 +1190,12 @@ export default function NutritionPageClient({
                                 {totals.calories} kcal
                               </span>
                             </div>
-                            <button onClick={() => handleDeleteMeal(plan.id, meal.id)}
-                              className="text-xs text-red-400/50 hover:text-red-400">Sil</button>
+                            <div className="flex items-center gap-3">
+                              <button onClick={() => setEditingMealId(meal.id)}
+                                className="text-xs" style={{ color: "var(--dashboard-accent)" }}>Duzenle</button>
+                              <button onClick={() => handleDeleteMeal(plan.id, meal.id)}
+                                className="text-xs text-red-400/50 hover:text-red-400">Sil</button>
+                            </div>
                           </div>
                           {mealFoods.length > 0 && (
                             <div className="overflow-x-auto">
